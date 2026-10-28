@@ -1,0 +1,2415 @@
+{
+  "info": {
+    "_postman_id": "pg-backend-api-v1",
+    "name": "HomeNest PG Management API",
+    "description": "# HomeNest PG Management API\n\nImport this file in Postman with **File → Import**. No environment file is required. Collection variables are pre-configured.\n\n## Quick Start\n1. Set `baseUrl` if the server is not on `http://localhost:5000`.\n2. Run **02 Authentication → Login** (defaults to `admin@example.com` / `Admin@123`).\n3. The test script automatically captures `accessToken`, `refreshToken`, `userId`, and `pgId` into collection variables.\n4. Protected requests automatically reuse `{{accessToken}}` as a Bearer token.\n\nDefault Seed Accounts (Password: `Admin@123456` or `Admin@123`):\n- **PG Owner (Admin)**: `admin@example.com`\n- **Resident (Tenant)**: `resident@example.com`\n- **Super Administrator**: `superadmin@example.com`\n\n## Base URL\nUse `{{baseUrl}}/api/v1/...`.\n\n## Auth & PG Scoping\n- Public routes (Health, Login, OTP, Forgot/Reset Password, Owner Registration) do not require a token.\n- Protected routes use `Authorization: Bearer <access_token>`.\n- The access token encodes `{ id, email, role, pg_id }`.\n- For all APIs (Rooms, Agreements, Residents), `pg_id` is automatically resolved from the token. Passing `pg_id` in request bodies or query params is completely optional.\n\n## Response Envelope\nEvery response adheres to the standardized contract:\n\n**Query / Read Endpoints (GET)**:\n```json\n{ \"success\": true, \"message\": \"...\", \"data\": {}, \"meta\": {} }\n```\n\n**Mutation Endpoints (POST / PUT / DELETE)**:\n```json\n{ \"success\": true, \"message\": \"...\", \"id\": 12 }\n```\n\n**Action Endpoints (Logout / Password Reset)**:\n```json\n{ \"success\": true, \"message\": \"...\" }\n```\n\n## Media & File Uploads\n- Image-related POST and PUT endpoints accept `multipart/form-data`.\n- Files are completely optional. Allowed formats: JPEG, PNG, JPG, WebP. Max size: 5MB per file.\n- Photos are stored locally in `uploads/rooms/` and `uploads/users/`. Responses dynamically return full URLs.\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string",
+      "description": "API server origin without trailing slash. Default is http://localhost:5000."
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string",
+      "description": "JWT access token. Login and auth APIs save data.access_token here. Sent as Authorization: Bearer {{accessToken}}."
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string",
+      "description": "JWT refresh token from data.refresh_token. Sent in the refresh request body. Also set in HTTP-only cookies."
+    },
+    {
+      "key": "pgId",
+      "value": "1",
+      "type": "string",
+      "description": "PG facility / branch ID. Resolved automatically from the access token."
+    },
+    {
+      "key": "roomId",
+      "value": "1",
+      "type": "string",
+      "description": "Room ID. Saved from Create Room or List Rooms response."
+    },
+    {
+      "key": "userId",
+      "value": "3",
+      "type": "string",
+      "description": "User ID. Saved from Login, Create User, or List Users."
+    },
+    {
+      "key": "agreementId",
+      "value": "1",
+      "type": "string",
+      "description": "Agreement record ID. Saved from Create Agreement response."
+    },
+    {
+      "key": "stayId",
+      "value": "1",
+      "type": "string",
+      "description": "Resident stay ID. Saved from Get My Stays response."
+    },
+    {
+      "key": "resetToken",
+      "value": "",
+      "type": "string",
+      "description": "Cryptographic password reset token extracted from the email link or forgot password response."
+    },
+    {
+      "key": "buildingId",
+      "value": "1",
+      "type": "default"
+    },
+    {
+      "key": "floorId",
+      "value": "1",
+      "type": "default"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "01 Health",
+      "description": "Public service health and system heartbeat endpoints.",
+      "item": [
+        {
+          "name": "Welcome Route",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                ""
+              ]
+            },
+            "description": "### GET /\nPublic. Root welcome heartbeat endpoint to confirm the server is running.\n\n**Response `data`**\n| Key | Type | Meaning |\n| --- | --- | --- |\n| `message` | string | Welcome message |\n| `version` | string | API version |\n| `documentation` | string | Health check URL |"
+          }
+        },
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "health"
+              ]
+            },
+            "description": "### GET /api/v1/health\nPublic. System uptime, server status, and timestamp.\n\n**Response `data`**\n| Key | Type | Meaning |\n| --- | --- | --- |\n| `status` | string | System status (`UP`) |\n| `uptime` | number | Process uptime in seconds |\n| `timestamp` | string | Current server ISO timestamp |"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Authentication",
+      "description": "User authentication, owner registration, login, OTP flows, session refresh, and token management.",
+      "item": [
+        {
+          "name": "Register PG Owner & Facility",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const data = body && body.data ? body.data : {};",
+                  "const token = data.access_token;",
+                  "if (token) pm.collectionVariables.set('accessToken', token);",
+                  "if (data.refresh_token) pm.collectionVariables.set('refreshToken', data.refresh_token);",
+                  "if (body.id) pm.collectionVariables.set('userId', String(body.id));",
+                  "if (data.pg_id) pm.collectionVariables.set('pgId', String(data.pg_id));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Sunita Mehra",
+                  "type": "text",
+                  "description": "Required. Owner full legal name (2-100 chars)."
+                },
+                {
+                  "key": "email",
+                  "value": "sunita.mehra@example.com",
+                  "type": "text",
+                  "description": "Required. Unique owner login email address."
+                },
+                {
+                  "key": "password",
+                  "value": "OwnerPassword@123",
+                  "type": "text",
+                  "description": "Required. Account password (min 6 characters)."
+                },
+                {
+                  "key": "phone",
+                  "value": "9876543220",
+                  "type": "text",
+                  "description": "Required. 10-digit Indian mobile contact number."
+                },
+                {
+                  "key": "gender",
+                  "value": "female",
+                  "type": "text",
+                  "description": "Optional. male, female, or other."
+                },
+                {
+                  "key": "address",
+                  "value": "101 Owner Enclave, Ahmedabad",
+                  "type": "text",
+                  "description": "Optional. Owner residential address."
+                },
+                {
+                  "key": "profile_photo",
+                  "type": "file",
+                  "src": [],
+                  "description": "Optional file. Owner profile photograph. JPEG, PNG, WebP (Max 5MB)."
+                },
+                {
+                  "key": "pg_name",
+                  "value": "HouseNest Sunshine PG",
+                  "type": "text",
+                  "description": "Required. Commercial name of the PG branch."
+                },
+                {
+                  "key": "pg_type",
+                  "value": "girls",
+                  "type": "text",
+                  "description": "Optional. boys, girls, coed, or other (Default: coed)."
+                },
+                {
+                  "key": "pg_phone",
+                  "value": "9876543221",
+                  "type": "text",
+                  "description": "Optional. Front desk / facility contact phone number."
+                },
+                {
+                  "key": "pg_email",
+                  "value": "sunshine@housenest.com",
+                  "type": "text",
+                  "description": "Optional. Facility contact email."
+                },
+                {
+                  "key": "pg_address",
+                  "value": "Plot 45, Near St. Xavier College",
+                  "type": "text",
+                  "description": "Required. Physical street address of PG."
+                },
+                {
+                  "key": "pg_city",
+                  "value": "Ahmedabad",
+                  "type": "text",
+                  "description": "Required. City location."
+                },
+                {
+                  "key": "pg_state",
+                  "value": "Gujarat",
+                  "type": "text",
+                  "description": "Required. State location."
+                },
+                {
+                  "key": "pg_pincode",
+                  "value": "380009",
+                  "type": "text",
+                  "description": "Required. 6-digit Indian PIN code."
+                },
+                {
+                  "key": "total_rooms",
+                  "value": "25",
+                  "type": "text",
+                  "description": "Optional. Initial room capacity count."
+                },
+                {
+                  "key": "total_beds",
+                  "value": "50",
+                  "type": "text",
+                  "description": "Optional. Initial bed capacity count."
+                },
+                {
+                  "key": "amenities",
+                  "value": "[\"Wi-Fi\",\"AC\",\"Meals\"]",
+                  "type": "text",
+                  "description": "Optional. JSON array or comma-separated string of amenities."
+                },
+                {
+                  "key": "rules",
+                  "value": "Curfew at 10:30 PM",
+                  "type": "text",
+                  "description": "Optional. Facility house rules."
+                },
+                {
+                  "key": "logo",
+                  "type": "file",
+                  "src": [],
+                  "description": "Optional file. PG branch brand logo image. JPEG, PNG, WebP (Max 5MB)."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register-pg",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register-pg"
+              ]
+            },
+            "description": "### POST /api/v1/auth/register-pg\nPublic. Atomically creates an owner account (`role: admin`) and registers their initial PG facility in a single database transaction.\nSupports `multipart/form-data` with optional owner profile photo and PG brand logo.\n\n**Body keys**\n| Key | Type | Required | Meaning |\n| --- | --- | --- | --- |\n| `name` | string | Yes | Owner full legal name (2-100 chars) |\n| `email` | string | Yes | Unique login email |\n| `password` | string | Yes | Account password (min 6 chars) |\n| `phone` | string | Yes | 10-digit Indian mobile number |\n| `gender` | string | No | `male`, `female`, or `other` |\n| `address` | string | No | Owner residential address |\n| `profile_photo` | file | No | Optional owner profile photo (JPEG, PNG, WebP) |\n| `pg_name` | string | Yes | Commercial name of the PG branch |\n| `pg_type` | string | No | `boys`, `girls`, `coed`, or `other` (Default: `coed`) |\n| `pg_phone` | string | No | Front desk phone number |\n| `pg_email` | string | No | Facility contact email |\n| `pg_address` | string | Yes | Physical street address |\n| `pg_city` | string | Yes | City location |\n| `pg_state` | string | Yes | State location |\n| `pg_pincode` | string | Yes | 6-digit Indian PIN code |\n| `total_rooms` | integer | No | Initial room capacity |\n| `total_beds` | integer | No | Initial bed capacity |\n| `amenities` | array/string | No | Available amenities (e.g. [\"WiFi\",\"AC\"]) |\n| `rules` | string | No | Facility house rules |\n| `logo` | file | No | Optional PG branch brand logo image |"
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const data = body && body.data ? body.data : {};",
+                  "const token = data.access_token;",
+                  "if (token) pm.collectionVariables.set('accessToken', token);",
+                  "if (data.refresh_token) pm.collectionVariables.set('refreshToken', data.refresh_token);",
+                  "const user = data.user;",
+                  "if (user && user.id) pm.collectionVariables.set('userId', String(user.id));",
+                  "if (user && user.pg_id) pm.collectionVariables.set('pgId', String(user.pg_id));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"Admin@123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "### POST /api/v1/auth/login\nPublic. Authenticates with email and password. Encodes `pg_id` in the JWT and sets HTTP-only security cookies.\n\n**Body keys**\n| Key | Type | Required | Meaning |\n| --- | --- | --- | --- |\n| `email` | string | Yes | Account email address |\n| `password` | string | Yes | Account password |\n\n**Response `data`**\n| Key | Type | Meaning |\n| --- | --- | --- |\n| `access_token` | string | JWT access token with encoded `pg_id` |\n| `refresh_token` | string | Long-lived refresh token |\n| `user` | object | Authenticated user profile |"
+          }
+        },
+        {
+          "name": "Send OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"9876543210\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/send-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "send-otp"
+              ]
+            },
+            "description": "### POST /api/v1/auth/send-otp\nPublic. Dispatches a 6-digit OTP to a registered mobile number. Stored in Redis with a 5-minute TTL.\n\n**Body keys**\n| Key | Type | Required | Meaning |\n| --- | --- | --- | --- |\n| `phone` | string | Yes | 10-digit Indian mobile number |"
+          }
+        },
+        {
+          "name": "Verify OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const data = body && body.data ? body.data : {};",
+                  "const token = data.access_token;",
+                  "if (token) pm.collectionVariables.set('accessToken', token);",
+                  "if (data.refresh_token) pm.collectionVariables.set('refreshToken', data.refresh_token);",
+                  "const user = data.user;",
+                  "if (user && user.id) pm.collectionVariables.set('userId', String(user.id));",
+                  "if (user && user.pg_id) pm.collectionVariables.set('pgId', String(user.pg_id));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"9876543210\",\n  \"otp\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/verify-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "verify-otp"
+              ]
+            },
+            "description": "### POST /api/v1/auth/verify-otp\nPublic. Verifies the OTP and issues access/refresh tokens with embedded `pg_id`.\n\n**Body keys**\n| Key | Type | Required | Meaning |\n| --- | --- | --- | --- |\n| `phone` | string | Yes | 10-digit Indian mobile number |\n| `otp` | string | Yes | 6-digit verification code |"
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const data = body && body.data ? body.data : {};",
+                  "if (data.reset_token) pm.collectionVariables.set('resetToken', data.reset_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/forgot-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "forgot-password"
+              ]
+            },
+            "description": "### POST /api/v1/auth/forgot-password\nPublic. Generates a 32-byte cryptographic token, saves it in Redis (15m TTL), and queues a branded email containing a redirect link to `reset-password?token={reset_token}`.\n\n**Body keys**\n| Key | Type | Required | Meaning |\n| --- | --- | --- | --- |\n| `email` | string | Yes | Registered account email address |"
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"password\": \"Jasmin@123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/reset-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "reset-password"
+              ]
+            },
+            "description": "### POST /api/v1/auth/reset-password\nPublic. Validates the reset token from Redis, hashes the new password, and invalidates the token.\n\n**Body keys**\n| Key | Type | Required | Meaning |\n| --- | --- | --- | --- |\n| `token` | string | Yes | Token from email link or collection variable |\n| `password` | string | Yes | New replacement password (min 6 chars) |"
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const data = body && body.data ? body.data : {};",
+                  "const token = data.access_token;",
+                  "if (token) pm.collectionVariables.set('accessToken', token);",
+                  "if (data.refresh_token) pm.collectionVariables.set('refreshToken', data.refresh_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "refresh"
+              ]
+            },
+            "description": "### POST /api/v1/auth/refresh\nPublic. Rotates the expired access token using the valid refresh token (from body or HTTP-only cookie).\n\n**Body keys**\n| Key | Type | Required | Meaning |\n| --- | --- | --- | --- |\n| `refresh_token` | string | Yes | Refresh token string |"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "### POST /api/v1/auth/logout\nClears session cookies and terminates the active session."
+          }
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "### GET /api/v1/auth/me\nProtected. Retrieves the currently authenticated user's profile and active stay info."
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Building Management",
+      "item": [
+        {
+          "name": "Create Building",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.id) {",
+                  "    pm.collectionVariables.set('buildingId', res.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"North Wing Block\",\n  \"description\": \"New premium student wing with high-speed internet\",\n  \"status\": \"active\",\n  \"pg_id\": \"{{pgId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/buildings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buildings"
+              ]
+            },
+            "description": "### POST /api/v1/buildings\nPrivate (Admin / Super Admin). Create a new building under a PG facility. Automatically captures `buildingId`."
+          }
+        },
+        {
+          "name": "List Buildings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/buildings?pg_id={{pgId}}&page=1&limit=10&status=&search=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buildings"
+              ],
+              "query": [
+                {
+                  "key": "pg_id",
+                  "value": "{{pgId}}",
+                  "description": "Optional. Defaults automatically from access_token.",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Optional. Page number (Default: 1)."
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Optional. Items per page (Default: 10)."
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "Optional. active or inactive."
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Optional. Search building name or description."
+                }
+              ]
+            },
+            "description": "### GET /api/v1/buildings\nPrivate. Paginated list of buildings with total floors and rooms count."
+          }
+        },
+        {
+          "name": "Get Building by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/buildings/{{buildingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buildings",
+                "{{buildingId}}"
+              ]
+            },
+            "description": "### GET /api/v1/buildings/:id\nPrivate. Retrieves building details along with its list of floors and room count."
+          }
+        },
+        {
+          "name": "Update Building",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"North Wing Tower\",\n  \"description\": \"Renovated tower with central AC and solar water heating\",\n  \"status\": \"active\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/buildings/{{buildingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buildings",
+                "{{buildingId}}"
+              ]
+            },
+            "description": "### PUT /api/v1/buildings/:id\nPrivate (Admin / Super Admin). Update building name, description, or operational status."
+          }
+        },
+        {
+          "name": "Delete Building",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/buildings/{{buildingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buildings",
+                "{{buildingId}}"
+              ]
+            },
+            "description": "### DELETE /api/v1/buildings/:id\nPrivate (Admin / Super Admin). Soft delete building. Prevented if active rooms exist."
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Floor Management",
+      "item": [
+        {
+          "name": "Create Floor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.id) {",
+                  "    pm.collectionVariables.set('floorId', res.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"building_id\": \"{{buildingId}}\",\n  \"floor_number\": 3,\n  \"name\": \"3rd Floor\",\n  \"status\": \"active\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/floors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "floors"
+              ]
+            },
+            "description": "### POST /api/v1/floors\nPrivate (Admin / Super Admin). Create a new floor under a building. Automatically captures `floorId`."
+          }
+        },
+        {
+          "name": "List Floors",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/floors?building_id={{buildingId}}&pg_id={{pgId}}&page=1&limit=10&status=&search=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "floors"
+              ],
+              "query": [
+                {
+                  "key": "building_id",
+                  "value": "{{buildingId}}",
+                  "description": "Optional. Filter floors by specific building."
+                },
+                {
+                  "key": "pg_id",
+                  "value": "{{pgId}}",
+                  "description": "Optional. Defaults automatically from access_token.",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Optional. Page number (Default: 1)."
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Optional. Records per page (Default: 10)."
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "Optional. active or inactive."
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Optional. Search floor name or building name."
+                }
+              ]
+            },
+            "description": "### GET /api/v1/floors\nPrivate. Paginated list of floors with assigned room counts."
+          }
+        },
+        {
+          "name": "Get Floor by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/floors/{{floorId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "floors",
+                "{{floorId}}"
+              ]
+            },
+            "description": "### GET /api/v1/floors/:id\nPrivate. Retrieves floor details along with its list of rooms."
+          }
+        },
+        {
+          "name": "Update Floor",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"floor_number\": 3,\n  \"name\": \"3rd Floor - Executive Suite\",\n  \"status\": \"active\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/floors/{{floorId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "floors",
+                "{{floorId}}"
+              ]
+            },
+            "description": "### PUT /api/v1/floors/:id\nPrivate (Admin / Super Admin). Update floor number, display name, or status."
+          }
+        },
+        {
+          "name": "Delete Floor",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/floors/{{floorId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "floors",
+                "{{floorId}}"
+              ]
+            },
+            "description": "### DELETE /api/v1/floors/:id\nPrivate (Admin / Super Admin). Soft delete floor. Prevented if active rooms exist on this floor."
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Room Management",
+      "description": "Room inventory, occupancy metrics, floor plan allocations, and room media uploads.",
+      "item": [
+        {
+          "name": "Room Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/rooms/stats?pg_id={{pgId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rooms",
+                "stats"
+              ],
+              "query": [
+                {
+                  "key": "pg_id",
+                  "value": "{{pgId}}",
+                  "description": "Optional. Defaults automatically from access_token.",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "### GET /api/v1/rooms/stats\nProtected. Returns KPI metrics cards: Total Rooms, Occupied, Vacant, Maintenance, and Out of Service. Automatically scoped by token's `pg_id`."
+          }
+        },
+        {
+          "name": "Get Buildings and Floors",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/rooms/buildings?pg_id={{pgId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rooms",
+                "buildings"
+              ],
+              "query": [
+                {
+                  "key": "pg_id",
+                  "value": "{{pgId}}",
+                  "description": "Optional. Defaults automatically from access_token.",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "### GET /api/v1/rooms/buildings\nProtected. Returns list of distinct room building names and their floor arrays for the PG facility."
+          }
+        },
+        {
+          "name": "Create Room",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body && body.id) pm.collectionVariables.set('roomId', String(body.id));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "room_no",
+                  "value": "A-301",
+                  "type": "text",
+                  "description": "Required. Room number / label (1-50 chars). Unique per PG."
+                },
+                {
+                  "key": "room_type",
+                  "value": "single",
+                  "type": "text",
+                  "description": "Required. Room classification: single, double, triple, deluxe, etc."
+                },
+                {
+                  "key": "building_id",
+                  "value": "{{buildingId}}",
+                  "type": "text",
+                  "description": "Optional. Foreign key referencing buildings table. Defaults automatically if omitted."
+                },
+                {
+                  "key": "floor_id",
+                  "value": "{{floorId}}",
+                  "type": "text",
+                  "description": "Optional. Foreign key referencing floors table. Defaults automatically if omitted."
+                },
+                {
+                  "key": "status",
+                  "value": "vacant",
+                  "type": "text",
+                  "description": "Optional. Operational status: vacant, occupied, maintenance, out_of_service (Default: vacant)."
+                },
+                {
+                  "key": "capacity",
+                  "value": "1",
+                  "type": "text",
+                  "description": "Optional. Maximum resident bed capacity (Default: 1)."
+                },
+                {
+                  "key": "size",
+                  "value": "14 m*2",
+                  "type": "text",
+                  "description": "Optional. Room physical dimensions (e.g. 14 m*2)."
+                },
+                {
+                  "key": "pg_id",
+                  "value": "{{pgId}}",
+                  "type": "text",
+                  "description": "Optional. Branch ID. Defaults automatically from access_token."
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": [],
+                  "description": "Optional file. Room photograph. JPEG, PNG, JPG, WebP. Max 5MB."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/rooms",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rooms"
+              ]
+            },
+            "description": "### POST /api/v1/rooms\nProtected (Admin / Super Admin). Creates a new room using `multipart/form-data`. `image` file is completely optional. If `pg_id` is omitted, it defaults from `access_token`."
+          }
+        },
+        {
+          "name": "List Rooms",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/rooms?page=1&limit=10&building_id={{buildingId}}&floor_id={{floorId}}&status=&room_type=&search=&pg_id={{pgId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rooms"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Optional. Page number (Default: 1)."
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Optional. Records per page (Default: 10)."
+                },
+                {
+                  "key": "building_id",
+                  "value": "{{buildingId}}",
+                  "description": "Optional. Filter rooms by building ID.",
+                  "disabled": true
+                },
+                {
+                  "key": "floor_id",
+                  "value": "{{floorId}}",
+                  "description": "Optional. Filter rooms by floor ID.",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "Optional. vacant, occupied, maintenance, out_of_service.",
+                  "disabled": true
+                },
+                {
+                  "key": "room_type",
+                  "value": "",
+                  "description": "Optional. Filter by room classification (e.g. single).",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Optional. Search by room number.",
+                  "disabled": true
+                },
+                {
+                  "key": "pg_id",
+                  "value": "{{pgId}}",
+                  "description": "Optional. Defaults automatically from access_token.",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "### GET /api/v1/rooms\nProtected. Paginated room inventory with joined current occupant names and dynamic room image URLs. Scoped automatically to the token's `pg_id`."
+          }
+        },
+        {
+          "name": "Get Room by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/rooms/{{roomId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rooms",
+                "{{roomId}}"
+              ]
+            },
+            "description": "### GET /api/v1/rooms/:id\nProtected. Retrieves room details, dimensions, building, floor, capacity, dynamic photo URL, and list of current active occupants."
+          }
+        },
+        {
+          "name": "Update Room",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "room_no",
+                  "value": "A-301",
+                  "type": "text",
+                  "description": "Optional. Room number / label."
+                },
+                {
+                  "key": "room_type",
+                  "value": "single",
+                  "type": "text",
+                  "description": "Optional. Room classification: single, double, triple."
+                },
+                {
+                  "key": "building_id",
+                  "value": "{{buildingId}}",
+                  "type": "text",
+                  "description": "Optional. New building ID to reassign room."
+                },
+                {
+                  "key": "floor_id",
+                  "value": "{{floorId}}",
+                  "type": "text",
+                  "description": "Optional. New floor ID to reassign room."
+                },
+                {
+                  "key": "status",
+                  "value": "maintenance",
+                  "type": "text",
+                  "description": "Optional. Set status: vacant, occupied, maintenance, out_of_service."
+                },
+                {
+                  "key": "capacity",
+                  "value": "1",
+                  "type": "text",
+                  "description": "Optional. Resident capacity."
+                },
+                {
+                  "key": "size",
+                  "value": "14 m*2",
+                  "type": "text",
+                  "description": "Optional. Room size dimensions."
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": [],
+                  "description": "Optional file. New replacement room image file. Max 5MB."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/rooms/{{roomId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rooms",
+                "{{roomId}}"
+              ]
+            },
+            "description": "### PUT /api/v1/rooms/:id\nProtected (Admin / Super Admin). Updates room information or toggles maintenance status. Supports optional image replacement via `multipart/form-data`."
+          }
+        },
+        {
+          "name": "Delete Room",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/rooms/{{roomId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rooms",
+                "{{roomId}}"
+              ]
+            },
+            "description": "### DELETE /api/v1/rooms/:id\nProtected (Admin / Super Admin). Soft-deletes a vacant room. Rejects deletion if active residents are currently assigned."
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 User Management",
+      "description": "User onboarding, tenant registration, staff administration, and resident profile photo management.",
+      "item": [
+        {
+          "name": "Create User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body && body.id) pm.collectionVariables.set('userId', String(body.id));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Kishan Patel",
+                  "type": "text",
+                  "description": "Required. Full legal name of user / resident (2-100 chars)."
+                },
+                {
+                  "key": "email",
+                  "value": "kishan.patel@example.com",
+                  "type": "text",
+                  "description": "Required. Valid unique account email address."
+                },
+                {
+                  "key": "phone",
+                  "value": "9876543250",
+                  "type": "text",
+                  "description": "Optional. 10-digit Indian mobile contact number."
+                },
+                {
+                  "key": "gender",
+                  "value": "male",
+                  "type": "text",
+                  "description": "Optional. male, female, or other."
+                },
+                {
+                  "key": "role",
+                  "value": "resident",
+                  "type": "text",
+                  "description": "Optional. resident, admin, or super_admin (Default: resident)."
+                },
+                {
+                  "key": "status",
+                  "value": "active",
+                  "type": "text",
+                  "description": "Optional. active, pending, or inactive (Default: active)."
+                },
+                {
+                  "key": "date_of_birth",
+                  "value": "1999-08-20",
+                  "type": "text",
+                  "description": "Optional. ISO Date string (YYYY-MM-DD)."
+                },
+                {
+                  "key": "nationality",
+                  "value": "Indian",
+                  "type": "text",
+                  "description": "Optional. Resident nationality (Default: Indian)."
+                },
+                {
+                  "key": "marital_status",
+                  "value": "single",
+                  "type": "text",
+                  "description": "Optional. single, married, divorced, widowed (Default: single)."
+                },
+                {
+                  "key": "occupation",
+                  "value": "Software Developer",
+                  "type": "text",
+                  "description": "Optional. Resident profession / job title."
+                },
+                {
+                  "key": "room_id",
+                  "value": "{{roomId}}",
+                  "type": "text",
+                  "description": "Optional. Room ID to atomically allocate stay upon onboarding."
+                },
+                {
+                  "key": "bed_number",
+                  "value": "Bed-1",
+                  "type": "text",
+                  "description": "Optional. Bed identifier (Default: Bed-1)."
+                },
+                {
+                  "key": "monthly_rent",
+                  "value": "8500",
+                  "type": "text",
+                  "description": "Optional. Monthly rent amount for stay."
+                },
+                {
+                  "key": "security_deposit",
+                  "value": "8500",
+                  "type": "text",
+                  "description": "Optional. Security deposit amount."
+                },
+                {
+                  "key": "check_in_date",
+                  "value": "2026-10-01",
+                  "type": "text",
+                  "description": "Optional. Stay commencement date (YYYY-MM-DD)."
+                },
+                {
+                  "key": "pg_id",
+                  "value": "{{pgId}}",
+                  "type": "text",
+                  "description": "Optional. Branch ID. Defaults automatically from access_token."
+                },
+                {
+                  "key": "profile_photo",
+                  "type": "file",
+                  "src": [],
+                  "description": "Optional file. Resident profile photograph. JPEG, PNG, JPG, WebP. Max 5MB."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users"
+              ]
+            },
+            "description": "### POST /api/v1/users\nProtected (Admin / Super Admin). Matches the **Create New Resident** screen. Automatically generates a secure random password if omitted, stores its bcrypt hash, and dispatches a branded welcome email containing login credentials (email & password) and stay/facility details to the resident. If `role: resident` and `room_id` is passed, atomically creates the active stay record in `resident_pg_stays` and sets room status to `occupied`."
+          }
+        },
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users?page=1&limit=10&role=resident&status=&search=&pg_id={{pgId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Optional. Page number (Default: 1)."
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Optional. Page size (Default: 10)."
+                },
+                {
+                  "key": "role",
+                  "value": "resident",
+                  "description": "Optional. Filter by role: resident, admin, super_admin."
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "Optional. Filter by status: active, pending, inactive.",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Optional. Search name, email, phone.",
+                  "disabled": true
+                },
+                {
+                  "key": "pg_id",
+                  "value": "{{pgId}}",
+                  "description": "Optional. Defaults automatically from access_token.",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "### GET /api/v1/users\nProtected (Admin / Super Admin). Paginated user directory. Querying `?role=resident` displays the Resident List with joined active stay and room information."
+          }
+        },
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "profile"
+              ]
+            },
+            "description": "### GET /api/v1/users/profile\nProtected. Fetches the authenticated user's profile with active stay and photo details."
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Kishan Patel",
+                  "type": "text",
+                  "description": "Required for Resident. Full legal name as per identity proof (2-100 chars)."
+                },
+                {
+                  "key": "date_of_birth",
+                  "value": "1999-08-20",
+                  "type": "text",
+                  "description": "Required for Resident. Date of birth (YYYY-MM-DD)."
+                },
+                {
+                  "key": "gender",
+                  "value": "male",
+                  "type": "text",
+                  "description": "Required for Resident. male, female, or other."
+                },
+                {
+                  "key": "phone",
+                  "value": "9876452598",
+                  "type": "text",
+                  "description": "Required for Resident. 10-digit Indian mobile contact number."
+                },
+                {
+                  "key": "email",
+                  "value": "kishan.patel@example.com",
+                  "type": "text",
+                  "description": "Required for Resident. Account email address."
+                },
+                {
+                  "key": "address_line_1",
+                  "value": "45 Green park society",
+                  "type": "text",
+                  "description": "Required for Resident. Current residential street address."
+                },
+                {
+                  "key": "city",
+                  "value": "Rajkot",
+                  "type": "text",
+                  "description": "Required for Resident. City location."
+                },
+                {
+                  "key": "state",
+                  "value": "Gujarat",
+                  "type": "text",
+                  "description": "Required for Resident. State location."
+                },
+                {
+                  "key": "pincode",
+                  "value": "465601",
+                  "type": "text",
+                  "description": "Required for Resident. 6-digit Indian PIN code."
+                },
+                {
+                  "key": "emergency_contact_name",
+                  "value": "Rupaliben Patel",
+                  "type": "text",
+                  "description": "Required for Resident. Emergency contact person full name."
+                },
+                {
+                  "key": "emergency_contact_relationship",
+                  "value": "Mother",
+                  "type": "text",
+                  "description": "Required for Resident. Relationship to emergency contact (e.g. Mother, Father, Guardian, Sibling, Spouse, Friend, Other)."
+                },
+                {
+                  "key": "emergency_contact_phone",
+                  "value": "9876452598",
+                  "type": "text",
+                  "description": "Required for Resident. 10-digit emergency contact phone number."
+                },
+                {
+                  "key": "profile_photo",
+                  "type": "file",
+                  "src": [],
+                  "description": "Required for Resident. Passport size photograph (JPEG, PNG, WebP. Max 5MB)."
+                },
+                {
+                  "key": "aadhar_card",
+                  "type": "file",
+                  "src": [],
+                  "description": "Required for Resident. Aadhar card document (PDF, JPG, PNG. Max 5MB)."
+                },
+                {
+                  "key": "address_proof",
+                  "type": "file",
+                  "src": [],
+                  "description": "Required for Resident. Address proof document (PDF, JPG, PNG. Max 5MB)."
+                },
+                {
+                  "key": "education_certificate",
+                  "type": "file",
+                  "src": [],
+                  "description": "Optional file. Previous education certificate (PDF, JPG, PNG. Max 5MB)."
+                },
+                {
+                  "key": "terms_accepted",
+                  "value": "true",
+                  "type": "text",
+                  "description": "Required for Resident. Must be true to confirm agreement to HouseNest PG terms and conditions."
+                },
+                {
+                  "key": "signature",
+                  "type": "file",
+                  "src": [],
+                  "description": "Required for Resident. Digital signature file (PNG, JPG) or base64 data URL string."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "profile"
+              ]
+            },
+            "description": "### PUT /api/v1/users/profile\nProtected (Any authenticated user). Updates the user profile.\n\n**Role-Based Validation Behavior:**\n- **Role `resident`**: Validates all onboarding data submitted together according to the UI (Personal Details, Address & Emergency Contact, Document Uploads, Agreement & Digital Signature).\n- **Role `admin` / `super_admin`**: All fields remain completely optional, allowing property owners and administrators to update individual profile fields without requiring resident-specific onboarding documents."
+          }
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "{{userId}}"
+              ]
+            },
+            "description": "### GET /api/v1/users/:id\nProtected (Any authenticated user). Retrieves comprehensive resident/user details matching the Admin Resident Profile portal:\n- **Overview**: Personal info (name, DOB, calculated age, gender, nationality, marital status, occupation)\n- **Room Information**: Room number, room type, capacity, building name, floor number/name, bed number, monthly rent, security deposit, check-in date, expected check-out, current status\n- **Contact Information**: Phone, email, emergency contact person & relationship, emergency phone, residential address, city, state, pincode, location display\n- **Documents**: URLs and filenames for Aadhar card, passport size photo, address proof, education certificate, digital signature, and terms & conditions agreement timestamp\n- **Agreements & Stays**: Complete history of tenancy agreements and stays across PG facilities."
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Kishan Patel",
+                  "type": "text",
+                  "description": "Optional. Full legal name."
+                },
+                {
+                  "key": "email",
+                  "value": "kishan.updated@example.com",
+                  "type": "text",
+                  "description": "Optional. Account email address."
+                },
+                {
+                  "key": "phone",
+                  "value": "9876543250",
+                  "type": "text",
+                  "description": "Optional. 10-digit mobile contact number."
+                },
+                {
+                  "key": "gender",
+                  "value": "male",
+                  "type": "text",
+                  "description": "Optional. male, female, other."
+                },
+                {
+                  "key": "date_of_birth",
+                  "value": "1999-08-20",
+                  "type": "text",
+                  "description": "Optional. Date of birth (YYYY-MM-DD)."
+                },
+                {
+                  "key": "address_line_1",
+                  "value": "45 Green park society",
+                  "type": "text",
+                  "description": "Optional. Residential street address."
+                },
+                {
+                  "key": "city",
+                  "value": "Rajkot",
+                  "type": "text",
+                  "description": "Optional. City location."
+                },
+                {
+                  "key": "state",
+                  "value": "Gujarat",
+                  "type": "text",
+                  "description": "Optional. State location."
+                },
+                {
+                  "key": "pincode",
+                  "value": "465601",
+                  "type": "text",
+                  "description": "Optional. 6-digit Indian PIN code."
+                },
+                {
+                  "key": "emergency_contact_name",
+                  "value": "Rupaliben Patel",
+                  "type": "text",
+                  "description": "Optional. Emergency contact person name."
+                },
+                {
+                  "key": "emergency_contact_relationship",
+                  "value": "Mother",
+                  "type": "text",
+                  "description": "Optional. Relationship to resident."
+                },
+                {
+                  "key": "emergency_contact_phone",
+                  "value": "9876452598",
+                  "type": "text",
+                  "description": "Optional. 10-digit emergency contact phone number."
+                },
+                {
+                  "key": "status",
+                  "value": "active",
+                  "type": "text",
+                  "description": "Optional. active, pending, or inactive."
+                },
+                {
+                  "key": "occupation",
+                  "value": "Senior Developer",
+                  "type": "text",
+                  "description": "Optional. Profession / Job title."
+                },
+                {
+                  "key": "nationality",
+                  "value": "Indian",
+                  "type": "text",
+                  "description": "Optional. Nationality."
+                },
+                {
+                  "key": "marital_status",
+                  "value": "single",
+                  "type": "text",
+                  "description": "Optional. Marital status."
+                },
+                {
+                  "key": "room_id",
+                  "value": "{{roomId}}",
+                  "type": "text",
+                  "description": "Optional. Reallocate resident to a different room ID."
+                },
+                {
+                  "key": "bed_number",
+                  "value": "Bed-1",
+                  "type": "text",
+                  "description": "Optional. Bed identifier."
+                },
+                {
+                  "key": "monthly_rent",
+                  "value": "9000",
+                  "type": "text",
+                  "description": "Optional. Updated monthly rent amount."
+                },
+                {
+                  "key": "security_deposit",
+                  "value": "9000",
+                  "type": "text",
+                  "description": "Optional. Updated security deposit amount."
+                },
+                {
+                  "key": "profile_photo",
+                  "type": "file",
+                  "src": [],
+                  "description": "Optional file. Updated resident profile photo (Max 5MB)."
+                },
+                {
+                  "key": "aadhar_card",
+                  "type": "file",
+                  "src": [],
+                  "description": "Optional file. Aadhar card document (PDF, JPG, PNG)."
+                },
+                {
+                  "key": "address_proof",
+                  "type": "file",
+                  "src": [],
+                  "description": "Optional file. Address proof document (PDF, JPG, PNG)."
+                },
+                {
+                  "key": "education_certificate",
+                  "type": "file",
+                  "src": [],
+                  "description": "Optional file. Education certificate document."
+                },
+                {
+                  "key": "signature",
+                  "type": "file",
+                  "src": [],
+                  "description": "Optional file or text. Digital signature."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "{{userId}}"
+              ]
+            },
+            "description": "### PUT /api/v1/users/:id\nProtected (Admin / Super Admin). Allows administrators to update any user or resident record by ID.\nSupports updating personal details, address, emergency contact, stay/room allocation, status, and document uploads via `multipart/form-data` or JSON."
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "{{userId}}"
+              ]
+            },
+            "description": "### DELETE /api/v1/users/:id\nProtected (Admin / Super Admin). Soft-deletes user account. If resident, automatically vacates their room and cascades soft deletion to stays."
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 Resident Stays",
+      "description": "Resident stay timeline across multiple PGs and check-out management.",
+      "item": [
+        {
+          "name": "Get My Stays",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/stays/my-history?page=1&limit=10&status=&pg_id=&search=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "stays",
+                "my-history"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Optional. Page number (Default: 1)."
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Optional. Records per page (Default: 10)."
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "Optional. active, completed.",
+                  "disabled": true
+                },
+                {
+                  "key": "pg_id",
+                  "value": "",
+                  "description": "Optional. Filter stays by specific PG ID.",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Optional. Search room number, PG name, city.",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "### GET /api/v1/stays/my-history\nProtected (Resident). Returns all stays in a clean paginated list with boolean `is_current_stay: true / false` on each record."
+          }
+        },
+        {
+          "name": "Get Stay by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/stays/{{stayId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "stays",
+                "{{stayId}}"
+              ]
+            },
+            "description": "### GET /api/v1/stays/:id\nProtected. Retrieves detailed stay record including PG, room, rent, deposit, and check-in timeline."
+          }
+        },
+        {
+          "name": "Vacate Stay",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"check_out_date\": \"2026-10-28\",\n  \"notes\": \"Checked out upon completion of agreement\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/stays/{{stayId}}/vacate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "stays",
+                "{{stayId}}",
+                "vacate"
+              ]
+            },
+            "description": "### PUT /api/v1/stays/:id/vacate\nProtected (Admin / Super Admin). Checks out resident from PG. Marks stay as `completed` and resets room status to `vacant` if no remaining active occupants."
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 Agreements",
+      "description": "Tenancy agreements lifecycle tracking (draft, pending, signed, expired).",
+      "item": [
+        {
+          "name": "Create Agreement",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body && body.id) pm.collectionVariables.set('agreementId', String(body.id));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resident_id\": 3,\n  \"agreement_no\": \"AGR-2026-009\",\n  \"room_id\": 3,\n  \"room_type\": \"single\",\n  \"agreement_type\": \"11_months\",\n  \"start_date\": \"2026-10-01\",\n  \"end_date\": \"2027-08-31\",\n  \"status\": \"signed\",\n  \"pg_id\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/agreements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "agreements"
+              ]
+            },
+            "description": "### POST /api/v1/agreements\nProtected (Admin / Super Admin). Matches the **Create New Agreement** portal screen. If `pg_id` is omitted, defaults automatically from `access_token`.\n\n**Body keys**\n| Key | Type | Required | Meaning |\n| --- | --- | --- | --- |\n| `resident_id` | integer | Yes | Resident user account ID |\n| `agreement_no` | string | Yes | Unique agreement reference number |\n| `room_id` | integer | No | Physical room ID |\n| `room_type` | string | No | Single, double, etc. Auto-resolved from room if omitted |\n| `agreement_type` | string | No | Tenancy duration (e.g. 11_months, monthly) |\n| `start_date` | string | No | Start date (YYYY-MM-DD) |\n| `end_date` | string | No | End date (YYYY-MM-DD) |\n| `status` | string | No | `signed`, `pending`, `draft`, `expired` (Default: draft) |\n| `pg_id` | integer | No | Defaults automatically from access_token |"
+          }
+        },
+        {
+          "name": "List Agreements",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/agreements?page=1&limit=10&status=&agreement_type=&search=&resident_id=&pg_id={{pgId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "agreements"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Optional. Page number (Default: 1)."
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Optional. Records per page (Default: 10)."
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "Optional. signed, pending, draft, expired.",
+                  "disabled": true
+                },
+                {
+                  "key": "agreement_type",
+                  "value": "",
+                  "description": "Optional. Filter by duration type.",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Optional. Search agreement number or resident name.",
+                  "disabled": true
+                },
+                {
+                  "key": "resident_id",
+                  "value": "",
+                  "description": "Optional. Filter by specific resident user ID.",
+                  "disabled": true
+                },
+                {
+                  "key": "pg_id",
+                  "value": "{{pgId}}",
+                  "description": "Optional. Defaults automatically from access_token.",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "### GET /api/v1/agreements\nProtected. Paginated agreement records directory with joined resident and room details. Scoped automatically to the token's `pg_id`."
+          }
+        },
+        {
+          "name": "Get Agreement by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/agreements/{{agreementId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "agreements",
+                "{{agreementId}}"
+              ]
+            },
+            "description": "### GET /api/v1/agreements/:id\nProtected. Retrieves agreement record with resident and room information."
+          }
+        },
+        {
+          "name": "Update Agreement",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"signed\",\n  \"agreement_type\": \"11_months\",\n  \"end_date\": \"2027-08-31\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/agreements/{{agreementId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "agreements",
+                "{{agreementId}}"
+              ]
+            },
+            "description": "### PUT /api/v1/agreements/:id\nProtected (Admin / Super Admin). Updates agreement status or tenancy duration details."
+          }
+        },
+        {
+          "name": "Delete Agreement",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/agreements/{{agreementId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "agreements",
+                "{{agreementId}}"
+              ]
+            },
+            "description": "### DELETE /api/v1/agreements/:id\nProtected (Admin / Super Admin). Soft-deletes an agreement record."
+          }
+        }
+      ]
+    }
+  ]
+}
