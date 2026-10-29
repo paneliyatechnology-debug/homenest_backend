@@ -1,4 +1,5 @@
 import db from '../config/db.js';
+import { buildFileUrl } from '../utils/url.js';
 
 /**
  * Service managing Paying Guest (PG) facilities
@@ -69,10 +70,9 @@ class PgService {
    * Find PG by ID with owner information and active resident count
    * @param {number|string} id - PG ID
    * @param {object} [trx=null] - Optional Knex transaction instance
-   * @param {string} [base_url=''] - Base URL prefix for static files
    * @returns {Promise<object|null>}
    */
-  findById = async (id, trx = null, base_url = '') => {
+  findById = async (id, trx = null) => {
     const query = trx ? db('pgs').transacting(trx) : db('pgs');
 
     const pg = await query
@@ -109,10 +109,8 @@ class PgService {
       .count('id as active_residents');
 
     pg.active_residents_count = Number(active_residents);
-    pg.logo_url = pg.logo ? `${base_url}/uploads/pgs/${pg.logo}` : null;
-    pg.owner_profile_photo_url = pg.owner_profile_photo
-      ? `${base_url}/uploads/users/${pg.owner_profile_photo}`
-      : null;
+    pg.logo_url = buildFileUrl('pgs', pg.logo);
+    pg.owner_profile_photo_url = buildFileUrl('users', pg.owner_profile_photo);
     return pg;
   };
 
@@ -121,7 +119,7 @@ class PgService {
    * @param {object} options
    * @returns {Promise<{ pgs: Array, pagination: object }>}
    */
-  findAll = async ({ owner_id = null, city = '', type = '', status = '', search = '', page = 1, limit = 10, base_url = '' }) => {
+  findAll = async ({ owner_id = null, city = '', type = '', status = '', search = '', page = 1, limit = 10 }) => {
     const offset = (page - 1) * limit;
 
     let query = db('pgs')
@@ -184,10 +182,8 @@ class PgService {
           // Keep string
         }
       }
-      pg.logo_url = pg.logo ? `${base_url}/uploads/pgs/${pg.logo}` : null;
-      pg.owner_profile_photo_url = pg.owner_profile_photo
-        ? `${base_url}/uploads/users/${pg.owner_profile_photo}`
-        : null;
+      pg.logo_url = buildFileUrl('pgs', pg.logo);
+      pg.owner_profile_photo_url = buildFileUrl('users', pg.owner_profile_photo);
     });
 
     const total_records = Number(total);

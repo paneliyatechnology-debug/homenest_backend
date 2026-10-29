@@ -1,28 +1,27 @@
 import db from '../config/db.js';
 import { AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS } from '../constants/index.js';
+import { buildFileUrl } from '../utils/url.js';
 
 /**
  * Helper to attach full image URL to room object
  * @param {Object} room - Room record
- * @param {string} [base_url=''] - Base URL prefix (e.g. 'http://localhost:5000')
  * @returns {Object} Formatted room
  */
-const formatRoom = (room, base_url = '') => {
+const formatRoom = (room) => {
   if (!room) return null;
   return {
     ...room,
-    image_url: room.image ? `${base_url}/uploads/rooms/${room.image}` : null,
+    image_url: buildFileUrl('rooms', room.image),
   };
 };
 
 /**
  * Create a new room in a PG facility (branch).
  * @param {Object} data - Room details
- * @param {string} [base_url='']
  * @returns {Promise<Object>} Created room
  */
-export const create = async (data, base_url = '') => {
+export const create = async (data) => {
   const {
     pg_id,
     room_no,
@@ -87,13 +86,13 @@ export const create = async (data, base_url = '') => {
     status,
   });
 
-  return findById(id, base_url);
+  return findById(id);
 };
 
 /**
  * Retrieve paginated list of rooms with filtering and search.
  * Dynamically joins active resident stay to get current_occupant_name.
- * @param {Object} options - Query filters, pagination, and base_url
+ * @param {Object} options - Query filters and pagination
  * @returns {Promise<{rooms: Array<Object>, pagination: Object}>}
  */
 export const findAll = async (options = {}) => {
@@ -107,7 +106,6 @@ export const findAll = async (options = {}) => {
     search,
     page = 1,
     limit = 10,
-    base_url = '',
   } = options;
 
   const current_page = Math.max(1, parseInt(page, 10) || 1);
@@ -197,7 +195,7 @@ export const findAll = async (options = {}) => {
     .limit(per_page)
     .offset(offset);
 
-  const rooms = raw_rooms.map((r) => formatRoom(r, base_url));
+  const rooms = raw_rooms.map((r) => formatRoom(r));
 
   return {
     rooms,
@@ -213,10 +211,9 @@ export const findAll = async (options = {}) => {
 /**
  * Find single room by ID with dynamic current occupant and image URL.
  * @param {number|string} id - Room primary key
- * @param {string} [base_url='']
  * @returns {Promise<Object|null>} Room details
  */
-export const findById = async (id, base_url = '') => {
+export const findById = async (id) => {
   const raw_room = await db('rooms')
     .where('rooms.id', id)
     .whereNull('rooms.deleted_at')
@@ -265,17 +262,16 @@ export const findById = async (id, base_url = '') => {
     )
     .first();
 
-  return formatRoom(raw_room, base_url);
+  return formatRoom(raw_room);
 };
 
 /**
  * Update an existing room.
  * @param {number|string} id - Room ID
  * @param {Object} data - Updated fields
- * @param {string} [base_url='']
  * @returns {Promise<Object>} Updated room
  */
-export const update = async (id, data, base_url = '') => {
+export const update = async (id, data) => {
   const room = await findById(id);
   if (!room) {
     throw new AppError('Room not found', HTTP_STATUS.NOT_FOUND);
@@ -333,7 +329,7 @@ export const update = async (id, data, base_url = '') => {
 
   await db('rooms').where({ id }).whereNull('deleted_at').update(update_payload);
 
-  return findById(id, base_url);
+  return findById(id);
 };
 
 /**

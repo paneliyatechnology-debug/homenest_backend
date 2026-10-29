@@ -3,13 +3,6 @@ import { success, successAction, AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS, ROLES } from '../constants/index.js';
 
 /**
- * Helper to get current base URL (protocol + host)
- * @param {import('express').Request} req
- * @returns {string} e.g. "http://localhost:5000"
- */
-const getBaseUrl = (req) => `${req.protocol}://${req.get('host')}`;
-
-/**
  * Controller for managing Room Inventory, Allocations, and Floor Plans.
  */
 
@@ -29,8 +22,7 @@ export const createRoom = async (req, res, next) => {
       throw new AppError('Branch (PG ID) is required. Please select a PG facility or login under a PG owner account', HTTP_STATUS.BAD_REQUEST);
     }
 
-    const base_url = getBaseUrl(req);
-    const room = await roomService.create({ ...req.body, pg_id }, base_url);
+    const room = await roomService.create({ ...req.body, pg_id });
     return successAction(res, 'Room created successfully', room.id, HTTP_STATUS.CREATED);
   } catch (err) {
     next(err);
@@ -44,7 +36,6 @@ export const getAllRooms = async (req, res, next) => {
   try {
     const is_admin = req.user.role === ROLES.ADMIN;
     const owner_id = is_admin ? req.user.id : undefined;
-    const base_url = getBaseUrl(req);
 
     const {
       status,
@@ -68,7 +59,6 @@ export const getAllRooms = async (req, res, next) => {
       search,
       page,
       limit,
-      base_url,
     });
 
     return success(res, 'Rooms fetched successfully', rooms, HTTP_STATUS.OK, pagination);
@@ -83,8 +73,7 @@ export const getAllRooms = async (req, res, next) => {
 export const getRoomById = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const base_url = getBaseUrl(req);
-    const room = await roomService.findById(id, base_url);
+    const room = await roomService.findById(id);
 
     if (!room) {
       throw new AppError('Room not found', HTTP_STATUS.NOT_FOUND);
@@ -123,8 +112,7 @@ export const updateRoom = async (req, res, next) => {
       req.body.image = req.file.filename;
     }
 
-    const base_url = getBaseUrl(req);
-    const updated_room = await roomService.update(id, req.body, base_url);
+    const updated_room = await roomService.update(id, req.body);
     return successAction(res, 'Room updated successfully', updated_room.id, HTTP_STATUS.OK);
   } catch (err) {
     next(err);

@@ -1,4 +1,5 @@
 import authService from '../services/auth.service.js';
+import userService from '../services/user.service.js';
 import { success, successMessage, successAction, AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS } from '../constants/index.js';
 import { getCookieOptions } from '../utils/jwt.js';
@@ -155,7 +156,8 @@ export const resetPassword = async (req, res, next) => {
  */
 export const me = async (req, res, next) => {
   try {
-    return success(res, 'Authenticated user fetched successfully', req.user);
+    const user = await userService.findById(req.user.id, req.pg_id);
+    return success(res, 'Authenticated user fetched successfully', user || req.user);
   } catch (err) {
     next(err);
   }

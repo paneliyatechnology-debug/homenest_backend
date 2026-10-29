@@ -168,7 +168,6 @@ A production-grade RESTful API backend engineered for the **HouseNest** PG & Hos
 | :--- | :--- | :--- | :--- |
 | `POST` | `/api/v1/users` | Onboard resident / create user with optional photo and room stay | `admin`, `super_admin` |
 | `GET` | `/api/v1/users` | List users (`?role=resident` displays Residents List with room details)| `admin`, `super_admin` |
-| `GET` | `/api/v1/users/profile` | Get current logged-in profile with stay & photo details | Private |
 | `PUT` | `/api/v1/users/profile` | Update current profile (Supports optional profile photo upload) | Private |
 | `GET` | `/api/v1/users/:id` | Get user profile by primary ID | Private |
 | `PUT` | `/api/v1/users/:id` | Update user details by ID (Supports optional profile photo) | `admin`, `super_admin` |

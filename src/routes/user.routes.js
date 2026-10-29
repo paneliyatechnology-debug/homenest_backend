@@ -42,13 +42,6 @@ router.get(
 );
 
 /**
- * @route   GET /api/v1/users/profile
- * @desc    Get current logged-in user profile
- * @access  Private (Any authenticated user)
- */
-router.get('/profile', userController.getUserProfile);
-
-/**
  * @route   PUT /api/v1/users/profile
  * @desc    Update current logged-in user profile. Supports FormData with optional 'profile_photo'.
  * @access  Private (Any authenticated user)

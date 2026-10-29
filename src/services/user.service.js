@@ -6,6 +6,23 @@ import emailService from './email.service.js';
 import { AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS, ROLES } from '../constants/index.js';
 import { deleteUserPhotoFile, deleteDocumentFile } from '../middlewares/upload.middleware.js';
+import { buildFileUrl } from '../utils/url.js';
+
+/**
+ * Helper to safely parse JSON strings
+ * @param {string|any} val
+ * @param {any} [fallback=[]]
+ * @returns {any}
+ */
+const safeJsonParse = (val, fallback = []) => {
+  if (!val) return fallback;
+  if (typeof val !== 'string') return val;
+  try {
+    return JSON.parse(val);
+  } catch {
+    return fallback;
+  }
+};
 
 /**
  * Helper to compute age from birth date
@@ -26,14 +43,12 @@ const calculateAge = (dob) => {
 };
 
 /**
- * Format user record with full profile photo URL, document URLs, and structured groups
- * matching the Resident Profile Admin UI (Personal, Room, Contact, Documents, Agreements, Stays)
+ * Format admin user profile cleanly without resident-only fields or duplicated groups
  * @param {Object} user - User record from DB
- * @param {string} [base_url=''] - Base URL prefix (e.g. 'http://localhost:5000')
- * @param {Object} [options={}] - Additional joined data (agreements, stays history)
- * @returns {Object} Formatted user object
+ * @param {Object} [options={}] - PG facility data
+ * @returns {Object} Formatted admin profile
  */
-const formatUser = (user, base_url = '', options = {}) => {
+const formatAdminUser = (user, options = {}) => {
   if (!user) return null;
 
   const age = calculateAge(user.date_of_birth);
@@ -41,41 +56,100 @@ const formatUser = (user, base_url = '', options = {}) => {
     ? (age !== null ? `${moment(user.date_of_birth).format('DD MMMM YYYY')} (${age} Years)` : moment(user.date_of_birth).format('DD MMMM YYYY'))
     : null;
 
-  const profile_photo_url = user.profile_photo
-    ? `${base_url}/uploads/users/${user.profile_photo}`
-    : null;
-  const aadhar_card_url = user.aadhar_card
-    ? `${base_url}/uploads/documents/${user.aadhar_card}`
-    : null;
-  const address_proof_url = user.address_proof
-    ? `${base_url}/uploads/documents/${user.address_proof}`
-    : null;
-  const education_certificate_url = user.education_certificate
-    ? `${base_url}/uploads/documents/${user.education_certificate}`
-    : null;
-  const signature_url = user.signature && !user.signature.startsWith('data:')
-    ? `${base_url}/uploads/documents/${user.signature}`
-    : user.signature || null;
-  const room_image_url = user.room_image
-    ? `${base_url}/uploads/rooms/${user.room_image}`
-    : null;
-  const pg_logo_url = user.pg_logo
-    ? `${base_url}/uploads/pgs/${user.pg_logo}`
-    : null;
+  const profile_photo_url = buildFileUrl('users', user.profile_photo);
+  const pg = options.pg || null;
 
   return {
-    ...user,
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    phone: user.phone || null,
+    gender: user.gender || null,
+    address: user.address || user.address_line_1 || null,
+    city: user.city || null,
+    state: user.state || null,
+    pincode: user.pincode || null,
+    date_of_birth: user.date_of_birth || null,
     age,
     dob_display,
+    nationality: user.nationality || 'Indian',
+    marital_status: user.marital_status || 'single',
+    occupation: user.occupation || null,
+    profile_photo: user.profile_photo || null,
     profile_photo_url,
-    aadhar_card_url,
-    address_proof_url,
-    education_certificate_url,
-    signature_url,
-    room_image_url,
-    pg_logo_url,
+    status: user.status || 'active',
+    role: user.role,
+    is_active: user.is_active !== undefined ? user.is_active : 1,
+    created_at: user.created_at,
+    updated_at: user.updated_at,
 
-    // Structured Card Groups matching the Admin Resident Profile UI
+    // Clean Structured PG Facility Object
+    pg: pg
+      ? {
+          id: pg.id,
+          name: pg.name,
+          type: pg.type,
+          phone: pg.phone,
+          email: pg.email,
+          address: pg.address,
+          city: pg.city,
+          state: pg.state,
+          pincode: pg.pincode,
+          total_rooms: pg.total_rooms !== undefined ? Number(pg.total_rooms) : 0,
+          total_beds: pg.total_beds !== undefined ? Number(pg.total_beds) : 0,
+          amenities: typeof pg.amenities === 'string' ? safeJsonParse(pg.amenities, []) : (pg.amenities || []),
+          rules: pg.rules || null,
+          status: pg.status || 'active',
+          logo: pg.logo || null,
+          logo_url: buildFileUrl('pgs', pg.logo),
+          active_residents_count: pg.active_residents_count !== undefined ? Number(pg.active_residents_count) : 0,
+        }
+      : null,
+  };
+};
+
+/**
+ * Format resident user record into structured domain sections
+ * Eliminates root-level duplication of room, stay, document, pg, and address columns.
+ * @param {Object} user - User record from DB
+ * @param {Object} [options={}] - Additional joined data (active_stay, agreements)
+ * @returns {Object} Formatted resident user object
+ */
+const formatResidentUser = (user, options = {}) => {
+  if (!user) return null;
+
+  const age = calculateAge(user.date_of_birth);
+  const dob_display = user.date_of_birth
+    ? (age !== null ? `${moment(user.date_of_birth).format('DD MMMM YYYY')} (${age} Years)` : moment(user.date_of_birth).format('DD MMMM YYYY'))
+    : null;
+
+  const profile_photo_url = buildFileUrl('users', user.profile_photo);
+  const aadhar_card_url = buildFileUrl('documents', user.aadhar_card);
+  const address_proof_url = buildFileUrl('documents', user.address_proof);
+  const education_certificate_url = buildFileUrl('documents', user.education_certificate);
+  const signature_url = user.signature && !user.signature.startsWith('data:')
+    ? buildFileUrl('documents', user.signature)
+    : user.signature || null;
+
+  const stay = options.active_stay || (user.room_id ? user : null);
+  const room_image_url = stay ? buildFileUrl('rooms', stay.room_image) : null;
+
+  return {
+    id: user.id,
+    name: user.name || null,
+    email: user.email || null,
+    phone: user.phone || null,
+    gender: user.gender || null,
+    profile_photo: user.profile_photo || null,
+    profile_photo_url,
+    status: user.status || 'active',
+    role: user.role || ROLES.RESIDENT,
+    is_active: user.is_active !== undefined ? user.is_active : 1,
+    created_at: user.created_at || null,
+    updated_at: user.updated_at || null,
+    deleted_at: user.deleted_at || null,
+
+    // Personal details section
     personal_info: {
       name: user.name || null,
       date_of_birth: user.date_of_birth || null,
@@ -87,51 +161,77 @@ const formatUser = (user, base_url = '', options = {}) => {
       occupation: user.occupation || null,
     },
 
-    room_info: {
-      room_id: user.room_id || null,
-      room_no: user.room_no || null,
-      room_type: user.room_type || null,
-      room_capacity: user.room_capacity || null,
-      room_size: user.room_size || null,
-      building_id: user.building_id || null,
-      building_name: user.building_name || null,
-      floor_id: user.floor_id || null,
-      floor_number: user.floor_number !== undefined ? user.floor_number : null,
-      floor_name: user.floor_name || null,
-      bed_number: user.bed_number || null,
-      monthly_rent: user.monthly_rent !== undefined && user.monthly_rent !== null ? Number(user.monthly_rent) : null,
-      security_deposit: user.security_deposit !== undefined && user.security_deposit !== null ? Number(user.security_deposit) : null,
-      check_in_date: user.check_in_date || null,
-      check_out_date: user.check_out_date || null,
-      current_status: user.stay_status || user.status || 'active',
-      stay_notes: user.stay_notes || null,
-      room_image_url,
-      pg_id: user.pg_id || null,
-      pg_name: user.pg_name || user.branch_name || null,
-    },
-
+    // Contact & Emergency contact details section
     contact_info: {
       phone: user.phone || null,
       email: user.email || null,
+      address: user.address || user.address_line_1 || null,
+      address_line_1: user.address_line_1 || user.address || null,
+      city: user.city || null,
+      state: user.state || null,
+      pincode: user.pincode || null,
+      location_display: [user.city, user.state].filter(Boolean).join(', ') || null,
       emergency_contact_name: user.emergency_contact_name || null,
       emergency_contact_relationship: user.emergency_contact_relationship || null,
       emergency_contact_phone: user.emergency_contact_phone || null,
       emergency_contact_display: user.emergency_contact_name
         ? `${user.emergency_contact_name}${user.emergency_contact_relationship ? ` (${user.emergency_contact_relationship})` : ''}`
         : null,
-      address_line_1: user.address_line_1 || user.address || null,
-      address: user.address || user.address_line_1 || null,
-      city: user.city || null,
-      state: user.state || null,
-      pincode: user.pincode || null,
-      location_display: [user.city, user.state].filter(Boolean).join(', ') || null,
     },
 
+    // Current room & stay allocation section
+    room_info: stay
+      ? {
+          room_id: stay.room_id || null,
+          room_no: stay.room_no || null,
+          room_type: stay.room_type || null,
+          room_capacity: stay.room_capacity || null,
+          room_size: stay.room_size || null,
+          room_status: stay.room_status || null,
+          room_image_url,
+          building_id: stay.building_id || null,
+          building_name: stay.building_name || null,
+          floor_id: stay.floor_id || null,
+          floor_number: stay.floor_number !== undefined && stay.floor_number !== null ? Number(stay.floor_number) : null,
+          floor_name: stay.floor_name || null,
+          bed_number: stay.bed_number || null,
+          monthly_rent: stay.monthly_rent !== undefined && stay.monthly_rent !== null ? Number(stay.monthly_rent) : null,
+          security_deposit: stay.security_deposit !== undefined && stay.security_deposit !== null ? Number(stay.security_deposit) : null,
+          check_in_date: stay.check_in_date || null,
+          check_out_date: stay.check_out_date || null,
+          current_status: stay.stay_status || stay.status || 'active',
+          stay_notes: stay.stay_notes || stay.notes || null,
+          pg_id: stay.pg_id || null,
+          pg_name: stay.pg_name || null,
+        }
+      : {
+          room_id: null,
+          room_no: null,
+          room_type: null,
+          room_capacity: null,
+          room_size: null,
+          room_status: null,
+          room_image_url: null,
+          building_id: null,
+          building_name: null,
+          floor_id: null,
+          floor_number: null,
+          floor_name: null,
+          bed_number: null,
+          monthly_rent: null,
+          security_deposit: null,
+          check_in_date: null,
+          check_out_date: null,
+          current_status: 'active',
+          stay_notes: null,
+          pg_id: null,
+          pg_name: null,
+        },
+
+    // Uploaded documents & signature section
     documents: {
       aadhar_card: user.aadhar_card || null,
       aadhar_card_url,
-      passport_photo: user.profile_photo || null,
-      profile_photo_url,
       address_proof: user.address_proof || null,
       address_proof_url,
       education_certificate: user.education_certificate || null,
@@ -143,50 +243,66 @@ const formatUser = (user, base_url = '', options = {}) => {
     },
 
     agreements: options.agreements || [],
-    stays: options.stays || [],
   };
 };
 
-/**
- * Service managing user entity records (Admin, Resident, Super Admin).
- */
+const formatUserListItem = (user) => {
+  if (!user) return null;
+
+  return {
+    id: user.id,
+    name: user.name || null,
+    email: user.email || null,
+    phone: user.phone || null,
+    gender: user.gender || null,
+    status: user.status || 'active',
+    profile_photo_url: buildFileUrl('users', user.profile_photo),
+    room_no: user.room_no || null,
+    building_name: user.building_name || null,
+    floor_name: user.floor_name || null,
+    room_id: user.room_id ? Number(user.room_id) : null,
+    floor_id: user.floor_id ? Number(user.floor_id) : null,
+    floor_number: user.floor_number !== undefined && user.floor_number !== null ? Number(user.floor_number) : null,
+    bed_number: user.bed_number || null,
+    created_at: user.created_at || null,
+    updated_at: user.updated_at || null,
+    deleted_at: user.deleted_at || null,
+    role: user.role || ROLES.RESIDENT,
+    building_id: user.building_id ? Number(user.building_id) : null,
+  };
+};
+
+
 class UserService {
   /**
    * Safe fields to select when querying users
    */
-  static selectFields = [
+  /**
+   * Fields to select for paginated users list (/api/v1/users)
+   */
+  static listSelectFields = [
     'users.id',
     'users.name',
     'users.email',
     'users.phone',
     'users.gender',
-    'users.address',
-    'users.address_line_1',
-    'users.city',
-    'users.state',
-    'users.pincode',
-    'users.emergency_contact_name',
-    'users.emergency_contact_relationship',
-    'users.emergency_contact_phone',
-    'users.date_of_birth',
-    'users.nationality',
-    'users.marital_status',
-    'users.occupation',
-    'users.profile_photo',
-    'users.aadhar_card',
-    'users.address_proof',
-    'users.education_certificate',
-    'users.terms_accepted',
-    'users.terms_accepted_at',
-    'users.signature',
     'users.status',
     'users.role',
-    'users.is_active',
+    'users.profile_photo',
     'users.created_at',
     'users.updated_at',
     'users.deleted_at',
+    'resident_pg_stays.room_id',
+    'rooms.room_no',
+    'rooms.building_id',
+    'buildings.name as building_name',
+    'rooms.floor_id',
+    'floors.floor_number',
+    'floors.name as floor_name',
+    'resident_pg_stays.bed_number',
   ];
 
+  
   /**
    * Find user by email address
    * @param {string} email
@@ -216,120 +332,89 @@ class UserService {
   /**
    * Find user by primary ID with active stay/room information if resident
    * @param {number|string} id
-   * @param {string} [base_url='']
-   * @returns {Promise<Object|null>}
+     * @returns {Promise<Object|null>}
    */
-  findById = async (id, base_url = '') => {
+  findById = async (id, requested_pg_id = null) => {
     const raw_user = await db('users')
       .where('users.id', id)
       .whereNull('users.deleted_at')
-      .leftJoin('resident_pg_stays', (join) => {
-        join
-          .on('users.id', '=', 'resident_pg_stays.resident_id')
-          .andOn('resident_pg_stays.status', '=', db.raw('?', ['active']))
-          .andOnNull('resident_pg_stays.deleted_at');
-      })
-      .leftJoin('pgs', (join) => {
-        join
-          .on('resident_pg_stays.pg_id', '=', 'pgs.id')
-          .andOnNull('pgs.deleted_at');
-      })
-      .leftJoin('rooms', (join) => {
-        join
-          .on('resident_pg_stays.room_id', '=', 'rooms.id')
-          .andOnNull('rooms.deleted_at');
-      })
-      .leftJoin('buildings', (join) => {
-        join
-          .on('rooms.building_id', '=', 'buildings.id')
-          .andOnNull('buildings.deleted_at');
-      })
-      .leftJoin('floors', (join) => {
-        join
-          .on('rooms.floor_id', '=', 'floors.id')
-          .andOnNull('floors.deleted_at');
-      })
-      .select(
-        ...UserService.selectFields,
-        'resident_pg_stays.id as current_stay_id',
-        'resident_pg_stays.pg_id',
-        'pgs.name as branch_name',
-        'pgs.name as pg_name',
-        'pgs.type as pg_type',
-        'pgs.phone as pg_phone',
-        'pgs.email as pg_email',
-        'pgs.address as pg_address',
-        'pgs.city as pg_city',
-        'pgs.state as pg_state',
-        'pgs.pincode as pg_pincode',
-        'pgs.logo as pg_logo',
-        'resident_pg_stays.room_id',
-        'rooms.room_no',
-        'rooms.room_type',
-        'rooms.capacity as room_capacity',
-        'rooms.size as room_size',
-        'rooms.image as room_image',
-        'rooms.status as room_status',
-        'rooms.building_id',
-        'buildings.name as building_name',
-        'rooms.floor_id',
-        'floors.floor_number',
-        'floors.name as floor_name',
-        'resident_pg_stays.bed_number',
-        'resident_pg_stays.monthly_rent',
-        'resident_pg_stays.security_deposit',
-        'resident_pg_stays.check_in_date',
-        'resident_pg_stays.check_out_date',
-        'resident_pg_stays.status as stay_status',
-        'resident_pg_stays.notes as stay_notes'
-      )
       .first();
 
     if (!raw_user) return null;
 
-    // Fetch related records: agreements and stays history
-    const [agreements, stays] = await Promise.all([
+    if (raw_user.role === ROLES.ADMIN || raw_user.role === ROLES.SUPER_ADMIN) {
+      const owned_pgs = await db('pgs')
+        .where('pgs.owner_id', id)
+        .whereNull('pgs.deleted_at')
+        .orderBy('pgs.id', 'asc');
+
+      let primary_pg = null;
+      if (requested_pg_id) {
+        primary_pg = owned_pgs.find((p) => p.id === Number(requested_pg_id)) || owned_pgs[0] || null;
+      } else {
+        primary_pg = owned_pgs[0] || null;
+      }
+
+      if (primary_pg) {
+        const [{ active_residents }] = await db('resident_pg_stays')
+          .where({ pg_id: primary_pg.id, status: 'active' })
+          .whereNull('deleted_at')
+          .count('id as active_residents');
+        primary_pg.active_residents_count = Number(active_residents) || 0;
+      }
+
+      return formatAdminUser(raw_user, { pg: primary_pg });
+    }
+
+    // Role is resident: fetch active stay details and agreements in parallel
+    const [active_stay, agreements] = await Promise.all([
+      db('resident_pg_stays')
+        .where({ 'resident_pg_stays.resident_id': id, 'resident_pg_stays.status': 'active' })
+        .whereNull('resident_pg_stays.deleted_at')
+        .leftJoin('pgs', (join) => join.on('resident_pg_stays.pg_id', '=', 'pgs.id').andOnNull('pgs.deleted_at'))
+        .leftJoin('rooms', (join) => join.on('resident_pg_stays.room_id', '=', 'rooms.id').andOnNull('rooms.deleted_at'))
+        .leftJoin('buildings', (join) => join.on('rooms.building_id', '=', 'buildings.id').andOnNull('buildings.deleted_at'))
+        .leftJoin('floors', (join) => join.on('rooms.floor_id', '=', 'floors.id').andOnNull('floors.deleted_at'))
+        .select(
+          'resident_pg_stays.id as stay_id',
+          'resident_pg_stays.pg_id',
+          'pgs.name as pg_name',
+          'resident_pg_stays.room_id',
+          'rooms.room_no',
+          'rooms.room_type',
+          'rooms.capacity as room_capacity',
+          'rooms.size as room_size',
+          'rooms.image as room_image',
+          'rooms.status as room_status',
+          'rooms.building_id',
+          'buildings.name as building_name',
+          'rooms.floor_id',
+          'floors.floor_number',
+          'floors.name as floor_name',
+          'resident_pg_stays.bed_number',
+          'resident_pg_stays.monthly_rent',
+          'resident_pg_stays.security_deposit',
+          'resident_pg_stays.check_in_date',
+          'resident_pg_stays.check_out_date',
+          'resident_pg_stays.status as stay_status',
+          'resident_pg_stays.notes as stay_notes'
+        )
+        .first(),
       db('agreements')
         .where({ resident_id: id })
         .whereNull('deleted_at')
         .orderBy('id', 'desc'),
-      db('resident_pg_stays')
-        .where('resident_pg_stays.resident_id', id)
-        .whereNull('resident_pg_stays.deleted_at')
-        .leftJoin('pgs', (join) => {
-          join.on('resident_pg_stays.pg_id', '=', 'pgs.id').andOnNull('pgs.deleted_at');
-        })
-        .leftJoin('rooms', (join) => {
-          join.on('resident_pg_stays.room_id', '=', 'rooms.id').andOnNull('rooms.deleted_at');
-        })
-        .leftJoin('buildings', (join) => {
-          join.on('rooms.building_id', '=', 'buildings.id').andOnNull('buildings.deleted_at');
-        })
-        .leftJoin('floors', (join) => {
-          join.on('rooms.floor_id', '=', 'floors.id').andOnNull('floors.deleted_at');
-        })
-        .select(
-          'resident_pg_stays.*',
-          'pgs.name as pg_name',
-          'rooms.room_no',
-          'rooms.room_type',
-          'buildings.name as building_name',
-          'floors.floor_number'
-        )
-        .orderBy('resident_pg_stays.id', 'desc'),
     ]);
 
-    return formatUser(raw_user, base_url, { agreements, stays });
+    return formatResidentUser(raw_user, { active_stay, agreements });
   };
-
   /**
    * Create a new user record (Resident, Admin, Super Admin).
    * If role is resident and room assignment is provided, atomically assigns room.
    * @param {Object} user_data
-   * @param {string} [base_url='']
-   * @returns {Promise<Object>} Created user record
+     * @returns {Promise<Object>} Created user record
    */
-  create = async (user_data, base_url = '') => {
+  create = async (user_data) => {
     const {
       name,
       email,
@@ -469,7 +554,7 @@ class UserService {
       console.error('[User Service] Welcome credentials email delivery failed:', emailError.message);
     }
 
-    return await this.findById(inserted_id, base_url);
+    return await this.findById(inserted_id);
   };
 
   /**
@@ -485,7 +570,6 @@ class UserService {
     search = '',
     page = 1,
     limit = 10,
-    base_url = '',
   }) => {
     const current_page = Math.max(1, parseInt(page, 10) || 1);
     const per_page = Math.max(1, parseInt(limit, 10) || 10);
@@ -519,26 +603,7 @@ class UserService {
           .on('rooms.floor_id', '=', 'floors.id')
           .andOnNull('floors.deleted_at');
       })
-      .select(
-        ...UserService.selectFields,
-        'resident_pg_stays.id as current_stay_id',
-        'resident_pg_stays.pg_id',
-        'pgs.name as branch_name',
-        'pgs.name as pg_name',
-        'resident_pg_stays.room_id',
-        'rooms.room_no',
-        'rooms.room_type',
-        'rooms.building_id',
-        'buildings.name as building_name',
-        'rooms.floor_id',
-        'floors.floor_number',
-        'floors.name as floor_name',
-        'resident_pg_stays.bed_number',
-        'resident_pg_stays.monthly_rent',
-        'resident_pg_stays.security_deposit',
-        'resident_pg_stays.check_in_date',
-        'resident_pg_stays.check_out_date'
-      );
+      .select(...UserService.listSelectFields);
 
     let count_query = db('users')
       .whereNull('users.deleted_at')
@@ -596,7 +661,7 @@ class UserService {
     ]);
 
     const total = count_row ? parseInt(count_row.total, 10) : 0;
-    const users = raw_users.map((u) => formatUser(u, base_url));
+    const users = raw_users.map((u) => formatUserListItem(u));
 
     return {
       users,
@@ -613,10 +678,9 @@ class UserService {
    * Update user profile fields and optional profile photo
    * @param {number|string} id
    * @param {Object} update_data
-   * @param {string} [base_url='']
-   * @returns {Promise<Object>} Updated user
+     * @returns {Promise<Object>} Updated user
    */
-  update = async (id, update_data, base_url = '') => {
+  update = async (id, update_data) => {
     const existing = await this.findById(id);
     if (!existing) {
       throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
@@ -650,14 +714,17 @@ class UserService {
     if (update_data.profile_photo && existing.profile_photo && update_data.profile_photo !== existing.profile_photo) {
       deleteUserPhotoFile(existing.profile_photo);
     }
-    if (update_data.aadhar_card && existing.aadhar_card && update_data.aadhar_card !== existing.aadhar_card) {
-      deleteDocumentFile(existing.aadhar_card);
+    const prevAadhar = existing.documents?.aadhar_card || existing.aadhar_card;
+    if (update_data.aadhar_card && prevAadhar && update_data.aadhar_card !== prevAadhar) {
+      deleteDocumentFile(prevAadhar);
     }
-    if (update_data.address_proof && existing.address_proof && update_data.address_proof !== existing.address_proof) {
-      deleteDocumentFile(existing.address_proof);
+    const prevAddressProof = existing.documents?.address_proof || existing.address_proof;
+    if (update_data.address_proof && prevAddressProof && update_data.address_proof !== prevAddressProof) {
+      deleteDocumentFile(prevAddressProof);
     }
-    if (update_data.education_certificate && existing.education_certificate && update_data.education_certificate !== existing.education_certificate) {
-      deleteDocumentFile(existing.education_certificate);
+    const prevCert = existing.documents?.education_certificate || existing.education_certificate;
+    if (update_data.education_certificate && prevCert && update_data.education_certificate !== prevCert) {
+      deleteDocumentFile(prevCert);
     }
 
     const allowed_updates = {
@@ -778,7 +845,7 @@ class UserService {
       }
     }
 
-    return await this.findById(id, base_url);
+    return await this.findById(id);
   };
 
   /**
@@ -798,15 +865,16 @@ class UserService {
     }
 
     // If resident has an active stay in a room, set that room back to vacant
-    if (user.room_id) {
+    const roomId = user.room_id || user.room_info?.room_id;
+    if (roomId) {
       const remaining = await db('resident_pg_stays')
-        .where({ room_id: user.room_id, status: 'active' })
+        .where({ room_id: roomId, status: 'active' })
         .whereNull('deleted_at')
         .whereNot({ resident_id: id })
         .first();
 
       if (!remaining) {
-        await db('rooms').where({ id: user.room_id }).update({
+        await db('rooms').where({ id: roomId }).update({
           status: 'vacant',
           updated_at: db.fn.now(),
         });

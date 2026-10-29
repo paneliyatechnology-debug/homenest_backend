@@ -33,7 +33,7 @@ export const authenticate = async (req, res, next) => {
       throw new AppError('Invalid access token', HTTP_STATUS.UNAUTHORIZED);
     }
 
-    const user = await userService.findById(decoded.id);
+    const user = await userService.findById(decoded.id, decoded.pg_id);
 
     if (!user) {
       throw new AppError('User belonging to this token no longer exists', HTTP_STATUS.UNAUTHORIZED);
@@ -43,7 +43,7 @@ export const authenticate = async (req, res, next) => {
       throw new AppError('User account is deactivated', HTTP_STATUS.FORBIDDEN);
     }
 
-    let resolved_pg_id = decoded.pg_id || user.pg_id || null;
+    let resolved_pg_id = decoded.pg_id || user.pg?.id || user.room_info?.pg_id || user.pg_id || null;
     if (!resolved_pg_id) {
       if (user.role === ROLES.ADMIN) {
         const pg = await db('pgs').where({ owner_id: user.id }).whereNull('deleted_at').orderBy('id', 'asc').first();
@@ -53,7 +53,9 @@ export const authenticate = async (req, res, next) => {
         if (stay) resolved_pg_id = stay.pg_id;
       }
     }
-    user.pg_id = resolved_pg_id;
+    if (user.role === ROLES.RESIDENT) {
+      user.pg_id = resolved_pg_id;
+    }
     req.user = user;
     req.pg_id = resolved_pg_id;
     next();
@@ -75,7 +77,7 @@ export const authorize = (...roles) => {
     if (!roles.includes(req.user.role)) {
       return next(
         new AppError(
-          `Permission denied: Requires one of [${roles.join(', ')}] role(s)`,
+          `Permission denied. You do not have permission to perform this action.`,
           HTTP_STATUS.FORBIDDEN
         )
       );

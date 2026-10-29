@@ -193,8 +193,10 @@ class AuthService {
       pg_id,
     });
 
+    const formatted_user = await userService.findById(user.id, pg_id);
+
     return {
-      user: {
+      user: formatted_user || {
         ...user_without_password,
         pg_id,
       },
@@ -267,8 +269,10 @@ class AuthService {
       pg_id,
     });
 
+    const formatted_user = await userService.findById(user.id, pg_id);
+
     return {
-      user: {
+      user: formatted_user || {
         ...user_without_password,
         pg_id,
       },
@@ -375,7 +379,7 @@ class AuthService {
       throw new AppError('Invalid refresh token', HTTP_STATUS.UNAUTHORIZED);
     }
 
-    const user = await userService.findById(decoded.id);
+    const user = await userService.findById(decoded.id, decoded.pg_id);
     if (!user || !user.is_active) {
       throw new AppError('User no longer exists or is deactivated', HTTP_STATUS.UNAUTHORIZED);
     }
@@ -390,10 +394,7 @@ class AuthService {
     });
 
     return {
-      user: {
-        ...user,
-        pg_id,
-      },
+      user: user.role === ROLES.RESIDENT ? { ...user, pg_id } : user,
       ...tokens,
     };
   };

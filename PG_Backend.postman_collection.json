@@ -1667,32 +1667,6 @@
           }
         },
         {
-          "name": "Get Profile",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/users/profile",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "users",
-                "profile"
-              ]
-            },
-            "description": "### GET /api/v1/users/profile\nProtected. Fetches the authenticated user's profile with active stay and photo details."
-          }
-        },
-        {
           "name": "Update Profile",
           "request": {
             "method": "PUT",
