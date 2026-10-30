@@ -140,11 +140,38 @@ export const deleteAgreement = async (req, res, next) => {
   }
 };
 
+/**
+ * Get KPI statistical counts for agreements (Total Agreements, Draft, Pending Sign, Signed, Expired).
+ * Supports optional filtering by pg_id (branch) and agreement_type.
+ */
+export const getAgreementStats = async (req, res, next) => {
+  try {
+    const is_admin = req.user.role === ROLES.ADMIN;
+    const is_resident = req.user.role === ROLES.RESIDENT;
+
+    const owner_id = is_admin ? req.user.id : undefined;
+    const resident_id = is_resident ? req.user.id : (req.query.resident_id || undefined);
+    const pg_id = req.query.pg_id ? Number(req.query.pg_id) : (req.pg_id || undefined);
+    const agreement_type = req.query.agreement_type || undefined;
+
+    const stats = await agreementService.getStats({
+      owner_id,
+      resident_id,
+      pg_id,
+      agreement_type,
+    });
+    return success(res, 'Agreement statistics retrieved successfully', stats);
+  } catch (err) {
+    next(err);
+  }
+};
+
 export default {
   createAgreement,
   getAllAgreements,
   getAgreementById,
   updateAgreement,
   deleteAgreement,
+  getAgreementStats,
 };
 

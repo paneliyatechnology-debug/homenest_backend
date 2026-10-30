@@ -278,6 +278,60 @@ class AgreementService {
   };
 
   /**
+   * Get KPI statistical counts for agreements (Total Agreements, Draft, Pending Sign, Signed, Expired)
+   * Supports filtering by owner_id (for admin), resident_id, pg_id (branch), and agreement_type.
+   * @param {object} options
+   * @returns {Promise<{ total_agreements: number, draft: number, pending_sign: number, signed: number, expired: number }>}
+   */
+  getStats = async (options = {}) => {
+    const { owner_id, resident_id, pg_id, agreement_type } = options;
+
+    const base_query = db('agreements')
+      .whereNull('agreements.deleted_at')
+      .join('pgs', (join) => {
+        join.on('agreements.pg_id', '=', 'pgs.id').andOnNull('pgs.deleted_at');
+      })
+      .modify((qb) => {
+        if (owner_id) {
+          qb.where('pgs.owner_id', owner_id);
+        }
+        if (resident_id) {
+          qb.where('agreements.resident_id', resident_id);
+        }
+        if (pg_id) {
+          qb.where('agreements.pg_id', pg_id);
+        }
+        if (agreement_type) {
+          qb.where('agreements.agreement_type', agreement_type);
+        }
+      });
+
+    const [counts] = await base_query.select(
+      db.raw('COUNT(agreements.id) as total_agreements'),
+      db.raw("SUM(CASE WHEN agreements.status = 'draft' THEN 1 ELSE 0 END) as draft"),
+      db.raw("SUM(CASE WHEN agreements.status IN ('pending', 'pending_sign', 'pending_signature') THEN 1 ELSE 0 END) as pending_sign"),
+      db.raw("SUM(CASE WHEN agreements.status = 'signed' THEN 1 ELSE 0 END) as signed"),
+      db.raw("SUM(CASE WHEN agreements.status = 'expired' THEN 1 ELSE 0 END) as expired")
+    );
+
+    const total_agreements = parseInt(counts?.total_agreements, 10) || 0;
+    const draft = parseInt(counts?.draft, 10) || 0;
+    const pending_sign = parseInt(counts?.pending_sign, 10) || 0;
+    const signed = parseInt(counts?.signed, 10) || 0;
+    const expired = parseInt(counts?.expired, 10) || 0;
+
+    return {
+      total_agreements,
+      total: total_agreements,
+      draft,
+      pending_sign,
+      pending: pending_sign,
+      signed,
+      expired,
+    };
+  };
+
+  /**
    * Delete an agreement record (Soft Delete)
    * @param {number|string} id - Agreement ID
    * @returns {Promise<boolean>}

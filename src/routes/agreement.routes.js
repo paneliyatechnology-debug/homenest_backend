@@ -15,6 +15,13 @@ const router = Router();
 router.use(authenticate);
 
 /**
+ * @route   GET /api/v1/agreements/stats
+ * @desc    Get KPI statistical counts for agreements (Total Agreements, Draft, Pending Sign, Signed, Expired)
+ * @access  Private
+ */
+router.get('/stats', agreementController.getAgreementStats);
+
+/**
  * @route   POST /api/v1/agreements
  * @desc    Create a new agreement record (matches Create New Agreement portal screen)
  * @access  Private (Admin / Super Admin)

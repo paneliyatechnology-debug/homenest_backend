@@ -183,6 +183,7 @@ A production-grade RESTful API backend engineered for the **HouseNest** PG & Hos
 ### 8. Agreement Records (`/api/v1/agreements`)
 | Method | Endpoint | Description | Access |
 | :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/agreements/stats` | Top KPI statistics (Total Agreements, Draft, Pending Sign, Signed, Expired) | Private |
 | `POST` | `/api/v1/agreements` | Create tenancy agreement record (`draft`, `pending`, `signed`) | `admin`, `super_admin` |
 | `GET` | `/api/v1/agreements` | Paginated agreement records table with joined resident/room info| Private |
 | `GET` | `/api/v1/agreements/:id` | Get agreement record by ID | Private |

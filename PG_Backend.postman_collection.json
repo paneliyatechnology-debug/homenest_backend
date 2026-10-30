@@ -2174,6 +2174,46 @@
       "description": "Tenancy agreements lifecycle tracking (draft, pending, signed, expired).",
       "item": [
         {
+          "name": "Agreement Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/agreements/stats?pg_id={{pgId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "agreements",
+                "stats"
+              ],
+              "query": [
+                {
+                  "key": "pg_id",
+                  "value": "{{pgId}}",
+                  "description": "Optional. Filter agreement statistics by PG facility branch ID.",
+                  "disabled": true
+                },
+                {
+                  "key": "agreement_type",
+                  "value": "rental",
+                  "description": "Optional. Filter agreement statistics by agreement type (e.g. 'rental', '11_months').",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "### GET /api/v1/agreements/stats\nProtected. Returns top KPI statistical counts for agreements matching the dashboard cards: Total Agreements (`total_agreements`), `draft`, `pending_sign`, `signed`, and `expired`. Supports optional branch (`pg_id`) and `agreement_type` filtering."
+          }
+        },
+        {
           "name": "Create Agreement",
           "event": [
             {
