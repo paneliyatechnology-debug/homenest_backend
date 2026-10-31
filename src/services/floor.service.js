@@ -63,6 +63,7 @@ export class FloorService {
   findAll = async (options = {}) => {
     const {
       pg_id,
+      branch_id,
       building_id,
       owner_id,
       search,
@@ -82,6 +83,9 @@ export class FloorService {
       .join('pgs', (join) => {
         join.on('floors.pg_id', '=', 'pgs.id').andOnNull('pgs.deleted_at');
       })
+      .leftJoin('branches', (join) => {
+        join.on('buildings.branch_id', '=', 'branches.id').andOnNull('branches.deleted_at');
+      })
       .modify((qb) => {
         if (owner_id) {
           qb.where('pgs.owner_id', owner_id);
@@ -89,13 +93,17 @@ export class FloorService {
         if (pg_id) {
           qb.where('floors.pg_id', pg_id);
         }
+        if (branch_id) {
+          qb.where('buildings.branch_id', Number(branch_id));
+        }
         if (building_id) {
           qb.where('floors.building_id', building_id);
         }
         if (search) {
           qb.where((sqb) => {
             sqb.where('floors.name', 'like', `%${search}%`)
-              .orWhere('buildings.name', 'like', `%${search}%`);
+              .orWhere('buildings.name', 'like', `%${search}%`)
+              .orWhere('branches.name', 'like', `%${search}%`);
           });
         }
       });
@@ -111,7 +119,9 @@ export class FloorService {
       .select(
         'floors.id',
         'floors.pg_id',
+        'buildings.branch_id',
         'pgs.name as pg_name',
+        db.raw('COALESCE(branches.name, pgs.name) as branch_name'),
         'floors.building_id',
         'buildings.name as building_name',
         'floors.floor_number',
@@ -120,7 +130,7 @@ export class FloorService {
         'floors.created_at',
         'floors.updated_at'
       )
-      .groupBy('floors.id', 'pgs.name', 'buildings.name')
+      .groupBy('floors.id', 'pgs.name', 'buildings.name', 'buildings.branch_id', 'branches.name')
       .orderBy('buildings.name', 'asc')
       .orderBy('floors.floor_number', 'asc')
       .limit(per_page)

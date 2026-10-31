@@ -1,5 +1,6 @@
 import { body, param, query } from 'express-validator';
 import pgService from '../services/pg.service.js';
+import db from '../config/db.js';
 
 export const listBuildingsValidator = [
   query('pg_id')
@@ -7,6 +8,12 @@ export const listBuildingsValidator = [
     .toInt()
     .isInt({ min: 1 })
     .withMessage('Branch (PG ID) must be a valid integer'),
+
+  query('branch_id')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Branch ID must be a positive integer'),
 
   query('search')
     .optional({ checkFalsy: true })
@@ -39,6 +46,26 @@ export const createBuildingValidator = [
       return true;
     }),
 
+  body('branch_id')
+    .notEmpty()
+    .withMessage('Branch ID is required')
+    .bail()
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Branch ID must be a positive integer')
+    .custom(async (branch_id, { req }) => {
+      const branch = await db('branches').where({ id: branch_id }).whereNull('deleted_at').first();
+      if (!branch) {
+        throw new Error('Selected branch does not exist');
+      }
+      const pg_id = req.body.pg_id || req.pg_id;
+      if (pg_id && Number(branch.pg_id) !== Number(pg_id)) {
+        throw new Error('Selected branch does not belong to this PG facility');
+      }
+      req.resolved_branch = branch;
+      return true;
+    }),
+
   body('name')
     .trim()
     .notEmpty()
@@ -52,6 +79,26 @@ export const updateBuildingValidator = [
     .toInt()
     .isInt({ min: 1 })
     .withMessage('Building ID must be a valid positive integer'),
+
+  body('branch_id')
+    .notEmpty()
+    .withMessage('Branch ID is required')
+    .bail()
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Branch ID must be a positive integer')
+    .custom(async (branch_id, { req }) => {
+      const branch = await db('branches').where({ id: branch_id }).whereNull('deleted_at').first();
+      if (!branch) {
+        throw new Error('Selected branch does not exist');
+      }
+      const pg_id = req.body.pg_id || req.pg_id;
+      if (pg_id && Number(branch.pg_id) !== Number(pg_id)) {
+        throw new Error('Selected branch does not belong to this PG facility');
+      }
+      req.resolved_branch = branch;
+      return true;
+    }),
 
   body('name')
     .optional({ checkFalsy: true })

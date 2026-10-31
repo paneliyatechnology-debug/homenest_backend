@@ -18,6 +18,7 @@ class AgreementService {
     'resident.email as resident_email',
     'resident.phone as resident_phone',
     'agreements.pg_id',
+    'agreements.branch_id',
     'pgs.name as pg_name',
     'pgs.owner_id',
     'agreements.room_id',
@@ -121,10 +122,21 @@ class AgreementService {
       }
     }
 
+    let resolved_branch_id = data.branch_id ? Number(data.branch_id) : null;
+    if (!resolved_branch_id && room_id) {
+      const r = await db('rooms').where({ id: room_id }).first();
+      if (r?.branch_id) resolved_branch_id = r.branch_id;
+    }
+    if (!resolved_branch_id) {
+      const defB = await db('branches').where({ pg_id }).whereNull('deleted_at').orderBy('id', 'asc').first();
+      if (defB) resolved_branch_id = defB.id;
+    }
+
     const [id] = await db('agreements').insert({
       agreement_no: String(agreement_no).trim(),
       resident_id: Number(resident_id),
       pg_id: Number(pg_id),
+      branch_id: resolved_branch_id,
       room_id: room_id ? Number(room_id) : null,
       room_type: resolved_room_type || null,
       agreement_type: String(agreement_type).trim().toLowerCase(),
@@ -147,6 +159,7 @@ class AgreementService {
     const {
       resident_id = null,
       pg_id = null,
+      branch_id = null,
       owner_id = null,
       status = '',
       agreement_type = '',
@@ -179,6 +192,9 @@ class AgreementService {
         }
         if (pg_id) {
           qb.where('agreements.pg_id', pg_id);
+        }
+        if (branch_id) {
+          qb.where('agreements.branch_id', branch_id);
         }
         if (status) {
           qb.where('agreements.status', status);
@@ -262,6 +278,7 @@ class AgreementService {
     }
 
     const allowed_updates = {
+      ...(update_data.branch_id !== undefined && { branch_id: update_data.branch_id ? Number(update_data.branch_id) : null }),
       ...(update_data.agreement_no !== undefined && { agreement_no: String(update_data.agreement_no).trim() }),
       ...(update_data.room_id !== undefined && { room_id: update_data.room_id ? Number(update_data.room_id) : null }),
       ...(resolved_room_type !== undefined && { room_type: resolved_room_type }),
@@ -284,7 +301,7 @@ class AgreementService {
    * @returns {Promise<{ total_agreements: number, draft: number, pending_sign: number, signed: number, expired: number }>}
    */
   getStats = async (options = {}) => {
-    const { owner_id, resident_id, pg_id, agreement_type } = options;
+    const { owner_id, resident_id, pg_id, branch_id = null, agreement_type } = options;
 
     const base_query = db('agreements')
       .whereNull('agreements.deleted_at')
@@ -300,6 +317,9 @@ class AgreementService {
         }
         if (pg_id) {
           qb.where('agreements.pg_id', pg_id);
+        }
+        if (branch_id) {
+          qb.where('agreements.branch_id', branch_id);
         }
         if (agreement_type) {
           qb.where('agreements.agreement_type', agreement_type);

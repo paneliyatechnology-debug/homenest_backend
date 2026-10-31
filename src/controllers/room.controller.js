@@ -18,11 +18,12 @@ export const createRoom = async (req, res, next) => {
     }
 
     const pg_id = req.body.pg_id ? Number(req.body.pg_id) : req.pg_id;
+    const branch_id = req.body.branch_id ? Number(req.body.branch_id) : undefined;
     if (!pg_id) {
       throw new AppError('Branch (PG ID) is required. Please select a PG facility or login under a PG owner account', HTTP_STATUS.BAD_REQUEST);
     }
 
-    const room = await roomService.create({ ...req.body, pg_id });
+    const room = await roomService.create({ ...req.body, pg_id, branch_id });
     return successAction(res, 'Room created successfully', room.id, HTTP_STATUS.CREATED);
   } catch (err) {
     next(err);
@@ -48,10 +49,12 @@ export const getAllRooms = async (req, res, next) => {
     } = req.query;
 
     const pg_id = req.query.pg_id ? Number(req.query.pg_id) : (req.pg_id || undefined);
+    const branch_id = req.query.branch_id ? Number(req.query.branch_id) : undefined;
 
     const { rooms, pagination } = await roomService.findAll({
       owner_id,
       pg_id,
+      branch_id,
       status,
       room_type,
       building_id,
@@ -151,8 +154,9 @@ export const getRoomStats = async (req, res, next) => {
     const is_admin = req.user.role === ROLES.ADMIN;
     const owner_id = is_admin ? req.user.id : undefined;
     const pg_id = req.query.pg_id ? Number(req.query.pg_id) : (req.pg_id || undefined);
+    const branch_id = req.query.branch_id ? Number(req.query.branch_id) : undefined;
 
-    const stats = await roomService.getStats({ owner_id, pg_id });
+    const stats = await roomService.getStats({ owner_id, pg_id, branch_id });
     return success(res, 'Room statistics retrieved successfully', stats);
   } catch (err) {
     next(err);
@@ -168,8 +172,9 @@ export const getRoomBuildings = async (req, res, next) => {
     const is_admin = req.user.role === ROLES.ADMIN;
     const owner_id = is_admin ? req.user.id : undefined;
     const pg_id = req.query.pg_id ? Number(req.query.pg_id) : (req.pg_id || undefined);
+    const branch_id = req.query.branch_id ? Number(req.query.branch_id) : undefined;
 
-    const buildings = await roomService.getBuildingsAndFloors({ owner_id, pg_id });
+    const buildings = await roomService.getBuildingsAndFloors({ owner_id, pg_id, branch_id });
     return success(res, 'Room buildings and floors retrieved successfully', buildings);
   } catch (err) {
     next(err);

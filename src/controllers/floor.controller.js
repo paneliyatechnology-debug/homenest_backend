@@ -28,12 +28,14 @@ export const getAllFloors = async (req, res, next) => {
     const is_admin = req.user.role === ROLES.ADMIN;
     const owner_id = is_admin ? req.user.id : undefined;
     const pg_id = req.query.pg_id ? Number(req.query.pg_id) : (req.pg_id || undefined);
+    const branch_id = req.query.branch_id ? Number(req.query.branch_id) : undefined;
     const building_id = req.query.building_id ? Number(req.query.building_id) : undefined;
 
     const { search, page, limit } = req.query;
 
     const { floors, pagination } = await floorService.findAll({
       pg_id,
+      branch_id,
       building_id,
       owner_id,
       search,

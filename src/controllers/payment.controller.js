@@ -16,11 +16,13 @@ export const getPaymentStats = async (req, res, next) => {
     const is_admin = req.user.role === ROLES.ADMIN;
     const owner_id = is_admin ? req.user.id : undefined;
     const pg_id = req.query.pg_id ? Number(req.query.pg_id) : (req.pg_id || undefined);
+    const branch_id = req.query.branch_id ? Number(req.query.branch_id) : undefined;
     const { start_date, end_date } = req.query;
 
     const stats = await paymentService.getPaymentStats({
       owner_id,
       pg_id,
+      branch_id,
       start_date,
       end_date,
     });
@@ -45,6 +47,7 @@ export const getAllPayments = async (req, res, next) => {
     const owner_id = is_admin ? req.user.id : undefined;
     const resident_id = is_resident ? req.user.id : (req.query.resident_id ? Number(req.query.resident_id) : undefined);
     const pg_id = req.query.pg_id ? Number(req.query.pg_id) : (req.pg_id || undefined);
+    const branch_id = req.query.branch_id ? Number(req.query.branch_id) : undefined;
 
     const {
       status,
@@ -67,6 +70,7 @@ export const getAllPayments = async (req, res, next) => {
       owner_id,
       resident_id,
       pg_id,
+      branch_id,
       status: resolved_status,
       payment_type,
       payment_method,
@@ -158,15 +162,17 @@ export const processPayment = async (req, res, next) => {
 export const createPayment = async (req, res, next) => {
   try {
     let pg_id = req.body.pg_id ? Number(req.body.pg_id) : req.pg_id;
+    let branch_id = req.body.branch_id ? Number(req.body.branch_id) : undefined;
 
-    if (!pg_id && req.body.resident_id) {
+    if ((!pg_id || !branch_id) && req.body.resident_id) {
       const activeStay = await db('resident_pg_stays')
         .where({ resident_id: Number(req.body.resident_id), status: 'active' })
         .whereNull('deleted_at')
         .orderBy('id', 'desc')
         .first();
       if (activeStay) {
-        pg_id = activeStay.pg_id;
+        if (!pg_id) pg_id = activeStay.pg_id;
+        if (!branch_id) branch_id = activeStay.branch_id;
       }
     }
 
@@ -177,6 +183,7 @@ export const createPayment = async (req, res, next) => {
     const payment = await paymentService.create({
       ...req.body,
       pg_id,
+      branch_id,
     });
     return successAction(res, 'Payment demand created successfully', payment.id, HTTP_STATUS.CREATED);
   } catch (err) {
@@ -197,6 +204,7 @@ export const exportPayments = async (req, res, next) => {
     const owner_id = is_admin ? req.user.id : undefined;
     const resident_id = is_resident ? req.user.id : (req.query.resident_id ? Number(req.query.resident_id) : undefined);
     const pg_id = req.query.pg_id ? Number(req.query.pg_id) : (req.pg_id || undefined);
+    const branch_id = req.query.branch_id ? Number(req.query.branch_id) : undefined;
 
     const {
       status,
@@ -217,6 +225,7 @@ export const exportPayments = async (req, res, next) => {
       owner_id,
       resident_id,
       pg_id,
+      branch_id,
       status: resolved_status,
       payment_type,
       payment_method,
@@ -268,7 +277,7 @@ export const updatePayment = async (req, res, next) => {
   try {
     const { id } = req.params;
     const payment = await paymentService.update(Number(id), req.body);
-    return success(res, 'Payment demand updated successfully', payment);
+    return successAction(res, 'Payment demand updated successfully', payment.id, HTTP_STATUS.OK);
   } catch (err) {
     next(err);
   }
@@ -281,7 +290,7 @@ export const deletePayment = async (req, res, next) => {
   try {
     const { id } = req.params;
     await paymentService.delete(Number(id));
-    return success(res, 'Payment demand deleted successfully');
+    return successAction(res, 'Payment demand deleted successfully', parseInt(id, 10), HTTP_STATUS.OK);
   } catch (err) {
     next(err);
   }

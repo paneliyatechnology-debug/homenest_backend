@@ -81,6 +81,12 @@
       "value": "",
       "type": "string",
       "description": "Resident JWT access token."
+    },
+    {
+      "key": "branchId",
+      "value": "1",
+      "type": "string",
+      "description": "Branch ID under PG facility. Seeded branches are 1 to 5."
     }
   ],
   "auth": {
@@ -845,7 +851,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"pg_id\": \"{{pgId}}\",\n  \"name\": \"North Wing Block\"\n}",
+              "raw": "{\n  \"pg_id\": \"{{pgId}}\",\n  \"branch_id\": \"{{branchId}}\",\n  \"name\": \"North Wing Block\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -908,6 +914,12 @@
                   "key": "search",
                   "value": "",
                   "description": "Optional. Search building name or PG facility name."
+                },
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "description": "Filter by specific branch ID under the PG",
+                  "disabled": true
                 }
               ]
             },
@@ -953,7 +965,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"North Wing Tower\"\n}",
+              "raw": "{\n  \"branch_id\": \"{{branchId}}\",\n  \"name\": \"North Wing Tower\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1101,6 +1113,12 @@
                   "key": "search",
                   "value": "",
                   "description": "Optional. Search floor name or building name."
+                },
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "description": "Filter by specific branch ID under the PG",
+                  "disabled": true
                 }
               ]
             },
@@ -1430,6 +1448,12 @@
                   "key": "pg_id",
                   "value": "{{pgId}}",
                   "description": "Optional. Defaults automatically from access_token.",
+                  "disabled": true
+                },
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "description": "Filter by specific branch ID under the PG",
                   "disabled": true
                 }
               ]
@@ -1783,6 +1807,12 @@
                   "key": "pg_id",
                   "value": "{{pgId}}",
                   "description": "Optional. Defaults automatically from access_token.",
+                  "disabled": true
+                },
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "description": "Filter by specific branch ID under the PG",
                   "disabled": true
                 }
               ]
@@ -2449,6 +2479,12 @@
                   "value": "{{pgId}}",
                   "description": "Optional. Defaults automatically from access_token.",
                   "disabled": true
+                },
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "description": "Filter by specific branch ID under the PG",
+                  "disabled": true
                 }
               ]
             },
@@ -2684,6 +2720,12 @@
                   "key": "limit",
                   "value": "10",
                   "description": "Pagination limit per page (default: 10, max: 100)"
+                },
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "description": "Filter by specific branch ID under the PG",
+                  "disabled": true
                 }
               ]
             },
@@ -2719,6 +2761,12 @@
                   "key": "resident_id",
                   "value": "58",
                   "description": "Optional resident ID filter (Admin only; residents always see their own)",
+                  "disabled": true
+                },
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "description": "Filter by specific branch ID under the PG",
                   "disabled": true
                 }
               ]
@@ -3003,12 +3051,837 @@
                   "value": "",
                   "description": "Search across resident name, phone, room number, or transaction ID",
                   "disabled": true
+                },
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "description": "Filter by specific branch ID under the PG",
+                  "disabled": true
                 }
               ]
             },
             "description": "Generate high-end executive PDF billing statements (A4 Landscape, Roboto font, IST dates) or professional Excel spreadsheets with KPI summary cards, freeze panes, and formula totals."
           },
           "response": []
+        }
+      ]
+    },
+    {
+      "name": "10 Visitors",
+      "description": "Visitor pass requests, approval workflow, digital QR gate pass generation, and gate entry/exit tracking.",
+      "item": [
+        {
+          "name": "Visitor Statistics (Dashboard KPIs)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/visitors/stats?pg_id={{pgId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "visitors",
+                "stats"
+              ],
+              "query": [
+                {
+                  "key": "pg_id",
+                  "value": "{{pgId}}",
+                  "description": "Optional. Filter statistics by PG branch ID.",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Get top KPI summary metrics for the visitor dashboard: total_visitors, today, active_on_site, and pending_approval."
+          },
+          "response": []
+        },
+        {
+          "name": "List Visitors (Shared Admin & Resident)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/visitors?status=all&purpose=all&page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "visitors"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "all",
+                  "description": "Filter by status: 'all', 'pending', 'approved', 'in_office', 'left', 'rejected'."
+                },
+                {
+                  "key": "purpose",
+                  "value": "all",
+                  "description": "Filter by purpose: 'all', 'Meeting', 'Delivery', 'Family', 'Personal', etc."
+                },
+                {
+                  "key": "pg_id",
+                  "value": "{{pgId}}",
+                  "description": "Optional. Filter by PG facility branch ID (Admin only).",
+                  "disabled": true
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-03-01",
+                  "description": "Filter visitors visiting on or after this date (YYYY-MM-DD).",
+                  "disabled": true
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-03-31",
+                  "description": "Filter visitors visiting on or before this date (YYYY-MM-DD).",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "Aarav",
+                  "description": "Search by visitor name, phone, resident name, room no, or pass code.",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number for pagination."
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Records per page."
+                },
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "description": "Filter by specific branch ID under the PG",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Retrieve visitor records with filtering, searching, and pagination. Shared API: Admin sees all visitors across PG branch; Resident automatically sees only their own visitors."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Visitor Pass / Request",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "visitor_name",
+                  "value": "Aarav Sharma",
+                  "type": "text",
+                  "description": "(Required) Full legal name of the visitor (2-150 chars)"
+                },
+                {
+                  "key": "visitor_phone",
+                  "value": "+91 56478 23456",
+                  "type": "text",
+                  "description": "(Required) Mobile contact number of the visitor"
+                },
+                {
+                  "key": "purpose",
+                  "value": "Meeting",
+                  "type": "text",
+                  "description": "(Optional) Purpose of visit (e.g. Meeting, Personal, Delivery, Family)"
+                },
+                {
+                  "key": "visit_date",
+                  "value": "2026-10-31",
+                  "type": "text",
+                  "description": "(Optional) Scheduled visit date in YYYY-MM-DD format (Defaults to today)"
+                },
+                {
+                  "key": "valid_until",
+                  "value": "2026-10-31",
+                  "type": "text",
+                  "description": "(Optional) Expiration date of the pass in YYYY-MM-DD format (Defaults to visit_date)"
+                },
+                {
+                  "key": "entry_time",
+                  "value": "10:24 AM",
+                  "type": "text",
+                  "description": "(Optional) Expected entry time (e.g. 10:24 AM)"
+                },
+                {
+                  "key": "resident_id",
+                  "value": "3",
+                  "type": "text",
+                  "description": "(Required for Admin) ID of the resident being visited"
+                },
+                {
+                  "key": "pg_id",
+                  "value": "{{pgId}}",
+                  "type": "text",
+                  "description": "(Optional) PG facility ID. Auto-resolved from resident active stay if omitted"
+                },
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "type": "text",
+                  "description": "(Optional) Branch ID. Defaults to resident active stay branch"
+                },
+                {
+                  "key": "admin_notes",
+                  "value": "Visitor verified at security gate",
+                  "type": "text",
+                  "description": "(Optional) Internal admin remarks or notes"
+                },
+                {
+                  "key": "visitor_photo",
+                  "type": "file",
+                  "src": [],
+                  "description": "(Optional) Visitor photograph file. JPEG, JPG, PNG, WebP (Max 5MB)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/visitors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "visitors"
+              ]
+            },
+            "description": "Create a visitor record (FormData). Supports optional 'visitor_photo' image file upload. If created by Resident: status is automatically set to \"pending\" (awaiting admin approval). If created by Admin: status defaults to \"approved\" (generates pass code, QR code, and sends digital pass email to resident)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Visitor Details by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/visitors/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "visitors",
+                "1"
+              ]
+            },
+            "description": "Retrieve full details of a specific visitor record including host resident, room number, status, and pass information."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Visitor Movement Logs (All Entries & Exits)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/visitors/1/logs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "visitors",
+                "1",
+                "logs"
+              ]
+            },
+            "description": "### GET /api/v1/visitors/:id/logs\nPrivate (Admin / Resident).\nReturns complete entry and exit movement logs for a specific visitor pass."
+          }
+        },
+        {
+          "name": "Gate Activity Logs (Real-time Gate Monitoring)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/visitors/gate/logs?branch_id={{branchId}}&type=all&page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "visitors",
+                "gate",
+                "logs"
+              ],
+              "query": [
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "description": "Filter logs by branch ID"
+                },
+                {
+                  "key": "visitor_id",
+                  "value": "",
+                  "description": "Optional filter logs for a specific visitor pass by Visitor ID",
+                  "disabled": true
+                },
+                {
+                  "key": "resident_id",
+                  "value": "",
+                  "description": "Optional filter logs for visitors visiting a specific Resident by Resident ID",
+                  "disabled": true
+                },
+                {
+                  "key": "type",
+                  "value": "all",
+                  "description": "all | entry | exit"
+                },
+                {
+                  "key": "date",
+                  "value": "",
+                  "description": "Optional date filter YYYY-MM-DD",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Search by visitor name, phone, or pass code",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "### GET /api/v1/visitors/gate/logs\\nPrivate (Admin / Super Admin).\\nReal-time gate activity feed monitoring all entries and exits across the property or branch.\\nSupports filtering by branch_id, visitor_id, resident_id, type (entry/exit/all), date, search, and pagination."
+          }
+        },
+        {
+          "name": "Update Visitor Pass",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "visitor_name",
+                  "value": "Aarav Sharma (Updated)",
+                  "type": "text",
+                  "description": "(Optional) Updated visitor full name"
+                },
+                {
+                  "key": "visitor_phone",
+                  "value": "+91 56478 23456",
+                  "type": "text",
+                  "description": "(Optional) Updated visitor mobile number"
+                },
+                {
+                  "key": "purpose",
+                  "value": "Personal Visit",
+                  "type": "text",
+                  "description": "(Optional) Updated purpose of visit"
+                },
+                {
+                  "key": "visit_date",
+                  "value": "2026-10-31",
+                  "type": "text",
+                  "description": "(Optional) Updated visit date (YYYY-MM-DD)"
+                },
+                {
+                  "key": "valid_until",
+                  "value": "2026-10-31",
+                  "type": "text",
+                  "description": "(Optional) Updated pass expiration date (YYYY-MM-DD)"
+                },
+                {
+                  "key": "entry_time",
+                  "value": "11:00 AM",
+                  "type": "text",
+                  "description": "(Optional) Updated entry time"
+                },
+                {
+                  "key": "exit_time",
+                  "value": "01:30 PM",
+                  "type": "text",
+                  "description": "(Optional) Updated exit time"
+                },
+                {
+                  "key": "admin_notes",
+                  "value": "Pass updated by administration",
+                  "type": "text",
+                  "description": "(Optional) Updated internal remarks"
+                },
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "type": "text",
+                  "description": "(Optional Admin only) Reassign visitor to branch"
+                },
+                {
+                  "key": "visitor_photo",
+                  "type": "file",
+                  "src": [],
+                  "description": "(Optional) New replacement visitor photograph file (Max 5MB)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/visitors/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "visitors",
+                "1"
+              ]
+            },
+            "description": "Update visitor details (FormData). Supports optional 'visitor_photo' image upload. Residents can update their pass only when status is \"pending\". Admins can update anytime."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Visitor Status (Admin Approval / Rejection)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\",\n  \"admin_notes\": \"Approved by gate security\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/visitors/1/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "visitors",
+                "1",
+                "status"
+              ]
+            },
+            "description": "Approve, reject, or update visitor status (Admin only). Approving generates QR code and automatically emails the digital pass to the resident."
+          },
+          "response": []
+        },
+        {
+          "name": "Scan Visitor QR Code (Gate Entry & Exit)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pass_code\": \"VP-20261031-XXXXXX\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/visitors/scan",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "visitors",
+                "scan"
+              ]
+            },
+            "description": "Gate QR Code scanner endpoint (Admin / Security staff). First scan on approved pass marks \"in_office\" (records Entry time). Second scan marks \"left\" (records Exit time)."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Visitor Pass",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/visitors/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "visitors",
+                "1"
+              ]
+            },
+            "description": "Soft delete a visitor pass. Residents can delete their pass only when status is \"pending\". Admins can delete at any time."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "11 Branch Management",
+      "description": "### Branch Management Module\nFull CRUD operations and KPI stats for managing multiple PG property branches under a single PG facility.\nCorresponds to the **Branch Management** and **Add Branch** UI screens.\n\n#### Operational Status Values:\n* `active` - Branch is operational and accepting resident stays.\n* `maintenance` - Branch is temporarily undergoing maintenance/renovation.\n* `upcoming` - Branch is planned/under development and not yet operational.\n\n*Note: `occupied_rooms` and `available_rooms` are automatically computed based on room creation and resident assignments.*",
+      "item": [
+        {
+          "name": "Branch Statistics (KPI Cards)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/branches/stats?pg_id={{pgId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "branches",
+                "stats"
+              ],
+              "query": [
+                {
+                  "key": "pg_id",
+                  "value": "{{pgId}}",
+                  "description": "Filter KPI stats by PG facility branch ID (Optional; auto-resolved for logged-in Admin)"
+                }
+              ]
+            },
+            "description": "### GET /api/v1/branches/stats\n**Access**: Private (Admin / Super Admin / Resident)\n\nReturns statistical counts for the dashboard KPI cards:\n* `total_branches` (number) - Total active branches registered under this PG\n* `active` (number) - Branches currently active\n* `maintenance` (number) - Branches currently under maintenance\n* `upcoming` (number) - Branches scheduled to open soon\n\n#### Sample Success Response (200 OK):\n```json\n{\n  \"success\": true,\n  \"message\": \"Branch statistics retrieved successfully\",\n  \"data\": {\n    \"total_branches\": 5,\n    \"active\": 3,\n    \"maintenance\": 1,\n    \"upcoming\": 1\n  }\n}\n```"
+          }
+        },
+        {
+          "name": "List Branches (Paginated with Filters)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/branches?pg_id={{pgId}}&status=all&search=&page=1&limit=10&sort_by=created_at&order=desc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "branches"
+              ],
+              "query": [
+                {
+                  "key": "pg_id",
+                  "value": "{{pgId}}",
+                  "description": "Filter branches by PG facility (Optional; auto-resolved for logged-in Admin)"
+                },
+                {
+                  "key": "status",
+                  "value": "all",
+                  "description": "Filter by status: all | active | maintenance | upcoming (Optional, default: all)"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Search keyword matching branch name, location, or PG name (Optional)"
+                },
+                {
+                  "key": "location",
+                  "value": "",
+                  "description": "Filter by location / city area (Optional)"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number for pagination (Optional, default: 1)"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Number of records per page (Optional, default: 10, max: 100)"
+                },
+                {
+                  "key": "sort_by",
+                  "value": "created_at",
+                  "description": "Field to sort by: created_at | name | total_rooms (Optional, default: created_at)"
+                },
+                {
+                  "key": "order",
+                  "value": "desc",
+                  "description": "Sort direction: asc | desc (Optional, default: desc)"
+                }
+              ]
+            },
+            "description": "### GET /api/v1/branches\n**Access**: Private (Admin / Super Admin / Resident)\n\nLists all branches with live automatic room counters:\n* `total_rooms` - Total configured/actual room capacity\n* `occupied_rooms` - Auto-calculated from occupied rooms / active resident stays\n* `available_rooms` - Auto-calculated as (total_rooms - occupied_rooms)\n* `status` - active | maintenance | upcoming\n* `branch_photo_url` - Public file URL to uploaded photo\n\n#### Sample Response (200 OK):\n```json\n{\n  \"success\": true,\n  \"message\": \"Branches retrieved successfully\",\n  \"data\": [\n    {\n      \"id\": 1,\n      \"pg_id\": 1,\n      \"pg_name\": \"HouseNest Green Park PG\",\n      \"name\": \"Main Branch\",\n      \"location\": \"Ahmedabad\",\n      \"branch_photo\": null,\n      \"branch_photo_url\": null,\n      \"total_rooms\": 120,\n      \"occupied_rooms\": 7,\n      \"available_rooms\": 113,\n      \"status\": \"active\",\n      \"created_at\": \"2026-10-31T08:27:24.000Z\",\n      \"updated_at\": \"2026-10-31T09:47:00.000Z\"\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total_records\": 5,\n    \"total_pages\": 1,\n    \"has_next\": false,\n    \"has_prev\": false\n  }\n}\n```"
+          }
+        },
+        {
+          "name": "Create Branch (Multipart Form-Data)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "const branchId = res.id || (res.data && res.data.id);",
+                  "if (res.success && branchId) {",
+                  "    pm.collectionVariables.set('branchId', branchId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Sindhu Bhavan Branch",
+                  "type": "text",
+                  "description": "(Required) Unique branch name within the PG facility (2 - 150 chars)"
+                },
+                {
+                  "key": "location",
+                  "value": "Bodakdev, Ahmedabad",
+                  "type": "text",
+                  "description": "(Required) Physical location / neighborhood / city (2 - 255 chars)"
+                },
+                {
+                  "key": "total_rooms",
+                  "value": "120",
+                  "type": "text",
+                  "description": "(Optional, default: 0) Total room capacity. Note: occupied_rooms and available_rooms are auto-calculated."
+                },
+                {
+                  "key": "status",
+                  "value": "active",
+                  "type": "text",
+                  "description": "(Optional, default: 'active') Status: active | maintenance | upcoming"
+                },
+                {
+                  "key": "pg_id",
+                  "value": "{{pgId}}",
+                  "type": "text",
+                  "description": "(Optional) Target PG ID. Auto-resolved for authenticated admin if omitted."
+                },
+                {
+                  "key": "branch_photo",
+                  "type": "file",
+                  "src": [],
+                  "description": "(Optional) JPG, JPEG, or PNG branch photo file (Max 5MB)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/branches",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "branches"
+              ]
+            },
+            "description": "### POST /api/v1/branches (Multipart Form-Data)\n**Access**: Private (Admin / Super Admin)\nUse this request when attaching an optional branch photo file.\n\n#### Field Descriptions:\n* `name` (*string, required*): Branch name (e.g. \"Sindhu Bhavan Branch\")\n* `location` (*string, required*): Location or address area (e.g. \"Ahmedabad\")\n* `total_rooms` (*integer, optional*): Total room capacity for this branch (default: 0)\n* `status` (*string, optional*): `active` | `maintenance` | `upcoming` (default: `active`)\n* `pg_id` (*integer, optional*): Target PG ID (auto-resolved from token if omitted)\n* `branch_photo` (*file, optional*): JPG/PNG photo file (Max 5MB)\n\n*Note: Do NOT send `occupied_rooms` or `available_rooms`. They are automatically calculated by the system.*"
+          }
+        },
+        {
+          "name": "Create Branch (JSON Body)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "const branchId = res.id || (res.data && res.data.id);",
+                  "if (res.success && branchId) {",
+                  "    pm.collectionVariables.set('branchId', branchId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Prahlad Nagar Branch\",\n  \"location\": \"Prahlad Nagar, Ahmedabad\",\n  \"total_rooms\": 80,\n  \"status\": \"active\",\n  \"pg_id\": \"{{pgId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/branches",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "branches"
+              ]
+            },
+            "description": "### POST /api/v1/branches (JSON Body)\n**Access**: Private (Admin / Super Admin)\nConvenient raw JSON request when not uploading a physical image file.\n\n#### Request JSON Fields:\n* `name` (*string, required*): Unique branch name\n* `location` (*string, required*): Location / area name\n* `total_rooms` (*integer, optional*): Configured room capacity (default: 0)\n* `status` (*string, optional*): `active` | `maintenance` | `upcoming` (default: `active`)\n* `pg_id` (*integer, optional*): PG facility ID (auto-resolved if omitted)"
+          }
+        },
+        {
+          "name": "Get Branch Details by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/branches/{{branchId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "branches",
+                "{{branchId}}"
+              ]
+            },
+            "description": "### GET /api/v1/branches/:id\n**Access**: Private (Admin / Super Admin / Resident)\n\nReturns full branch profile, real-time room counts, operational status, and photo URL.\n\n#### Sample Response (200 OK):\n```json\n{\n  \"success\": true,\n  \"message\": \"Branch details retrieved successfully\",\n  \"data\": {\n    \"id\": 1,\n    \"pg_id\": 1,\n    \"pg_name\": \"HouseNest Green Park PG\",\n    \"name\": \"Main Branch\",\n    \"location\": \"Ahmedabad\",\n    \"branch_photo\": null,\n    \"branch_photo_url\": null,\n    \"total_rooms\": 120,\n    \"occupied_rooms\": 7,\n    \"available_rooms\": 113,\n    \"status\": \"active\",\n    \"created_at\": \"2026-10-31T08:27:24.000Z\",\n    \"updated_at\": \"2026-10-31T09:47:00.000Z\"\n  }\n}\n```"
+          }
+        },
+        {
+          "name": "Update Branch (Multipart Form-Data)",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Sindhu Bhavan Premier Branch",
+                  "type": "text",
+                  "description": "(Optional) Updated branch name"
+                },
+                {
+                  "key": "location",
+                  "value": "Ahmedabad, Gujarat",
+                  "type": "text",
+                  "description": "(Optional) Updated branch location"
+                },
+                {
+                  "key": "total_rooms",
+                  "value": "140",
+                  "type": "text",
+                  "description": "(Optional) Updated total room capacity. Occupied & available are auto-recalculated."
+                },
+                {
+                  "key": "status",
+                  "value": "maintenance",
+                  "type": "text",
+                  "description": "(Optional) Updated status: active | maintenance | upcoming"
+                },
+                {
+                  "key": "branch_photo",
+                  "type": "file",
+                  "src": [],
+                  "description": "(Optional) New JPG/PNG photo file (replaces previous photo)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/branches/{{branchId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "branches",
+                "{{branchId}}"
+              ]
+            },
+            "description": "### PUT /api/v1/branches/:id (Multipart Form-Data)\n**Access**: Private (Admin / Super Admin)\nUpdate branch information with optional new photo replacement.\n\n#### Updatable Fields:\n* `name` (*string*): Updated name\n* `location` (*string*): Updated location\n* `total_rooms` (*integer*): Updated capacity\n* `status` (*string*): `active` | `maintenance` | `upcoming`\n* `branch_photo` (*file*): New photo file"
+          }
+        },
+        {
+          "name": "Update Branch (JSON Body)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Main Premier Branch\",\n  \"location\": \"Navrangpura, Ahmedabad\",\n  \"total_rooms\": 130,\n  \"status\": \"maintenance\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/branches/{{branchId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "branches",
+                "{{branchId}}"
+              ]
+            },
+            "description": "### PUT /api/v1/branches/:id (JSON Body)\n**Access**: Private (Admin / Super Admin)\nRaw JSON update request when not uploading an image file.\n\n#### JSON Body Fields:\n* `name` (*string, optional*): Updated branch name\n* `location` (*string, optional*): Updated location\n* `total_rooms` (*integer, optional*): Updated total room capacity\n* `status` (*string, optional*): `active` | `maintenance` | `upcoming`"
+          }
+        },
+        {
+          "name": "Delete Branch",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/branches/{{branchId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "branches",
+                "{{branchId}}"
+              ]
+            },
+            "description": "### DELETE /api/v1/branches/:id\n**Access**: Private (Admin / Super Admin)\nSoft-deletes the branch record (`deleted_at` timestamp set)."
+          }
         }
       ]
     }

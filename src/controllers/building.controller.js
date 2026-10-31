@@ -4,7 +4,13 @@ import { HTTP_STATUS, ROLES } from '../constants/index.js';
 
 export const createBuilding = async (req, res, next) => {
   try {
-    const pg_id = req.body.pg_id ? Number(req.body.pg_id) : req.pg_id;
+    let pg_id = req.body.pg_id ? Number(req.body.pg_id) : req.pg_id;
+    const branch_id = req.body.branch_id ? Number(req.body.branch_id) : undefined;
+
+    if (!pg_id && req.resolved_branch) {
+      pg_id = req.resolved_branch.pg_id;
+    }
+
     if (!pg_id) {
       throw new AppError(
         'Branch (PG ID) is required. Please provide pg_id or login under a PG owner account',
@@ -12,7 +18,7 @@ export const createBuilding = async (req, res, next) => {
       );
     }
 
-    const building = await buildingService.create({ ...req.body, pg_id });
+    const building = await buildingService.create({ ...req.body, pg_id, branch_id });
     return successAction(res, 'Building created successfully', building.id, HTTP_STATUS.CREATED);
   } catch (err) {
     next(err);
@@ -24,11 +30,13 @@ export const getAllBuildings = async (req, res, next) => {
     const is_admin = req.user.role === ROLES.ADMIN;
     const owner_id = is_admin ? req.user.id : undefined;
     const pg_id = req.query.pg_id ? Number(req.query.pg_id) : (req.pg_id || undefined);
+    const branch_id = req.query.branch_id ? Number(req.query.branch_id) : undefined;
 
     const { search, page, limit } = req.query;
 
     const { buildings, pagination } = await buildingService.findAll({
       pg_id,
+      branch_id,
       owner_id,
       search,
       page,

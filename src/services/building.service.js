@@ -10,9 +10,25 @@ export class BuildingService {
    */
   create = async (data) => {
     const {
-      pg_id,
+      pg_id: input_pg_id,
+      branch_id: input_branch_id,
       name,
     } = data;
+
+    let branch_id = input_branch_id ? Number(input_branch_id) : null;
+    let pg_id = input_pg_id ? Number(input_pg_id) : null;
+
+    if (branch_id) {
+      const branch = await db('branches').where({ id: branch_id }).whereNull('deleted_at').first();
+      if (!branch) {
+        throw new AppError('Selected branch not found', HTTP_STATUS.NOT_FOUND);
+      }
+      if (!pg_id) pg_id = branch.pg_id;
+    }
+
+    if (!branch_id) {
+      throw new AppError('Branch ID is required', HTTP_STATUS.BAD_REQUEST);
+    }
 
     // Check PG exists
     const pg = await db('pgs').where({ id: pg_id }).whereNull('deleted_at').first();
@@ -20,21 +36,22 @@ export class BuildingService {
       throw new AppError('PG facility not found', HTTP_STATUS.NOT_FOUND);
     }
 
-    // Check unique name in same PG
+    // Check unique name in same branch
     const existing = await db('buildings')
-      .where({ pg_id, name: String(name).trim() })
+      .where({ branch_id, name: String(name).trim() })
       .whereNull('deleted_at')
       .first();
 
     if (existing) {
       throw new AppError(
-        `Building '${name}' already exists in this PG facility`,
+        `Building '${name}' already exists in this branch`,
         HTTP_STATUS.CONFLICT
       );
     }
 
     const [id] = await db('buildings').insert({
       pg_id,
+      branch_id,
       name: String(name).trim(),
     });
 
@@ -49,6 +66,7 @@ export class BuildingService {
   findAll = async (options = {}) => {
     const {
       pg_id,
+      branch_id,
       owner_id,
       search,
       page = 1,
@@ -64,6 +82,9 @@ export class BuildingService {
       .join('pgs', (join) => {
         join.on('buildings.pg_id', '=', 'pgs.id').andOnNull('pgs.deleted_at');
       })
+      .leftJoin('branches', (join) => {
+        join.on('buildings.branch_id', '=', 'branches.id').andOnNull('branches.deleted_at');
+      })
       .modify((qb) => {
         if (owner_id) {
           qb.where('pgs.owner_id', owner_id);
@@ -71,9 +92,13 @@ export class BuildingService {
         if (pg_id) {
           qb.where('buildings.pg_id', pg_id);
         }
+        if (branch_id) {
+          qb.where('buildings.branch_id', Number(branch_id));
+        }
         if (search) {
           qb.where((sqb) => {
             sqb.where('buildings.name', 'like', `%${search}%`)
+              .orWhere('branches.name', 'like', `%${search}%`)
               .orWhere('pgs.name', 'like', `%${search}%`);
           });
         }
@@ -93,7 +118,10 @@ export class BuildingService {
       .select(
         'buildings.id',
         'buildings.pg_id',
+        'buildings.branch_id',
         'pgs.name as pg_name',
+        db.raw('COALESCE(branches.name, pgs.name) as branch_name'),
+        'branches.name as branch_title',
         'buildings.name',
         db.raw('COUNT(DISTINCT floors.id) as total_floors'),
         db.raw('COUNT(DISTINCT rooms.id) as total_rooms'),
@@ -136,10 +164,16 @@ export class BuildingService {
       .join('pgs', (join) => {
         join.on('buildings.pg_id', '=', 'pgs.id').andOnNull('pgs.deleted_at');
       })
+      .leftJoin('branches', (join) => {
+        join.on('buildings.branch_id', '=', 'branches.id').andOnNull('branches.deleted_at');
+      })
       .select(
         'buildings.id',
         'buildings.pg_id',
+        'buildings.branch_id',
         'pgs.name as pg_name',
+        db.raw('COALESCE(branches.name, pgs.name) as branch_name'),
+        'branches.name as branch_title',
         'pgs.owner_id',
         'buildings.name',
         'buildings.created_at',
@@ -198,23 +232,45 @@ export class BuildingService {
       throw new AppError('Building not found', HTTP_STATUS.NOT_FOUND);
     }
 
-    const { name } = data;
+    const { name, branch_id } = data;
     const update_payload = { updated_at: db.fn.now() };
 
-    if (name && name.trim() !== building.name) {
+    let targetBranchId = building.branch_id;
+    if (branch_id !== undefined) {
+      targetBranchId = Number(branch_id);
+      const branch = await db('branches').where({ id: targetBranchId }).whereNull('deleted_at').first();
+      if (!branch) {
+        throw new AppError('Selected branch not found', HTTP_STATUS.NOT_FOUND);
+      }
+      update_payload.branch_id = targetBranchId;
+
+      // Cascade branch_id update to all rooms belonging to this building
+      if (targetBranchId !== building.branch_id) {
+        await db('rooms').where({ building_id: id }).whereNull('deleted_at').update({
+          branch_id: targetBranchId,
+          updated_at: db.fn.now(),
+        });
+      }
+    }
+
+    if (
+      (name && name.trim() !== building.name) ||
+      (branch_id !== undefined && Number(branch_id) !== building.branch_id)
+    ) {
+      const checkName = name ? name.trim() : building.name;
       const existing = await db('buildings')
-        .where({ pg_id: building.pg_id, name: name.trim() })
+        .where({ branch_id: targetBranchId, name: checkName })
         .whereNull('deleted_at')
         .whereNot({ id })
         .first();
 
       if (existing) {
         throw new AppError(
-          `Building '${name}' already exists in this PG facility`,
+          `Building '${checkName}' already exists in this branch`,
           HTTP_STATUS.CONFLICT
         );
       }
-      update_payload.name = name.trim();
+      if (name) update_payload.name = name.trim();
     }
 
     await db('buildings').where({ id }).update(update_payload);

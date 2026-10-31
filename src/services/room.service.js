@@ -2,6 +2,7 @@ import db from '../config/db.js';
 import { AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS } from '../constants/index.js';
 import { buildFileUrl } from '../utils/url.js';
+import { syncBranchStats, decrementBranchRoomsOnDelete } from './branch.service.js';
 
 /**
  * Helper to attach full image URL to room object
@@ -74,8 +75,20 @@ export const create = async (data) => {
     throw new AppError('Selected floor does not exist in this building', HTTP_STATUS.NOT_FOUND);
   }
 
+  // Auto-resolve branch_id from request, building, or primary PG branch
+  let branch_id = data.branch_id ? Number(data.branch_id) : (building.branch_id || null);
+  if (!branch_id) {
+    const defaultBranch = await db('branches')
+      .where({ pg_id })
+      .whereNull('deleted_at')
+      .orderBy('id', 'asc')
+      .first();
+    if (defaultBranch) branch_id = defaultBranch.id;
+  }
+
   const [id] = await db('rooms').insert({
     pg_id,
+    branch_id,
     room_no,
     room_type: String(room_type).toLowerCase(),
     building_id,
@@ -85,6 +98,10 @@ export const create = async (data) => {
     image: image || null,
     status,
   });
+
+  if (branch_id) {
+    await syncBranchStats(branch_id);
+  }
 
   return findById(id);
 };
@@ -98,6 +115,7 @@ export const create = async (data) => {
 export const findAll = async (options = {}) => {
   const {
     pg_id,
+    branch_id,
     owner_id,
     status,
     room_type,
@@ -116,6 +134,9 @@ export const findAll = async (options = {}) => {
     .whereNull('rooms.deleted_at')
     .join('pgs', (join) => {
       join.on('rooms.pg_id', '=', 'pgs.id').andOnNull('pgs.deleted_at');
+    })
+    .leftJoin('branches', (join) => {
+      join.on('rooms.branch_id', '=', 'branches.id').andOnNull('branches.deleted_at');
     })
     .leftJoin('buildings', (join) => {
       join.on('rooms.building_id', '=', 'buildings.id').andOnNull('buildings.deleted_at');
@@ -139,6 +160,9 @@ export const findAll = async (options = {}) => {
       if (pg_id) {
         qb.where('rooms.pg_id', pg_id);
       }
+      if (branch_id) {
+        qb.where('rooms.branch_id', Number(branch_id));
+      }
       if (status) {
         qb.where('rooms.status', status);
       }
@@ -157,6 +181,7 @@ export const findAll = async (options = {}) => {
             .where('rooms.room_no', 'like', `%${search}%`)
             .orWhere('occupant.name', 'like', `%${search}%`)
             .orWhere('buildings.name', 'like', `%${search}%`)
+            .orWhere('branches.name', 'like', `%${search}%`)
             .orWhere('pgs.name', 'like', `%${search}%`);
         });
       }
@@ -172,7 +197,9 @@ export const findAll = async (options = {}) => {
     .select(
       'rooms.id',
       'rooms.pg_id',
-      'pgs.name as branch_name',
+      'rooms.branch_id',
+      db.raw('COALESCE(branches.name, pgs.name) as branch_name'),
+      'branches.name as branch_title',
       'rooms.building_id',
       'buildings.name as building_name',
       'rooms.floor_id',
@@ -223,6 +250,9 @@ export const findById = async (id) => {
     .join('users as owner', (join) => {
       join.on('pgs.owner_id', '=', 'owner.id').andOnNull('owner.deleted_at');
     })
+    .leftJoin('branches', (join) => {
+      join.on('rooms.branch_id', '=', 'branches.id').andOnNull('branches.deleted_at');
+    })
     .leftJoin('buildings', (join) => {
       join.on('rooms.building_id', '=', 'buildings.id').andOnNull('buildings.deleted_at');
     })
@@ -241,7 +271,9 @@ export const findById = async (id) => {
     .select(
       'rooms.id',
       'rooms.pg_id',
-      'pgs.name as branch_name',
+      'rooms.branch_id',
+      db.raw('COALESCE(branches.name, pgs.name) as branch_name'),
+      'branches.name as branch_title',
       'pgs.owner_id',
       'owner.name as owner_name',
       'rooms.room_no',
@@ -296,6 +328,7 @@ export const update = async (id, data) => {
 
   const update_payload = {
     ...(data.pg_id !== undefined && { pg_id: data.pg_id }),
+    ...(data.branch_id !== undefined && { branch_id: Number(data.branch_id) }),
     ...(data.room_no !== undefined && { room_no: data.room_no }),
     ...(data.room_type !== undefined && { room_type: String(data.room_type).toLowerCase() }),
     ...(data.capacity !== undefined && { capacity: Number(data.capacity) }),
@@ -328,6 +361,13 @@ export const update = async (id, data) => {
   }
 
   await db('rooms').where({ id }).whereNull('deleted_at').update(update_payload);
+
+  if (room.branch_id) {
+    await syncBranchStats(room.branch_id);
+  }
+  if (update_payload.branch_id && update_payload.branch_id !== room.branch_id) {
+    await syncBranchStats(update_payload.branch_id);
+  }
 
   return findById(id);
 };
@@ -368,6 +408,10 @@ export const remove = async (id) => {
     updated_at: db.fn.now(),
   });
 
+  if (room.branch_id) {
+    await decrementBranchRoomsOnDelete(room.branch_id);
+  }
+
   return true;
 };
 
@@ -377,7 +421,7 @@ export const remove = async (id) => {
  * @returns {Promise<Object>} Statistics object
  */
 export const getStats = async (options = {}) => {
-  const { pg_id, owner_id } = options;
+  const { pg_id, branch_id, owner_id } = options;
 
   const base_query = db('rooms')
     .whereNull('rooms.deleted_at')
@@ -390,6 +434,9 @@ export const getStats = async (options = {}) => {
       }
       if (pg_id) {
         qb.where('rooms.pg_id', pg_id);
+      }
+      if (branch_id) {
+        qb.where('rooms.branch_id', Number(branch_id));
       }
     });
 
@@ -416,7 +463,7 @@ export const getStats = async (options = {}) => {
  * @returns {Promise<Array<{building_name: string, floors: Array<number>, total_floors: number, total_rooms: number}>>}
  */
 export const getBuildingsAndFloors = async (options = {}) => {
-  const { pg_id, owner_id } = options;
+  const { pg_id, branch_id, owner_id } = options;
 
   const buildings_query = db('buildings')
     .whereNull('buildings.deleted_at')
@@ -429,6 +476,9 @@ export const getBuildingsAndFloors = async (options = {}) => {
       }
       if (pg_id) {
         qb.where('buildings.pg_id', pg_id);
+      }
+      if (branch_id) {
+        qb.where('buildings.branch_id', Number(branch_id));
       }
     })
     .select(

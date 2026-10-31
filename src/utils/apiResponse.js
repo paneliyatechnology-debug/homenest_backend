@@ -48,6 +48,21 @@ export class AppError extends Error {
  * @returns {import('express').Response}
  */
 export const success = (res, message, data = {}, statusCode = HTTP_STATUS.OK, meta = null) => {
+  // Gracefully handle overloaded signatures:
+  // 1. success(res, message, data, meta) where 4th param is pagination/meta object
+  // 2. success(res, message, data, statusCode, meta)
+  if (typeof statusCode === 'object' && statusCode !== null) {
+    if (!meta) {
+      meta = statusCode;
+    }
+    statusCode = HTTP_STATUS.OK;
+  }
+
+  const numericStatusCode = Number(statusCode);
+  const finalStatusCode = (Number.isInteger(numericStatusCode) && numericStatusCode >= 100 && numericStatusCode < 600)
+    ? numericStatusCode
+    : HTTP_STATUS.OK;
+
   const payload = {
     success: true,
     message,
@@ -66,7 +81,7 @@ export const success = (res, message, data = {}, statusCode = HTTP_STATUS.OK, me
     });
   }
 
-  return res.status(statusCode).json(payload);
+  return res.status(finalStatusCode).json(payload);
 };
 
 /**
@@ -78,7 +93,12 @@ export const success = (res, message, data = {}, statusCode = HTTP_STATUS.OK, me
  * @returns {import('express').Response}
  */
 export const successMessage = (res, message, statusCode = HTTP_STATUS.OK) => {
-  return res.status(statusCode).json({
+  const numericStatusCode = Number(statusCode);
+  const finalStatusCode = (Number.isInteger(numericStatusCode) && numericStatusCode >= 100 && numericStatusCode < 600)
+    ? numericStatusCode
+    : HTTP_STATUS.OK;
+
+  return res.status(finalStatusCode).json({
     success: true,
     message,
   });
@@ -94,10 +114,23 @@ export const successMessage = (res, message, statusCode = HTTP_STATUS.OK) => {
  * @returns {import('express').Response}
  */
 export const successAction = (res, message, id, statusCode = HTTP_STATUS.OK) => {
-  return res.status(statusCode).json({
+  const resolvedId = (typeof id === 'object' && id !== null && id.id !== undefined)
+    ? id.id
+    : id;
+
+  const normalizedId = (typeof resolvedId === 'string' && /^\d+$/.test(resolvedId))
+    ? Number(resolvedId)
+    : (resolvedId !== null && resolvedId !== undefined ? resolvedId : null);
+
+  const numericStatusCode = Number(statusCode);
+  const finalStatusCode = (Number.isInteger(numericStatusCode) && numericStatusCode >= 100 && numericStatusCode < 600)
+    ? numericStatusCode
+    : HTTP_STATUS.OK;
+
+  return res.status(finalStatusCode).json({
     success: true,
     message,
-    id,
+    id: normalizedId,
   });
 };
 
@@ -110,7 +143,12 @@ export const successAction = (res, message, id, statusCode = HTTP_STATUS.OK) => 
  * @returns {import('express').Response}
  */
 export const error = (res, message = 'Internal Server Error', statusCode = HTTP_STATUS.INTERNAL_SERVER_ERROR, errors = []) => {
-  return res.status(statusCode).json({
+  const numericStatusCode = Number(statusCode);
+  const finalStatusCode = (Number.isInteger(numericStatusCode) && numericStatusCode >= 100 && numericStatusCode < 600)
+    ? numericStatusCode
+    : HTTP_STATUS.INTERNAL_SERVER_ERROR;
+
+  return res.status(finalStatusCode).json({
     success: false,
     message,
     ...(errors && errors.length > 0 && { errors }),

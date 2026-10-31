@@ -15,6 +15,26 @@ const sendBrevoEmail = async (jobData) => {
     return;
   }
 
+  const payload = {
+    sender: {
+      name: config.brevo.fromName || 'HomeNest',
+      email: config.brevo.senderEmail || 'jasminkorat04@gmail.com',
+    },
+    to: [
+      {
+        email: jobData.to,
+        name: jobData.name || jobData.to.split('@')[0],
+      },
+    ],
+    subject: jobData.subject,
+    htmlContent: jobData.html,
+    textContent: jobData.text,
+  };
+
+  if (jobData.attachments && Array.isArray(jobData.attachments) && jobData.attachments.length > 0) {
+    payload.attachment = jobData.attachments;
+  }
+
   const response = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
@@ -22,21 +42,7 @@ const sendBrevoEmail = async (jobData) => {
       'api-key': config.brevo.apiKey,
       'content-type': 'application/json',
     },
-    body: JSON.stringify({
-      sender: {
-        name: config.brevo.fromName || 'HomeNest',
-        email: config.brevo.senderEmail || 'jasminkorat04@gmail.com',
-      },
-      to: [
-        {
-          email: jobData.to,
-          name: jobData.name || jobData.to.split('@')[0],
-        },
-      ],
-      subject: jobData.subject,
-      htmlContent: jobData.html,
-      textContent: jobData.text,
-    }),
+    body: JSON.stringify(payload),
   });
 
   const data = await response.json();

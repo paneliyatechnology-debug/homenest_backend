@@ -158,16 +158,31 @@ class AuthService {
         pg_account_holder_name: pg_account_holder_name || null,
       }, trx);
 
+      // 3. Atomically create the primary initial branch for this PG
+      const [initial_branch_id] = await trx('branches').insert({
+        pg_id: created_pg.id,
+        name: 'Main Branch',
+        location: pg_city || pg_address,
+        total_rooms: Number(total_rooms) || 0,
+        occupied_rooms: 0,
+        available_rooms: Number(total_rooms) || 0,
+        status: 'active',
+        created_at: db.fn.now(),
+        updated_at: db.fn.now(),
+      });
+
       const tokens = generateAuthTokens({
         id: owner_id,
         email,
         role: ROLES.ADMIN,
         pg_id: created_pg.id,
+        branch_id: initial_branch_id,
       });
 
       return {
         owner_id,
         pg_id: created_pg.id,
+        branch_id: initial_branch_id,
         ...tokens,
       };
     });

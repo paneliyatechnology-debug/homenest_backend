@@ -22,6 +22,12 @@ export const createRoomValidator = [
       return true;
     }),
 
+  body('branch_id')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Branch ID must be a positive integer'),
+
   body('room_no')
     .trim()
     .notEmpty()
@@ -91,6 +97,12 @@ export const updateRoomValidator = [
       }
       return true;
     }),
+
+  body('branch_id')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Branch ID must be a positive integer'),
 
   body('room_no')
     .optional({ checkFalsy: true })

@@ -7,6 +7,7 @@ import { AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS, ROLES } from '../constants/index.js';
 import { deleteUserPhotoFile, deleteDocumentFile } from '../middlewares/upload.middleware.js';
 import { buildFileUrl } from '../utils/url.js';
+import { syncBranchStats } from './branch.service.js';
 
 /**
  * Helper to safely parse JSON strings
@@ -215,6 +216,8 @@ const formatResidentUser = (user, options = {}) => {
           stay_notes: stay.stay_notes || stay.notes || null,
           pg_id: stay.pg_id || null,
           pg_name: stay.pg_name || null,
+          branch_id: stay.branch_id || null,
+          branch_name: stay.branch_name || stay.pg_name || null,
         }
       : {
           room_id: null,
@@ -238,6 +241,8 @@ const formatResidentUser = (user, options = {}) => {
           stay_notes: null,
           pg_id: null,
           pg_name: null,
+          branch_id: null,
+          branch_name: null,
         },
 
     // Uploaded documents & signature section
@@ -326,6 +331,7 @@ class UserService {
     'users.created_at',
     'users.updated_at',
     'users.deleted_at',
+    'resident_pg_stays.branch_id',
     'resident_pg_stays.room_id',
     'rooms.room_no',
     'rooms.building_id',
@@ -406,12 +412,15 @@ class UserService {
         .where({ 'resident_pg_stays.resident_id': id, 'resident_pg_stays.status': 'active' })
         .whereNull('resident_pg_stays.deleted_at')
         .leftJoin('pgs', (join) => join.on('resident_pg_stays.pg_id', '=', 'pgs.id').andOnNull('pgs.deleted_at'))
+        .leftJoin('branches', (join) => join.on('resident_pg_stays.branch_id', '=', 'branches.id').andOnNull('branches.deleted_at'))
         .leftJoin('rooms', (join) => join.on('resident_pg_stays.room_id', '=', 'rooms.id').andOnNull('rooms.deleted_at'))
         .leftJoin('buildings', (join) => join.on('rooms.building_id', '=', 'buildings.id').andOnNull('buildings.deleted_at'))
         .leftJoin('floors', (join) => join.on('rooms.floor_id', '=', 'floors.id').andOnNull('floors.deleted_at'))
         .select(
           'resident_pg_stays.id as stay_id',
           'resident_pg_stays.pg_id',
+          'resident_pg_stays.branch_id',
+          db.raw('COALESCE(branches.name, pgs.name) as branch_name'),
           'pgs.name as pg_name',
           'resident_pg_stays.room_id',
           'rooms.room_no',
@@ -471,6 +480,8 @@ class UserService {
       status = 'active',
       // Optional room allocation fields for resident onboarding
       pg_id = null,
+      branch_id = null,
+      maintenance_amount = 0.0,
       room_id = null,
       room_no = null,
       bed_number = 'Bed-1',
@@ -562,6 +573,7 @@ class UserService {
         const [stay_id] = await trx('resident_pg_stays').insert({
           resident_id: user_id,
           pg_id: target_room.pg_id,
+          branch_id: branch_id ? Number(branch_id) : (target_room.branch_id || null),
           room_id: target_room.id,
           bed_number: bed_number || 'Bed-1',
           monthly_rent: parseFloat(monthly_rent) || 0.0,
@@ -579,6 +591,9 @@ class UserService {
             status: 'occupied',
             updated_at: db.fn.now(),
           });
+          if (target_room.branch_id) {
+            await syncBranchStats(target_room.branch_id, trx);
+          }
         }
 
         // Automatically create initial onboarding payment demand with total of all three: rent, deposit, maintenance
@@ -614,6 +629,7 @@ class UserService {
             resident_id: user_id,
             pg_id: target_room.pg_id,
             stay_id,
+            branch_id: branch_id ? Number(branch_id) : (target_room.branch_id || null),
             room_id: target_room.id,
             title: `Onboarding Due (${titleDesc}) - ${monthName} ${year}`,
             payment_type: 'rent',
@@ -655,7 +671,8 @@ class UserService {
         pgName: allocatedPgName,
         roomNo: allocatedRoomNo,
         bedNumber: allocatedBedNumber,
-        loginUrl: `${config.frontendUrl}/login`,
+        loginUrl: `${config.frontendUrl}/login`,
+
         dueAmount: allocatedTotalDue > 0 ? allocatedTotalDue : null,
         rentAmount: allocatedRentVal,
         depositAmount: allocatedDepositVal,
@@ -677,6 +694,8 @@ class UserService {
     role = '',
     status = '',
     pg_id = null,
+      branch_id = null,
+      maintenance_amount = 0.0,
     owner_id = null,
     search = '',
     page = 1,
@@ -745,6 +764,9 @@ class UserService {
       }
       if (pg_id) {
         builder.where('resident_pg_stays.pg_id', pg_id);
+      }
+      if (branch_id) {
+        builder.where('resident_pg_stays.branch_id', branch_id);
       }
       if (owner_id) {
         builder.where((owner_qb) => {
@@ -923,6 +945,8 @@ class UserService {
 
       if (active_stay) {
         const stay_updates = {
+          ...(update_data.branch_id !== undefined && { branch_id: Number(update_data.branch_id) }),
+          ...(target_room?.branch_id && { branch_id: target_room.branch_id }),
           ...(update_data.room_id !== undefined && { room_id: update_data.room_id }),
           ...(update_data.bed_number !== undefined && { bed_number: update_data.bed_number }),
           ...(update_data.monthly_rent !== undefined && { monthly_rent: parseFloat(update_data.monthly_rent) || 0.0 }),
@@ -950,6 +974,7 @@ class UserService {
         await db('resident_pg_stays').insert({
           resident_id: id,
           pg_id: target_room.pg_id,
+          branch_id: update_data.branch_id ? Number(update_data.branch_id) : (target_room.branch_id || null),
           room_id: target_room.id,
           bed_number: update_data.bed_number || 'Bed-1',
           monthly_rent: parseFloat(update_data.monthly_rent) || 0.0,
@@ -998,6 +1023,10 @@ class UserService {
           status: 'vacant',
           updated_at: db.fn.now(),
         });
+        const rm = await db('rooms').where({ id: roomId }).first();
+        if (rm && rm.branch_id) {
+          await syncBranchStats(rm.branch_id);
+        }
       }
     }
 

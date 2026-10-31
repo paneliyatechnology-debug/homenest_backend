@@ -25,6 +25,7 @@ class PaymentService {
     'resident.phone as resident_phone',
     'resident.profile_photo as resident_photo',
     'payments.pg_id',
+    'payments.branch_id',
     'pgs.name as branch_name',
     'pgs.name as pg_name',
     'pgs.owner_id',
@@ -133,6 +134,7 @@ class PaymentService {
       stay_id: item.stay_id ? Number(item.stay_id) : null,
       bed_number: item.bed_number || null,
       room_id: item.room_id ? Number(item.room_id) : null,
+      branch_id: item.branch_id || null,
       branch_name: item.branch_name || null,
       pg_name: item.pg_name || null,
       pg_id: item.pg_id,
@@ -246,6 +248,7 @@ class PaymentService {
       owner_id = null,
       resident_id = null,
       pg_id = null,
+      branch_id = null,
       status = '',
       payment_type = '',
       payment_method = '',
@@ -263,6 +266,9 @@ class PaymentService {
       })
       .join('pgs', (join) => {
         join.on('payments.pg_id', '=', 'pgs.id').andOnNull('pgs.deleted_at');
+      })
+      .leftJoin('branches', (join) => {
+        join.on('payments.branch_id', '=', 'branches.id').andOnNull('branches.deleted_at');
       })
       .leftJoin('resident_pg_stays as stay', (join) => {
         join.on('payments.stay_id', '=', 'stay.id').andOnNull('stay.deleted_at');
@@ -285,6 +291,9 @@ class PaymentService {
         }
         if (pg_id) {
           qb.where('payments.pg_id', pg_id);
+        }
+        if (branch_id) {
+          qb.where('payments.branch_id', branch_id);
         }
         if (status && status !== 'all') {
           if (status === 'completed') {
@@ -1059,7 +1068,7 @@ class PaymentService {
    * @returns {Promise<object>} Unified payment statistics
    */
   getPaymentStats = async (options = {}) => {
-    const { owner_id, pg_id, start_date, end_date } = options;
+    const { owner_id, pg_id, branch_id, start_date, end_date } = options;
 
     const base_query = db('payments')
       .whereNull('payments.deleted_at')
@@ -1075,6 +1084,9 @@ class PaymentService {
         }
         if (pg_id) {
           qb.where('payments.pg_id', pg_id);
+        }
+        if (branch_id) {
+          qb.where('payments.branch_id', branch_id);
         }
         if (start_date) {
           qb.where('payments.created_at', '>=', start_date);
@@ -1429,8 +1441,9 @@ class PaymentService {
     let resolved_stay_id = stay_id ? Number(stay_id) : null;
     let resolved_room_id = room_id ? Number(room_id) : null;
     let resolved_pg_id = pg_id ? Number(pg_id) : null;
+    let resolved_branch_id = data.branch_id ? Number(data.branch_id) : null;
 
-    if (!resolved_stay_id || !resolved_room_id || !resolved_pg_id) {
+    if (!resolved_stay_id || !resolved_room_id || !resolved_pg_id || !resolved_branch_id) {
       const active_stay = await db('resident_pg_stays')
         .where({ resident_id: Number(resident_id), status: 'active' })
         .whereNull('deleted_at')
@@ -1441,11 +1454,17 @@ class PaymentService {
         if (!resolved_stay_id) resolved_stay_id = active_stay.id;
         if (!resolved_room_id) resolved_room_id = active_stay.room_id;
         if (!resolved_pg_id) resolved_pg_id = active_stay.pg_id;
+        if (!resolved_branch_id) resolved_branch_id = active_stay.branch_id;
       }
     }
 
     if (!resolved_pg_id) {
       throw new AppError('PG facility identification is required. Please specify pg_id or assign the resident to an active stay', HTTP_STATUS.BAD_REQUEST);
+    }
+
+    if (!resolved_branch_id) {
+      const defaultBranch = await db('branches').where({ pg_id: resolved_pg_id }).whereNull('deleted_at').orderBy('id', 'asc').first();
+      if (defaultBranch) resolved_branch_id = defaultBranch.id;
     }
 
     // Verify PG exists
@@ -1461,6 +1480,7 @@ class PaymentService {
     const [id] = await db('payments').insert({
       resident_id: Number(resident_id),
       pg_id: Number(resolved_pg_id),
+      branch_id: resolved_branch_id ? Number(resolved_branch_id) : null,
       stay_id: resolved_stay_id ? Number(resolved_stay_id) : null,
       room_id: resolved_room_id ? Number(resolved_room_id) : null,
       title,
@@ -1538,6 +1558,7 @@ class PaymentService {
 
     if (stay_id !== undefined) updatePayload.stay_id = stay_id ? Number(stay_id) : null;
     if (room_id !== undefined) updatePayload.room_id = room_id ? Number(room_id) : null;
+    if (data.branch_id !== undefined) updatePayload.branch_id = data.branch_id ? Number(data.branch_id) : null;
     if (title !== undefined) updatePayload.title = title;
     if (payment_type !== undefined) updatePayload.payment_type = payment_type;
     if (billing_period_start !== undefined) updatePayload.billing_period_start = billing_period_start || null;

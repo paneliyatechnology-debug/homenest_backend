@@ -8,6 +8,12 @@ export const listFloorsValidator = [
     .isInt({ min: 1 })
     .withMessage('Building ID must be a positive integer'),
 
+  query('branch_id')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Branch ID must be a positive integer'),
+
   query('pg_id')
     .optional({ checkFalsy: true })
     .toInt()

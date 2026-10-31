@@ -34,6 +34,12 @@ export const listPaymentsValidator = [
     .isInt({ min: 1 })
     .withMessage('PG facility ID must be a positive integer'),
 
+  query('branch_id')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Branch ID must be a positive integer'),
+
   query('room_type')
     .optional({ checkFalsy: true })
     .trim()
@@ -124,6 +130,12 @@ export const exportPaymentsValidator = [
     .isInt({ min: 1 })
     .withMessage('PG facility ID must be a positive integer'),
 
+  query('branch_id')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Branch ID must be a positive integer'),
+
   query('room_type')
     .optional({ checkFalsy: true })
     .trim()
@@ -176,6 +188,12 @@ export const paymentStatsValidator = [
     .toInt()
     .isInt({ min: 1 })
     .withMessage('PG facility ID must be a positive integer'),
+
+  query('branch_id')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Branch ID must be a positive integer'),
 
   query('start_date')
     .optional({ checkFalsy: true })
@@ -245,6 +263,12 @@ export const createPaymentValidator = [
       }
       return true;
     }),
+
+  body('branch_id')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Branch ID must be a positive integer'),
 
   body('stay_id')
     .optional({ checkFalsy: true })
@@ -357,6 +381,12 @@ export const updatePaymentValidator = [
       }
       return true;
     }),
+
+  body('branch_id')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Branch ID must be a positive integer'),
 
   body('stay_id')
     .optional({ checkFalsy: true })

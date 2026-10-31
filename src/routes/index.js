@@ -7,6 +7,8 @@ import buildingRoutes from './building.routes.js';
 import floorRoutes from './floor.routes.js';
 import agreementRoutes from './agreement.routes.js';
 import paymentRoutes from './payment.routes.js';
+import visitorRoutes from './visitor.routes.js';
+import branchRoutes from './branch.routes.js';
 import cronRoutes from './cron.routes.js';
 import { success } from '../utils/apiResponse.js';
 
@@ -32,6 +34,8 @@ router.use('/floors', floorRoutes);
 router.use('/rooms', roomRoutes);
 router.use('/agreements', agreementRoutes);
 router.use('/payments', paymentRoutes);
+router.use('/visitors', visitorRoutes);
+router.use('/branches', branchRoutes);
 router.use('/crons', cronRoutes);
 
 export default router;

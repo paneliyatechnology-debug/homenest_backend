@@ -13,6 +13,7 @@ import { HTTP_STATUS, ROLES } from '../constants/index.js';
 export const createAgreement = async (req, res, next) => {
   try {
     const pg_id = req.body.pg_id ? Number(req.body.pg_id) : req.pg_id;
+    const branch_id = req.body.branch_id ? Number(req.body.branch_id) : undefined;
     if (!pg_id) {
       throw new AppError('PG facility ID is required. Please specify a PG or log in under a PG owner account', HTTP_STATUS.BAD_REQUEST);
     }
@@ -20,6 +21,7 @@ export const createAgreement = async (req, res, next) => {
     const agreement = await agreementService.create({
       ...req.body,
       pg_id,
+      branch_id,
     });
     return successAction(res, 'Agreement created successfully', agreement.id, HTTP_STATUS.CREATED);
   } catch (err) {
@@ -47,11 +49,13 @@ export const getAllAgreements = async (req, res, next) => {
     } = req.query;
 
     const pg_id = req.query.pg_id ? Number(req.query.pg_id) : (req.pg_id || undefined);
+    const branch_id = req.query.branch_id ? Number(req.query.branch_id) : undefined;
 
     const { agreements, pagination } = await agreementService.findAll({
       owner_id,
       resident_id,
       pg_id,
+      branch_id,
       status,
       agreement_type,
       search,
@@ -152,12 +156,14 @@ export const getAgreementStats = async (req, res, next) => {
     const owner_id = is_admin ? req.user.id : undefined;
     const resident_id = is_resident ? req.user.id : (req.query.resident_id || undefined);
     const pg_id = req.query.pg_id ? Number(req.query.pg_id) : (req.pg_id || undefined);
+    const branch_id = req.query.branch_id ? Number(req.query.branch_id) : undefined;
     const agreement_type = req.query.agreement_type || undefined;
 
     const stats = await agreementService.getStats({
       owner_id,
       resident_id,
       pg_id,
+      branch_id,
       agreement_type,
     });
     return success(res, 'Agreement statistics retrieved successfully', stats);

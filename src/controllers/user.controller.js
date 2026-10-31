@@ -18,7 +18,8 @@ export const createUser = async (req, res, next) => {
     }
 
     const pg_id = req.body.pg_id ? Number(req.body.pg_id) : req.pg_id;
-    const user = await userService.create({ ...req.body, pg_id });
+    const branch_id = req.body.branch_id ? Number(req.body.branch_id) : undefined;
+    const user = await userService.create({ ...req.body, pg_id, branch_id });
     return successAction(res, 'User created successfully', user.id, HTTP_STATUS.CREATED);
   } catch (err) {
     next(err);
@@ -42,11 +43,13 @@ export const getAllUsers = async (req, res, next) => {
     } = req.query;
 
     const pg_id = req.query.pg_id ? Number(req.query.pg_id) : (is_admin ? req.pg_id : undefined);
+    const branch_id = req.query.branch_id ? Number(req.query.branch_id) : undefined;
 
     const { users, pagination } = await userService.findAll({
       role,
       status,
       pg_id,
+      branch_id,
       owner_id,
       search,
       page,

@@ -78,8 +78,21 @@ export const authenticate = async (req, res, next) => {
     if (user.role === ROLES.RESIDENT) {
       user.pg_id = resolved_pg_id;
     }
+
+    let resolved_branch_id = decoded.branch_id || user.room_info?.branch_id || null;
+    if (!resolved_branch_id && resolved_pg_id) {
+      if (user.role === ROLES.RESIDENT) {
+        const stay = await db('resident_pg_stays').where({ resident_id: user.id, status: 'active' }).whereNull('deleted_at').orderBy('id', 'desc').first();
+        if (stay?.branch_id) resolved_branch_id = stay.branch_id;
+      } else if (user.role === ROLES.ADMIN) {
+        const branch = await db('branches').where({ pg_id: resolved_pg_id }).whereNull('deleted_at').orderBy('id', 'asc').first();
+        if (branch) resolved_branch_id = branch.id;
+      }
+    }
+
     req.user = user;
     req.pg_id = resolved_pg_id;
+    req.branch_id = resolved_branch_id;
     next();
   } catch (err) {
     next(err);

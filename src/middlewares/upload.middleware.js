@@ -8,9 +8,11 @@ const rooms_upload_dir = path.join(process.cwd(), 'uploads', 'rooms');
 const users_upload_dir = path.join(process.cwd(), 'uploads', 'users');
 const pgs_upload_dir = path.join(process.cwd(), 'uploads', 'pgs');
 const documents_upload_dir = path.join(process.cwd(), 'uploads', 'documents');
+const visitors_upload_dir = path.join(process.cwd(), 'uploads', 'visitors');
+const branches_upload_dir = path.join(process.cwd(), 'uploads', 'branches');
 
 // Ensure upload directories exist
-[rooms_upload_dir, users_upload_dir, pgs_upload_dir, documents_upload_dir].forEach((dir) => {
+[rooms_upload_dir, users_upload_dir, pgs_upload_dir, documents_upload_dir, visitors_upload_dir, branches_upload_dir].forEach((dir) => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -301,13 +303,139 @@ export const deleteDocumentFile = (filename) => {
   }
 };
 
+// Visitors photo storage
+const visitors_storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, visitors_upload_dir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const unique_name = `visitor-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+    cb(null, unique_name);
+  },
+});
+
+const upload_visitor = multer({
+  storage: visitors_storage,
+  fileFilter: file_filter,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+});
+
+// Branches photo storage
+const branches_storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, branches_upload_dir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const unique_name = `branch-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+    cb(null, unique_name);
+  },
+});
+
+const upload_branch = multer({
+  storage: branches_storage,
+  fileFilter: file_filter,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+});
+
+/**
+ * Middleware for branch photo upload.
+ * Seamlessly handles multipart/form-data with field 'branch_photo', 'photo', or 'image'.
+ * Also supports JSON payloads. Photo is optional.
+ */
+export const handleBranchPhotoUpload = (req, res, next) => {
+  const content_type = req.headers['content-type'] || '';
+  if (content_type.startsWith('multipart/form-data')) {
+    upload_branch.fields([
+      { name: 'branch_photo', maxCount: 1 },
+      { name: 'photo', maxCount: 1 },
+      { name: 'image', maxCount: 1 },
+    ])(req, res, (err) => {
+      if (err) {
+        if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+          return next(new AppError('Branch photo file size exceeds 5MB limit', HTTP_STATUS.BAD_REQUEST));
+        }
+        return next(err);
+      }
+      if (req.files) {
+        req.file = req.files['branch_photo']?.[0] || req.files['photo']?.[0] || req.files['image']?.[0] || null;
+      }
+      next();
+    });
+  } else {
+    next();
+  }
+};
+
+/**
+ * Delete a local branch photo file safely
+ * @param {string|null} filename
+ */
+export const deleteBranchPhotoFile = (filename) => {
+  if (!filename) return;
+  try {
+    const file_path = path.join(branches_upload_dir, path.basename(filename));
+    if (fs.existsSync(file_path)) {
+      fs.unlinkSync(file_path);
+    }
+  } catch (err) {
+    console.warn(`[Warning] Could not delete branch photo: ${filename}`, err.message);
+  }
+};
+
+/**
+ * Middleware for visitor photo upload.
+ * Seamlessly handles multipart/form-data with field 'photo', 'visitor_photo', or 'image'.
+ * Also supports JSON payloads. Photo is optional.
+ */
+export const handleVisitorPhotoUpload = (req, res, next) => {
+  const content_type = req.headers['content-type'] || '';
+  if (content_type.startsWith('multipart/form-data')) {
+    upload_visitor.fields([
+      { name: 'photo', maxCount: 1 },
+      { name: 'visitor_photo', maxCount: 1 },
+      { name: 'image', maxCount: 1 },
+    ])(req, res, (err) => {
+      if (err) {
+        if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+          return next(new AppError('Visitor photo file size exceeds 5MB limit', HTTP_STATUS.BAD_REQUEST));
+        }
+        return next(err);
+      }
+      if (req.files) {
+        req.file = req.files['photo']?.[0] || req.files['visitor_photo']?.[0] || req.files['image']?.[0] || null;
+      }
+      next();
+    });
+  } else {
+    next();
+  }
+};
+
+/**
+ * Delete a local visitor photo file safely
+ * @param {string|null} filename
+ */
+export const deleteVisitorPhotoFile = (filename) => {
+  if (!filename) return;
+  try {
+    const file_path = path.join(visitors_upload_dir, path.basename(filename));
+    if (fs.existsSync(file_path)) {
+      fs.unlinkSync(file_path);
+    }
+  } catch (err) {
+    console.warn(`[Warning] Could not delete visitor photo: ${filename}`, err.message);
+  }
+};
+
 export default {
   handleRoomImageUpload,
   handleUserPhotoUpload,
   handleUserProfileUpload,
   handlePgRegistrationUpload,
+  handleVisitorPhotoUpload,
+  handleBranchPhotoUpload,
   deleteRoomImageFile,
   deleteUserPhotoFile,
   deletePgLogoFile,
   deleteDocumentFile,
+  deleteVisitorPhotoFile,
+  deleteBranchPhotoFile,
 };

@@ -34,6 +34,18 @@ export const createAgreementValidator = [
       return true;
     }),
 
+  body('branch_id')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Branch ID must be a positive integer'),
+
+  body('branch_id')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Branch ID must be a positive integer'),
+
   body('agreement_no')
     .trim()
     .notEmpty()
@@ -104,6 +116,12 @@ export const updateAgreementValidator = [
     .withMessage('Agreement ID parameter is required')
     .isInt({ min: 1 })
     .withMessage('Agreement ID must be a valid integer'),
+
+  body('branch_id')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Branch ID must be a positive integer'),
 
   body('agreement_no')
     .optional({ checkFalsy: true })

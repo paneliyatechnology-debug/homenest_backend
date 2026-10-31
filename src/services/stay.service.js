@@ -1,6 +1,7 @@
 import db from '../config/db.js';
 import { AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS } from '../constants/index.js';
+import { syncBranchStats } from './branch.service.js';
 
 /**
  * Service managing resident stays across multiple PGs.
@@ -32,10 +33,15 @@ class StayService {
       .join('users as owner', (join) => {
         join.on('pgs.owner_id', '=', 'owner.id').andOnNull('owner.deleted_at');
       })
+      .leftJoin('branches', (join) => {
+        join.on('resident_pg_stays.branch_id', '=', 'branches.id').andOnNull('branches.deleted_at');
+      })
       .leftJoin('buildings', 'rooms.building_id', 'buildings.id')
       .leftJoin('floors', 'rooms.floor_id', 'floors.id')
       .select(
         'resident_pg_stays.*',
+        'resident_pg_stays.branch_id',
+        db.raw('COALESCE(branches.name, pgs.name) as branch_name'),
         'rooms.room_no as room_number',
         'rooms.room_type',
         'floors.floor_number as room_floor',
@@ -101,6 +107,11 @@ class StayService {
         await trx('rooms')
           .where({ id: stay.room_id })
           .update({ status: 'vacant', updated_at: db.fn.now() });
+
+        const roomRecord = await trx('rooms').where({ id: stay.room_id }).first();
+        if (roomRecord && roomRecord.branch_id) {
+          await syncBranchStats(roomRecord.branch_id, trx);
+        }
       }
     });
 
@@ -115,7 +126,7 @@ class StayService {
    */
   getResidentStayHistory = async (
     resident_id,
-    { status = '', pg_id = null, search = '', page = 1, limit = 10 } = {}
+    { status = '', pg_id = null, branch_id = null, search = '', page = 1, limit = 10 } = {}
   ) => {
     const offset = (page - 1) * limit;
 
@@ -124,6 +135,9 @@ class StayService {
       .whereNull('resident_pg_stays.deleted_at')
       .join('pgs', (join) => {
         join.on('resident_pg_stays.pg_id', '=', 'pgs.id').andOnNull('pgs.deleted_at');
+      })
+      .leftJoin('branches', (join) => {
+        join.on('resident_pg_stays.branch_id', '=', 'branches.id').andOnNull('branches.deleted_at');
       })
       .join('rooms', (join) => {
         join.on('resident_pg_stays.room_id', '=', 'rooms.id').andOnNull('rooms.deleted_at');
@@ -137,6 +151,8 @@ class StayService {
         'resident_pg_stays.id',
         'resident_pg_stays.resident_id',
         'resident_pg_stays.pg_id',
+        'resident_pg_stays.branch_id',
+        db.raw('COALESCE(branches.name, pgs.name) as branch_name'),
         'pgs.name as pg_name',
         'pgs.type as pg_type',
         'pgs.address as pg_address',
@@ -181,6 +197,11 @@ class StayService {
     if (pg_id) {
       query = query.where('resident_pg_stays.pg_id', pg_id);
       count_query = count_query.where('resident_pg_stays.pg_id', pg_id);
+    }
+
+    if (branch_id) {
+      query = query.where('resident_pg_stays.branch_id', branch_id);
+      count_query = count_query.where('resident_pg_stays.branch_id', branch_id);
     }
 
     if (search) {

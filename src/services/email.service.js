@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { enqueueEmail } from '../queues/email.queue.js';
 import config from '../config/index.js';
 
@@ -292,6 +294,248 @@ The ${fromName} Team
       subject: `Welcome to ${fromName} - Your Account Credentials`,
       html,
       text: plainText,
+    });
+  };
+
+  /**
+   * Send Official Approved Visitor Gate Pass Email with embedded QR Code to Resident
+   * @param {Object} options
+   * @param {string} options.residentEmail
+   * @param {string} options.residentName
+   * @param {string} options.visitorName
+   * @param {string} options.visitorPhone
+   * @param {string} options.purpose
+   * @param {string} options.visitDate
+   * @param {string} options.entryTime
+   * @param {string} options.roomNo
+   * @param {string} options.roomType
+   * @param {string} options.pgName
+   * @param {string} options.pgAddress
+   * @param {string} options.passCode
+   * @param {string} options.qrCodeDataUrl - base64 PNG data URL of the QR code
+   */
+  sendVisitorPassApprovedEmail = async ({
+    residentEmail,
+    residentName,
+    visitorName,
+    visitorPhone,
+    purpose,
+    visitDate,
+    entryTime,
+    roomNo,
+    roomType,
+    pgName,
+    pgAddress,
+    passCode,
+    qrCodeUrl,
+    qrCodeFilename,
+    qrCodeDataUrl,
+  }) => {
+    const fromName = config.brevo.fromName || 'HomeNest';
+
+    // In local development or private environments, localhost image URLs cannot be reached by Gmail's image proxy.
+    // Use public HTTPS QR CDN so Gmail/Outlook renders the visual QR code image directly in the email.
+    const isLocalhost = !qrCodeUrl || qrCodeUrl.includes('localhost') || qrCodeUrl.includes('127.0.0.1');
+    const displayQrImage = isLocalhost
+      ? `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=8&data=${encodeURIComponent(passCode)}`
+      : qrCodeUrl;
+
+    // Attach the actual PNG file to the email so resident can download/save to phone gallery
+    const attachments = [];
+    try {
+      const filename = qrCodeFilename || (qrCodeUrl ? path.basename(qrCodeUrl) : null);
+      if (filename) {
+        const filePath = path.join(process.cwd(), 'uploads', 'visitors', filename);
+        if (fs.existsSync(filePath)) {
+          const content = fs.readFileSync(filePath).toString('base64');
+          attachments.push({
+            name: `Visitor_Pass_${passCode || 'QR'}.png`,
+            content,
+          });
+        }
+      }
+    } catch (attErr) {
+      console.warn('[Email Service] Visitor QR attachment skipped:', attErr.message);
+    }
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Visitor Pass Approved</title>
+      </head>
+      <body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; padding: 36px 16px;">
+          <tr>
+            <td align="center">
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 580px; background-color: #ffffff; border-radius: 14px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                
+                <!-- Brand Header -->
+                <tr>
+                  <td style="background-color: #1b4332; padding: 28px 36px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">${fromName}</h1>
+                    <p style="color: #a7f3d0; font-size: 12px; margin: 4px 0 0; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">Access Control &amp; Gate Security</p>
+                  </td>
+                </tr>
+
+                <!-- Status Banner -->
+                <tr>
+                  <td style="background-color: #ecfdf5; border-bottom: 1px solid #a7f3d0; padding: 14px 24px; text-align: center;">
+                    <span style="display: inline-block; background-color: #10b981; color: #ffffff; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 4px 14px; border-radius: 9999px;">
+                      &#10003; Visitor Pass Approved
+                    </span>
+                  </td>
+                </tr>
+
+                <!-- Pass Content -->
+                <tr>
+                  <td style="padding: 32px 36px 24px;">
+                    <p style="font-size: 15px; color: #1e293b; margin: 0 0 16px;">
+                      Hello <strong>${residentName || 'Resident'}</strong>,
+                    </p>
+                    <p style="font-size: 14px; color: #475569; line-height: 1.6; margin: 0 0 24px;">
+                      Your visitor request for <strong>${visitorName}</strong> has been <strong>approved</strong> by the property management. Below is the official digital visitor pass and verification QR code.
+                    </p>
+
+                    <!-- Pass Card Container -->
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 24px;">
+                      <!-- Pass Header -->
+                      <tr>
+                        <td style="background-color: #0f172a; padding: 14px 20px; color: #ffffff;">
+                          <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                            <tr>
+                              <td align="left">
+                                <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8;">Visitor Pass Code</span><br/>
+                                <strong style="font-size: 16px; font-family: monospace; letter-spacing: 1px; color: #38bdf8;">${passCode}</strong>
+                              </td>
+                              <td align="right">
+                                <span style="font-size: 12px; color: #e2e8f0; font-weight: 600;">${pgName || fromName}</span>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+
+                      <!-- Pass Details Grid -->
+                      <tr>
+                        <td style="padding: 20px;">
+                          <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                            <tr>
+                              <td width="50%" style="padding-bottom: 12px; vertical-align: top;">
+                                <span style="font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 600;">Visitor Name</span><br/>
+                                <strong style="font-size: 14px; color: #0f172a;">${visitorName}</strong>
+                              </td>
+                              <td width="50%" style="padding-bottom: 12px; vertical-align: top;">
+                                <span style="font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 600;">Visitor Contact</span><br/>
+                                <strong style="font-size: 14px; color: #0f172a;">${visitorPhone || 'N/A'}</strong>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td width="50%" style="padding-bottom: 12px; vertical-align: top;">
+                                <span style="font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 600;">Host Resident</span><br/>
+                                <strong style="font-size: 14px; color: #0f172a;">${residentName || 'Resident'}</strong>
+                              </td>
+                              <td width="50%" style="padding-bottom: 12px; vertical-align: top;">
+                                <span style="font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 600;">Resident Room</span><br/>
+                                <strong style="font-size: 14px; color: #0f172a;">${roomNo ? `Room ${roomNo}` : 'Resident Room'}${roomType ? ` (${roomType})` : ''}</strong>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td width="50%" style="vertical-align: top;">
+                                <span style="font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 600;">Visit Date</span><br/>
+                                <strong style="font-size: 14px; color: #0f172a;">${visitDate || 'Today'}</strong>
+                              </td>
+                              <td width="50%" style="vertical-align: top;">
+                                <span style="font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 600;">Purpose / Entry</span><br/>
+                                <strong style="font-size: 14px; color: #0f172a;">${purpose || 'Meeting'}${entryTime ? ` &bull; ${entryTime}` : ''}</strong>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <!-- QR Code Card -->
+                    ${displayQrImage ? `
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin: 22px 0; text-align: center;">
+                      <tr>
+                        <td align="center">
+                          <div style="display: inline-block; padding: 20px 24px; background-color: #ffffff; border: 2px dashed #059669; border-radius: 14px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.06); text-align: center; max-width: 320px;">
+                            <img src="${displayQrImage}" alt="Visitor Gate Pass QR Code (${passCode})" width="220" height="220" style="display: block; margin: 0 auto; border-radius: 8px; border: 1px solid #e2e8f0;" />
+                            <p style="margin: 12px 0 6px; font-size: 11px; color: #059669; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Gate Entry &amp; Exit QR Code</p>
+                            <div style="margin-top: 12px; padding: 10px 14px; background-color: #f8fafc; border-radius: 8px; border: 1px solid #cbd5e1;">
+                              <span style="font-size: 10px; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 1px;">Pass Code</span><br/>
+                              <strong style="font-size: 20px; font-family: 'Courier New', Courier, monospace; letter-spacing: 2px; color: #0f172a;">${passCode}</strong>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                    ` : ''}
+
+                    <!-- Gate Instructions Note -->
+                    <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 14px 16px; border-radius: 0 8px 8px 0; margin-top: 20px;">
+                      <p style="margin: 0; font-size: 12px; color: #1e40af; line-height: 1.5;">
+                        <strong>Security Gate Verification:</strong> Please forward this pass to your visitor or share the QR code. When the visitor arrives and departs, the security staff will scan this QR code to log entry and exit times automatically.
+                      </p>
+                    </div>
+
+                    ${pgAddress ? `
+                    <p style="font-size: 12px; color: #64748b; line-height: 1.4; margin: 16px 0 0; text-align: center;">
+                      <strong>Facility Location:</strong> ${pgName ? `${pgName} &bull; ` : ''}${pgAddress}
+                    </p>
+                    ` : ''}
+                  </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                  <td style="background-color: #f8fafc; padding: 20px 36px; text-align: center; border-top: 1px solid #f1f5f9;">
+                    <p style="font-size: 11px; color: #94a3b8; margin: 0;">
+                      &copy; ${new Date().getFullYear()} ${fromName}. Official Visitor Access Management System.
+                    </p>
+                  </td>
+                </tr>
+
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+
+    const plainText = `
+Visitor Pass Approved - ${fromName}
+
+Hello ${residentName || 'Resident'},
+
+Your visitor pass request has been APPROVED:
+
+- Pass Code: ${passCode}
+- Visitor Name: ${visitorName}
+- Visitor Phone: ${visitorPhone || 'N/A'}
+- Host Resident: ${residentName}
+- Room: ${roomNo || 'N/A'}
+- Purpose: ${purpose || 'Meeting'}
+- Visit Date: ${visitDate}
+${entryTime ? `- Entry Time: ${entryTime}\n` : ''}${pgName ? `- Facility: ${pgName}\n` : ''}
+
+Please present the digital QR code at the security gate to record Entry and Exit.
+
+Best regards,
+${fromName} Security Management
+    `.trim();
+
+    return await enqueueEmail({
+      to: residentEmail,
+      name: residentName,
+      subject: `Visitor Pass Approved - ${visitorName} (${passCode})`,
+      html,
+      text: plainText,
+      attachments,
     });
   };
 }

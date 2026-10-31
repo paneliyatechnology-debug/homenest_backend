@@ -1,5 +1,8 @@
+import fs from 'fs';
+import path from 'path';
 import { hashPassword } from '../../utils/password.js';
 import ROLES from '../../constants/roles.js';
+import QRCode from 'qrcode';
 
 /**
  * @param { import("knex").Knex } knex
@@ -7,12 +10,14 @@ import ROLES from '../../constants/roles.js';
  */
 export const seed = async (knex) => {
   // Clear existing entries in correct order due to foreign keys
+  await knex('visitors').del();
   await knex('payments').del();
   await knex('agreements').del();
   await knex('resident_pg_stays').del();
   await knex('rooms').del();
   await knex('floors').del();
   await knex('buildings').del();
+  await knex('branches').del();
   await knex('pgs').del();
   await knex('users').del();
 
@@ -107,13 +112,16 @@ export const seed = async (knex) => {
     },
   ]);
 
-  // Insert seed buildings for PGs
-  await knex('buildings').insert([
+  // Insert seed branches for PG facility matching dashboard UI designs
+  await knex('branches').insert([
     {
       id: 1,
       pg_id: 1,
-      name: 'Main Building',
-      description: 'Primary residential block with dining hall',
+      name: 'Main Branch',
+      location: 'Ahmedabad',
+      total_rooms: 120,
+      occupied_rooms: 96,
+      available_rooms: 24,
       status: 'active',
       created_at: knex.fn.now(),
       updated_at: knex.fn.now(),
@@ -121,18 +129,76 @@ export const seed = async (knex) => {
     {
       id: 2,
       pg_id: 1,
-      name: 'West Wing',
-      description: 'Quiet premium wing with study rooms',
+      name: 'Navrangpura Branch',
+      location: 'Ahmedabad',
+      total_rooms: 120,
+      occupied_rooms: 96,
+      available_rooms: 24,
       status: 'active',
       created_at: knex.fn.now(),
       updated_at: knex.fn.now(),
     },
     {
       id: 3,
-      pg_id: 2,
-      name: 'Main Building',
-      description: 'Coed residence main block',
+      pg_id: 1,
+      name: 'Satellite Branch',
+      location: 'Ahmedabad',
+      total_rooms: 120,
+      occupied_rooms: 96,
+      available_rooms: 24,
+      status: 'under_maintenance',
+      created_at: knex.fn.now(),
+      updated_at: knex.fn.now(),
+    },
+    {
+      id: 4,
+      pg_id: 1,
+      name: 'Vastrapur Branch',
+      location: 'Ahmedabad',
+      total_rooms: 120,
+      occupied_rooms: 96,
+      available_rooms: 24,
       status: 'active',
+      created_at: knex.fn.now(),
+      updated_at: knex.fn.now(),
+    },
+    {
+      id: 5,
+      pg_id: 1,
+      name: 'SG Highway Branch',
+      location: 'Ahmedabad',
+      total_rooms: 120,
+      occupied_rooms: 96,
+      available_rooms: 24,
+      status: 'upcoming',
+      created_at: knex.fn.now(),
+      updated_at: knex.fn.now(),
+    },
+  ]);
+
+  // Insert seed buildings for PGs
+  await knex('buildings').insert([
+    {
+      id: 1,
+      pg_id: 1,
+      branch_id: 1,
+      name: 'Main Building',
+      created_at: knex.fn.now(),
+      updated_at: knex.fn.now(),
+    },
+    {
+      id: 2,
+      pg_id: 1,
+      branch_id: 1,
+      name: 'West Wing',
+      created_at: knex.fn.now(),
+      updated_at: knex.fn.now(),
+    },
+    {
+      id: 3,
+      pg_id: 2,
+      branch_id: 2,
+      name: 'Main Building',
       created_at: knex.fn.now(),
       updated_at: knex.fn.now(),
     },
@@ -146,7 +212,6 @@ export const seed = async (knex) => {
       building_id: 1,
       floor_number: 1,
       name: '1st Floor',
-      status: 'active',
       created_at: knex.fn.now(),
       updated_at: knex.fn.now(),
     },
@@ -156,7 +221,6 @@ export const seed = async (knex) => {
       building_id: 1,
       floor_number: 2,
       name: '2nd Floor',
-      status: 'active',
       created_at: knex.fn.now(),
       updated_at: knex.fn.now(),
     },
@@ -166,7 +230,6 @@ export const seed = async (knex) => {
       building_id: 2,
       floor_number: 1,
       name: '1st Floor',
-      status: 'active',
       created_at: knex.fn.now(),
       updated_at: knex.fn.now(),
     },
@@ -176,7 +239,6 @@ export const seed = async (knex) => {
       building_id: 3,
       floor_number: 1,
       name: '1st Floor',
-      status: 'active',
       created_at: knex.fn.now(),
       updated_at: knex.fn.now(),
     },
@@ -199,6 +261,7 @@ export const seed = async (knex) => {
   ].map((r) => ({
     ...r,
     pg_id: 1,
+    branch_id: 1,
     building_id: 1,
     floor_id: 2,
     created_at: knex.fn.now(),
@@ -209,6 +272,7 @@ export const seed = async (knex) => {
     {
       id: 13,
       pg_id: 1,
+      branch_id: 1,
       building_id: 2,
       floor_id: 3,
       room_no: 'W-101',
@@ -230,6 +294,7 @@ export const seed = async (knex) => {
       id: 1,
       resident_id: 3,
       pg_id: 1, // HouseNest Green Park PG
+      branch_id: 1,
       room_id: 1, // Room A-201
       bed_number: 'Bed-1',
       monthly_rent: 9500.00,
@@ -245,6 +310,7 @@ export const seed = async (knex) => {
       id: 2,
       resident_id: 3,
       pg_id: 1, // HouseNest Green Park PG
+      branch_id: 1,
       room_id: 2, // Room A-202
       bed_number: 'Bed-1',
       monthly_rent: 12000.00,
@@ -266,6 +332,7 @@ export const seed = async (knex) => {
       receipt_no: 'RCPT-2026-0001',
       resident_id: 3,
       pg_id: 1,
+      branch_id: 1,
       stay_id: 2,
       room_id: 2,
       title: 'Rent - Feb 2026',
@@ -293,6 +360,7 @@ export const seed = async (knex) => {
       receipt_no: 'RCPT-2026-0002',
       resident_id: 3,
       pg_id: 1,
+      branch_id: 1,
       stay_id: 2,
       room_id: 2,
       title: 'Maintenance Fee',
@@ -320,6 +388,7 @@ export const seed = async (knex) => {
       receipt_no: null,
       resident_id: 3,
       pg_id: 1,
+      branch_id: 1,
       stay_id: 2,
       room_id: 2,
       title: 'Monthly Rent - March 2026',
@@ -346,6 +415,7 @@ export const seed = async (knex) => {
       receipt_no: 'RCPT-2026-0004',
       resident_id: 3,
       pg_id: 1,
+      branch_id: 1,
       stay_id: 2,
       room_id: 2,
       title: 'Monthly Rent - Jan 2026',
@@ -372,6 +442,7 @@ export const seed = async (knex) => {
       receipt_no: 'RCPT-2026-0005',
       resident_id: 3,
       pg_id: 1,
+      branch_id: 1,
       stay_id: 2,
       room_id: 2,
       title: 'Security Deposit Refund',
@@ -404,6 +475,7 @@ export const seed = async (knex) => {
       agreement_no: 'AGR-2026-001',
       resident_id: 3, // Riya Sharma
       pg_id: 1,
+      branch_id: 1,
       room_id: 2, // Room A-202
       room_type: 'single',
       agreement_type: 'rental',
@@ -418,12 +490,143 @@ export const seed = async (knex) => {
       agreement_no: 'AGR-2026-002',
       resident_id: 3, // Riya Sharma
       pg_id: 1,
+      branch_id: 1,
       room_id: 1, // Room A-201
       room_type: 'single',
       agreement_type: 'rental',
       start_date: '2026-08-01',
       end_date: '2026-08-31',
       status: 'expired',
+      created_at: knex.fn.now(),
+      updated_at: knex.fn.now(),
+    },
+  ]);
+
+  // Insert seed visitor records (matching Admin & Resident Portal screens)
+  const visitorUploadDir = path.join(process.cwd(), 'uploads', 'visitors');
+  if (!fs.existsSync(visitorUploadDir)) {
+    fs.mkdirSync(visitorUploadDir, { recursive: true });
+  }
+
+  const pass1 = 'VP-20260324-A1B2C1';
+  const qr1 = `qr-${pass1}.png`;
+  await QRCode.toFile(path.join(visitorUploadDir, qr1), pass1, { errorCorrectionLevel: 'H', margin: 2, width: 280 });
+
+  const pass2 = 'VP-20260324-A1B2C2';
+  const qr2 = `qr-${pass2}.png`;
+  await QRCode.toFile(path.join(visitorUploadDir, qr2), pass2, { errorCorrectionLevel: 'H', margin: 2, width: 280 });
+
+  const pass3 = 'VP-20260324-A1B2C3';
+  const qr3 = `qr-${pass3}.png`;
+  await QRCode.toFile(path.join(visitorUploadDir, qr3), pass3, { errorCorrectionLevel: 'H', margin: 2, width: 280 });
+
+  const pass4 = 'VP-20260324-A1B2C4';
+  const qr4 = `qr-${pass4}.png`;
+  await QRCode.toFile(path.join(visitorUploadDir, qr4), pass4, { errorCorrectionLevel: 'H', margin: 2, width: 280 });
+
+  await knex('visitors').insert([
+    {
+      id: 1,
+      pass_code: pass1,
+      visitor_name: 'Aarav Sharma',
+      visitor_phone: '+91 56478 23456',
+      resident_id: 3,
+      pg_id: 1,
+      room_id: 2,
+      branch_id: 1,
+      room_no: 'A-204',
+      room_type: 'single',
+      purpose: 'Meeting',
+      visit_date: '2026-03-24',
+      entry_time: '10:24 AM',
+      exit_time: null,
+      status: 'in_office',
+      qr_code: qr1,
+      created_by: 2,
+      created_at: knex.fn.now(),
+      updated_at: knex.fn.now(),
+    },
+    {
+      id: 2,
+      pass_code: pass2,
+      visitor_name: 'Rohit Mehta',
+      visitor_phone: '+91 98765 43210',
+      resident_id: 3,
+      pg_id: 1,
+      room_id: 2,
+      branch_id: 1,
+      room_no: 'A-204',
+      room_type: 'single',
+      purpose: 'Delivery',
+      visit_date: '2026-03-24',
+      entry_time: '10:24 AM',
+      exit_time: '11:15 AM',
+      status: 'left',
+      qr_code: qr2,
+      created_by: 2,
+      created_at: knex.fn.now(),
+      updated_at: knex.fn.now(),
+    },
+    {
+      id: 3,
+      pass_code: pass3,
+      visitor_name: 'Priya Verma',
+      visitor_phone: '+91 98231 65432',
+      resident_id: 3,
+      pg_id: 1,
+      room_id: 2,
+      branch_id: 1,
+      room_no: 'A-204',
+      room_type: 'single',
+      purpose: 'Family',
+      visit_date: '2026-03-24',
+      entry_time: '10:24 AM',
+      exit_time: '01:30 PM',
+      status: 'left',
+      qr_code: qr3,
+      created_by: 2,
+      created_at: knex.fn.now(),
+      updated_at: knex.fn.now(),
+    },
+    {
+      id: 4,
+      pass_code: pass4,
+      visitor_name: 'Suresh Patel',
+      visitor_phone: '+91 94280 12345',
+      resident_id: 3,
+      pg_id: 1,
+      room_id: 2,
+      branch_id: 1,
+      room_no: 'A-204',
+      room_type: 'single',
+      purpose: 'Meeting',
+      visit_date: '2026-03-24',
+      entry_time: '10:24 AM',
+      exit_time: null,
+      status: 'in_office',
+      qr_code: qr4,
+      created_by: 2,
+      created_at: knex.fn.now(),
+      updated_at: knex.fn.now(),
+    },
+    {
+      id: 5,
+      pass_code: 'VP-20260324-PEND01',
+      visitor_name: 'Karan Dave',
+      visitor_phone: '+91 97245 88990',
+      resident_id: 3,
+      pg_id: 1,
+      room_id: 2,
+      branch_id: 1,
+      room_no: 'A-204',
+      room_type: 'single',
+      purpose: 'Personal',
+      visit_date: '2026-03-24',
+      entry_time: '02:00 PM',
+      exit_time: null,
+      status: 'pending',
+      qr_code: null,
+      created_by: 3,
       created_at: knex.fn.now(),
       updated_at: knex.fn.now(),
     },
