@@ -1,5 +1,35 @@
-import { body, param } from 'express-validator';
+import { body, param, query } from 'express-validator';
 import buildingService from '../services/building.service.js';
+
+export const listFloorsValidator = [
+  query('building_id')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Building ID must be a positive integer'),
+
+  query('pg_id')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('PG facility ID must be a positive integer'),
+
+  query('search')
+    .optional({ checkFalsy: true })
+    .trim(),
+
+  query('page')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Page must be a positive integer'),
+
+  query('limit')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Limit must be between 1 and 100'),
+];
 
 export const createFloorValidator = [
   body('building_id')
@@ -24,13 +54,6 @@ export const createFloorValidator = [
     .trim()
     .isLength({ min: 1, max: 100 })
     .withMessage('Floor name must be between 1 and 100 characters'),
-
-  body('status')
-    .optional({ checkFalsy: true })
-    .trim()
-    .toLowerCase()
-    .isIn(['active', 'inactive'])
-    .withMessage('Status must be either active or inactive'),
 ];
 
 export const updateFloorValidator = [
@@ -50,13 +73,6 @@ export const updateFloorValidator = [
     .trim()
     .isLength({ min: 1, max: 100 })
     .withMessage('Floor name must be between 1 and 100 characters'),
-
-  body('status')
-    .optional({ checkFalsy: true })
-    .trim()
-    .toLowerCase()
-    .isIn(['active', 'inactive'])
-    .withMessage('Status must be either active or inactive'),
 ];
 
 export const floorIdParamValidator = [
@@ -67,8 +83,8 @@ export const floorIdParamValidator = [
 ];
 
 export default {
+  listFloorsValidator,
   createFloorValidator,
   updateFloorValidator,
   floorIdParamValidator,
 };
-

@@ -1,5 +1,29 @@
-import { body, param } from 'express-validator';
+import { body, param, query } from 'express-validator';
 import pgService from '../services/pg.service.js';
+
+export const listBuildingsValidator = [
+  query('pg_id')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Branch (PG ID) must be a valid integer'),
+
+  query('search')
+    .optional({ checkFalsy: true })
+    .trim(),
+
+  query('page')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Page must be a positive integer'),
+
+  query('limit')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Limit must be between 1 and 100'),
+];
 
 export const createBuildingValidator = [
   body('pg_id')
@@ -21,19 +45,6 @@ export const createBuildingValidator = [
     .withMessage('Building name is required')
     .isLength({ min: 1, max: 100 })
     .withMessage('Building name must be between 1 and 100 characters'),
-
-  body('description')
-    .optional({ checkFalsy: true })
-    .trim()
-    .isLength({ max: 500 })
-    .withMessage('Description cannot exceed 500 characters'),
-
-  body('status')
-    .optional({ checkFalsy: true })
-    .trim()
-    .toLowerCase()
-    .isIn(['active', 'inactive'])
-    .withMessage('Status must be either active or inactive'),
 ];
 
 export const updateBuildingValidator = [
@@ -49,19 +60,6 @@ export const updateBuildingValidator = [
     .withMessage('Building name cannot be empty')
     .isLength({ min: 1, max: 100 })
     .withMessage('Building name must be between 1 and 100 characters'),
-
-  body('description')
-    .optional({ checkFalsy: true })
-    .trim()
-    .isLength({ max: 500 })
-    .withMessage('Description cannot exceed 500 characters'),
-
-  body('status')
-    .optional({ checkFalsy: true })
-    .trim()
-    .toLowerCase()
-    .isIn(['active', 'inactive'])
-    .withMessage('Status must be either active or inactive'),
 ];
 
 export const buildingIdParamValidator = [
@@ -72,8 +70,8 @@ export const buildingIdParamValidator = [
 ];
 
 export default {
+  listBuildingsValidator,
   createBuildingValidator,
   updateBuildingValidator,
   buildingIdParamValidator,
 };
-

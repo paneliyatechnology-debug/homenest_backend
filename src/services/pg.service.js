@@ -26,6 +26,11 @@ class PgService {
     'rules',
     'status',
     'logo',
+    'pg_upi_id',
+    'pg_bank_name',
+    'pg_account_number',
+    'pg_ifsc_code',
+    'pg_account_holder_name',
     'created_at',
     'updated_at',
     'deleted_at',
@@ -59,6 +64,11 @@ class PgService {
       rules: pg_data.rules || null,
       status: pg_data.status || 'active',
       logo: pg_data.logo || null,
+      pg_upi_id: pg_data.pg_upi_id || null,
+      pg_bank_name: pg_data.pg_bank_name || null,
+      pg_account_number: pg_data.pg_account_number || null,
+      pg_ifsc_code: pg_data.pg_ifsc_code ? String(pg_data.pg_ifsc_code).toUpperCase() : null,
+      pg_account_holder_name: pg_data.pg_account_holder_name || null,
       created_at: db.fn.now(),
       updated_at: db.fn.now(),
     });
@@ -111,6 +121,13 @@ class PgService {
     pg.active_residents_count = Number(active_residents);
     pg.logo_url = buildFileUrl('pgs', pg.logo);
     pg.owner_profile_photo_url = buildFileUrl('users', pg.owner_profile_photo);
+    pg.bank_details = {
+      pg_upi_id: pg.pg_upi_id || null,
+      pg_bank_name: pg.pg_bank_name || null,
+      pg_account_number: pg.pg_account_number || null,
+      pg_ifsc_code: pg.pg_ifsc_code || null,
+      pg_account_holder_name: pg.pg_account_holder_name || null,
+    };
     return pg;
   };
 
@@ -184,6 +201,13 @@ class PgService {
       }
       pg.logo_url = buildFileUrl('pgs', pg.logo);
       pg.owner_profile_photo_url = buildFileUrl('users', pg.owner_profile_photo);
+      pg.bank_details = {
+        pg_upi_id: pg.pg_upi_id || null,
+        pg_bank_name: pg.pg_bank_name || null,
+        pg_account_number: pg.pg_account_number || null,
+        pg_ifsc_code: pg.pg_ifsc_code || null,
+        pg_account_holder_name: pg.pg_account_holder_name || null,
+      };
     });
 
     const total_records = Number(total);

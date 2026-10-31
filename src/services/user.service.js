@@ -102,6 +102,18 @@ const formatAdminUser = (user, options = {}) => {
           status: pg.status || 'active',
           logo: pg.logo || null,
           logo_url: buildFileUrl('pgs', pg.logo),
+          pg_upi_id: pg.pg_upi_id || null,
+          pg_bank_name: pg.pg_bank_name || null,
+          pg_account_number: pg.pg_account_number || null,
+          pg_ifsc_code: pg.pg_ifsc_code || null,
+          pg_account_holder_name: pg.pg_account_holder_name || null,
+          bank_details: {
+            pg_upi_id: pg.pg_upi_id || null,
+            pg_bank_name: pg.pg_bank_name || null,
+            pg_account_number: pg.pg_account_number || null,
+            pg_ifsc_code: pg.pg_ifsc_code || null,
+            pg_account_holder_name: pg.pg_account_holder_name || null,
+          },
           active_residents_count: pg.active_residents_count !== undefined ? Number(pg.active_residents_count) : 0,
         }
       : null,
@@ -243,6 +255,28 @@ const formatResidentUser = (user, options = {}) => {
     },
 
     agreements: options.agreements || [],
+    due_amount: options.pending_payment ? Number(options.pending_payment.amount) : 0,
+    payment_info: options.pending_payment ? {
+      payment_id: options.pending_payment.id,
+      title: options.pending_payment.title,
+      due_amount: Number(options.pending_payment.amount) || 0,
+      paid_amount: Number(options.pending_payment.paid_amount) || 0,
+      status: options.pending_payment.status,
+      due_date: options.pending_payment.due_date || null,
+      billing_period: {
+        start: options.pending_payment.billing_period_start || null,
+        end: options.pending_payment.billing_period_end || null,
+      },
+      breakdown: {
+        rent: Number(options.pending_payment.rent_amount) || 0,
+        deposit: Number(options.pending_payment.deposit_amount) || 0,
+        security_deposit: Number(options.pending_payment.deposit_amount) || 0,
+        maintenance: Number(options.pending_payment.maintenance_amount) || 0,
+        electricity: Number(options.pending_payment.electricity_amount) || 0,
+        other: Number(options.pending_payment.other_amount) || 0,
+        total: Number(options.pending_payment.amount) || 0,
+      },
+    } : null,
   };
 };
 
@@ -366,8 +400,8 @@ class UserService {
       return formatAdminUser(raw_user, { pg: primary_pg });
     }
 
-    // Role is resident: fetch active stay details and agreements in parallel
-    const [active_stay, agreements] = await Promise.all([
+    // Role is resident: fetch active stay details, agreements, and current pending payment in parallel
+    const [active_stay, agreements, pending_payment] = await Promise.all([
       db('resident_pg_stays')
         .where({ 'resident_pg_stays.resident_id': id, 'resident_pg_stays.status': 'active' })
         .whereNull('resident_pg_stays.deleted_at')
@@ -404,9 +438,15 @@ class UserService {
         .where({ resident_id: id })
         .whereNull('deleted_at')
         .orderBy('id', 'desc'),
+      db('payments')
+        .where({ resident_id: id })
+        .whereIn('status', ['pending', 'overdue'])
+        .whereNull('deleted_at')
+        .orderBy('due_date', 'asc')
+        .first(),
     ]);
 
-    return formatResidentUser(raw_user, { active_stay, agreements });
+    return formatResidentUser(raw_user, { active_stay, agreements, pending_payment });
   };
   /**
    * Create a new user record (Resident, Admin, Super Admin).
@@ -462,9 +502,32 @@ class UserService {
     const hashed_password = await hashPassword(plain_password);
     const effective_check_in = check_in_date || new Date().toISOString().split('T')[0];
 
+    // If resident and room allocation is requested, validate upfront
+    let target_room = null;
+    if (role === ROLES.RESIDENT && (room_id || (room_no && pg_id))) {
+      if (room_id) {
+        target_room = await db('rooms').where({ id: room_id }).whereNull('deleted_at').first();
+        if (!target_room) {
+          throw new AppError('Room not found', HTTP_STATUS.NOT_FOUND);
+        }
+        if (pg_id && Number(target_room.pg_id) !== Number(pg_id)) {
+          throw new AppError('Selected room does not belong to the specified PG facility', HTTP_STATUS.BAD_REQUEST);
+        }
+      } else if (room_no && pg_id) {
+        target_room = await db('rooms').where({ pg_id, room_no }).whereNull('deleted_at').first();
+        if (!target_room) {
+          throw new AppError(`Room '${room_no}' not found for the specified PG facility`, HTTP_STATUS.NOT_FOUND);
+        }
+      }
+    }
+
     let allocatedPgName = null;
     let allocatedRoomNo = null;
     let allocatedBedNumber = null;
+    let allocatedTotalDue = 0;
+    let allocatedRentVal = 0;
+    let allocatedDepositVal = 0;
+    let allocatedMaintVal = 0;
 
     const inserted_id = await db.transaction(async (trx) => {
       const [user_id] = await trx('users').insert({
@@ -486,45 +549,89 @@ class UserService {
         updated_at: db.fn.now(),
       });
 
-      // If user is resident and room is specified, allocate room stay
-      if (role === ROLES.RESIDENT && (room_id || (room_no && pg_id))) {
-        let target_room = null;
-        if (room_id) {
-          target_room = await trx('rooms').where({ id: room_id }).whereNull('deleted_at').first();
-        } else if (room_no && pg_id) {
-          target_room = await trx('rooms').where({ pg_id, room_no }).whereNull('deleted_at').first();
+      // If user is resident and room was resolved, allocate room stay
+      if (role === ROLES.RESIDENT && target_room) {
+        allocatedRoomNo = target_room.room_no;
+        allocatedBedNumber = bed_number || 'Bed-1';
+
+        const targetPg = await trx('pgs').where({ id: target_room.pg_id }).first();
+        if (targetPg) {
+          allocatedPgName = targetPg.name;
         }
 
-        if (target_room) {
-          allocatedRoomNo = target_room.room_no;
-          allocatedBedNumber = bed_number || 'Bed-1';
+        const [stay_id] = await trx('resident_pg_stays').insert({
+          resident_id: user_id,
+          pg_id: target_room.pg_id,
+          room_id: target_room.id,
+          bed_number: bed_number || 'Bed-1',
+          monthly_rent: parseFloat(monthly_rent) || 0.0,
+          security_deposit: parseFloat(security_deposit) || 0.0,
+          check_in_date: effective_check_in,
+          check_out_date: check_out_date || null,
+          status: status === 'active' ? 'active' : 'completed',
+          notes: 'Created via User Management onboarding',
+          created_at: db.fn.now(),
+          updated_at: db.fn.now(),
+        });
 
-          const targetPg = await trx('pgs').where({ id: target_room.pg_id }).first();
-          if (targetPg) {
-            allocatedPgName = targetPg.name;
-          }
+        if (status === 'active') {
+          await trx('rooms').where({ id: target_room.id }).update({
+            status: 'occupied',
+            updated_at: db.fn.now(),
+          });
+        }
 
-          await trx('resident_pg_stays').insert({
+        // Automatically create initial onboarding payment demand with total of all three: rent, deposit, maintenance
+        const rent_val = parseFloat(monthly_rent) || 0.0;
+        const deposit_val = parseFloat(security_deposit) || 0.0;
+        const maint_val = parseFloat(user_data.maintenance_amount) || 0.0;
+        const total_due = rent_val + deposit_val + maint_val;
+        allocatedTotalDue = total_due;
+        allocatedRentVal = rent_val;
+        allocatedDepositVal = deposit_val;
+        allocatedMaintVal = maint_val;
+
+        if (total_due > 0) {
+          const checkInObj = new Date(effective_check_in);
+          const year = checkInObj.getFullYear();
+          const monthIndex = checkInObj.getMonth();
+          const monthName = checkInObj.toLocaleString('en-US', { month: 'long' });
+
+          const billingStart = new Date(Date.UTC(year, monthIndex, 1)).toISOString().split('T')[0];
+          const billingEnd = new Date(Date.UTC(year, monthIndex + 1, 0)).toISOString().split('T')[0];
+
+          const dueDay = Math.min(25, new Date(year, monthIndex + 1, 0).getDate());
+          const defaultDueDate = new Date(Date.UTC(year, monthIndex, dueDay)).toISOString().split('T')[0];
+          const due_date = effective_check_in > defaultDueDate ? effective_check_in : defaultDueDate;
+
+          const titleParts = [];
+          if (rent_val > 0) titleParts.push('Rent');
+          if (deposit_val > 0) titleParts.push('Deposit');
+          if (maint_val > 0) titleParts.push('Maintenance');
+          const titleDesc = titleParts.length > 0 ? titleParts.join(', ') : 'Rent & Deposit';
+
+          await trx('payments').insert({
             resident_id: user_id,
             pg_id: target_room.pg_id,
+            stay_id,
             room_id: target_room.id,
-            bed_number: bed_number || 'Bed-1',
-            monthly_rent: parseFloat(monthly_rent) || 0.0,
-            security_deposit: parseFloat(security_deposit) || 0.0,
-            check_in_date: effective_check_in,
-            check_out_date: check_out_date || null,
-            status: status === 'active' ? 'active' : 'completed',
-            notes: 'Created via User Management onboarding',
+            title: `Onboarding Due (${titleDesc}) - ${monthName} ${year}`,
+            payment_type: 'rent',
+            billing_period_start: billingStart,
+            billing_period_end: billingEnd,
+            due_date,
+            rent_amount: rent_val,
+            deposit_amount: deposit_val,
+            maintenance_amount: maint_val,
+            electricity_amount: 0.00,
+            other_amount: 0.00,
+            amount: total_due,
+            paid_amount: 0.00,
+            status: 'pending',
+            notes: 'Total onboarding due includes Monthly Rent, Refundable Security Deposit, and Maintenance Fee.',
             created_at: db.fn.now(),
             updated_at: db.fn.now(),
           });
-
-          if (status === 'active') {
-            await trx('rooms').where({ id: target_room.id }).update({
-              status: 'occupied',
-              updated_at: db.fn.now(),
-            });
-          }
         }
       }
 
@@ -548,7 +655,11 @@ class UserService {
         pgName: allocatedPgName,
         roomNo: allocatedRoomNo,
         bedNumber: allocatedBedNumber,
-        loginUrl: `${config.frontendUrl}/login`,
+        loginUrl: `${config.frontendUrl}/login`,
+        dueAmount: allocatedTotalDue > 0 ? allocatedTotalDue : null,
+        rentAmount: allocatedRentVal,
+        depositAmount: allocatedDepositVal,
+        maintenanceAmount: allocatedMaintVal,
       });
     } catch (emailError) {
       console.error('[User Service] Welcome credentials email delivery failed:', emailError.message);
@@ -798,6 +909,18 @@ class UserService {
         .whereNull('deleted_at')
         .first();
 
+      let target_room = null;
+      if (update_data.room_id) {
+        target_room = await db('rooms').where({ id: update_data.room_id }).whereNull('deleted_at').first();
+        if (!target_room) {
+          throw new AppError('Room not found', HTTP_STATUS.NOT_FOUND);
+        }
+        const effective_pg_id = update_data.pg_id || active_stay?.pg_id;
+        if (effective_pg_id && Number(target_room.pg_id) !== Number(effective_pg_id)) {
+          throw new AppError('Selected room does not belong to the specified PG facility', HTTP_STATUS.BAD_REQUEST);
+        }
+      }
+
       if (active_stay) {
         const stay_updates = {
           ...(update_data.room_id !== undefined && { room_id: update_data.room_id }),
@@ -823,25 +946,22 @@ class UserService {
         }
 
         await db('resident_pg_stays').where({ id: active_stay.id }).update(stay_updates);
-      } else if (update_data.room_id) {
-        const target_room = await db('rooms').where({ id: update_data.room_id }).whereNull('deleted_at').first();
-        if (target_room) {
-          await db('resident_pg_stays').insert({
-            resident_id: id,
-            pg_id: target_room.pg_id,
-            room_id: target_room.id,
-            bed_number: update_data.bed_number || 'Bed-1',
-            monthly_rent: parseFloat(update_data.monthly_rent) || 0.0,
-            security_deposit: parseFloat(update_data.security_deposit) || 0.0,
-            check_in_date: update_data.check_in_date || new Date().toISOString().split('T')[0],
-            check_out_date: update_data.check_out_date || null,
-            status: 'active',
-            notes: 'Allocated via Admin User Update',
-            created_at: db.fn.now(),
-            updated_at: db.fn.now(),
-          });
-          await db('rooms').where({ id: target_room.id }).update({ status: 'occupied', updated_at: db.fn.now() });
-        }
+      } else if (target_room) {
+        await db('resident_pg_stays').insert({
+          resident_id: id,
+          pg_id: target_room.pg_id,
+          room_id: target_room.id,
+          bed_number: update_data.bed_number || 'Bed-1',
+          monthly_rent: parseFloat(update_data.monthly_rent) || 0.0,
+          security_deposit: parseFloat(update_data.security_deposit) || 0.0,
+          check_in_date: update_data.check_in_date || new Date().toISOString().split('T')[0],
+          check_out_date: update_data.check_out_date || null,
+          status: 'active',
+          notes: 'Allocated via Admin User Update',
+          created_at: db.fn.now(),
+          updated_at: db.fn.now(),
+        });
+        await db('rooms').where({ id: target_room.id }).update({ status: 'occupied', updated_at: db.fn.now() });
       }
     }
 

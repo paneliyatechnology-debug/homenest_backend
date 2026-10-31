@@ -5,7 +5,7 @@ import { HTTP_STATUS } from '../constants/index.js';
 export class FloorService {
   /**
    * Create a new floor under a building
-   * @param {Object} data - { pg_id, building_id, floor_number, name, status }
+   * @param {Object} data - { pg_id, building_id, floor_number, name }
    * @returns {Promise<Object>} Created floor
    */
   create = async (data) => {
@@ -13,7 +13,6 @@ export class FloorService {
       building_id,
       floor_number,
       name,
-      status = 'active',
     } = data;
 
     // Check building exists
@@ -51,7 +50,6 @@ export class FloorService {
       building_id,
       floor_number: fNum,
       name: floorName,
-      status,
     });
 
     return this.findById(id);
@@ -67,7 +65,6 @@ export class FloorService {
       pg_id,
       building_id,
       owner_id,
-      status,
       search,
       page = 1,
       limit = 10,
@@ -95,9 +92,6 @@ export class FloorService {
         if (building_id) {
           qb.where('floors.building_id', building_id);
         }
-        if (status) {
-          qb.where('floors.status', status);
-        }
         if (search) {
           qb.where((sqb) => {
             sqb.where('floors.name', 'like', `%${search}%`)
@@ -122,7 +116,6 @@ export class FloorService {
         'buildings.name as building_name',
         'floors.floor_number',
         'floors.name',
-        'floors.status',
         db.raw('COUNT(DISTINCT rooms.id) as total_rooms'),
         'floors.created_at',
         'floors.updated_at'
@@ -175,7 +168,6 @@ export class FloorService {
         'buildings.name as building_name',
         'floors.floor_number',
         'floors.name',
-        'floors.status',
         'floors.created_at',
         'floors.updated_at'
       )
@@ -217,7 +209,7 @@ export class FloorService {
       throw new AppError('Floor not found', HTTP_STATUS.NOT_FOUND);
     }
 
-    const { floor_number, name, status } = data;
+    const { floor_number, name } = data;
     const update_payload = { updated_at: db.fn.now() };
 
     if (floor_number !== undefined && Number(floor_number) !== floor.floor_number) {
@@ -239,10 +231,6 @@ export class FloorService {
 
     if (name !== undefined) {
       update_payload.name = name ? String(name).trim() : null;
-    }
-
-    if (status !== undefined) {
-      update_payload.status = status;
     }
 
     await db('floors').where({ id }).update(update_payload);
@@ -283,4 +271,3 @@ export class FloorService {
 }
 
 export default new FloorService();
-

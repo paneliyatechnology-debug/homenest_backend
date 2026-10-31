@@ -160,6 +160,37 @@ export const registerOwnerWithPgValidator = [
   body('logo')
     .optional()
     .trim(),
+
+  // PG UPI & Banking Details (Optional at registration, recommended for checkout)
+  body('pg_upi_id')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ min: 3, max: 100 })
+    .withMessage('PG UPI ID must be between 3 and 100 characters'),
+
+  body('pg_bank_name')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('PG bank name must be between 2 and 100 characters'),
+
+  body('pg_account_number')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ min: 6, max: 50 })
+    .withMessage('PG bank account number must be between 6 and 50 characters'),
+
+  body('pg_ifsc_code')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ min: 4, max: 20 })
+    .withMessage('PG IFSC code must be between 4 and 20 characters'),
+
+  body('pg_account_holder_name')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ min: 2, max: 150 })
+    .withMessage('PG account holder name must be between 2 and 150 characters'),
 ];
 
 /**

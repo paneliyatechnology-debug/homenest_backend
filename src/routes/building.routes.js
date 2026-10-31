@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import buildingController from '../controllers/building.controller.js';
 import {
+  listBuildingsValidator,
   createBuildingValidator,
   updateBuildingValidator,
   buildingIdParamValidator,
@@ -31,7 +32,7 @@ router.post(
  * @desc    List all buildings with floor and room counts
  * @access  Private
  */
-router.get('/', buildingController.getAllBuildings);
+router.get('/', validate(listBuildingsValidator), buildingController.getAllBuildings);
 
 /**
  * @route   GET /api/v1/buildings/:id
@@ -69,4 +70,3 @@ router.delete(
 );
 
 export default router;
-

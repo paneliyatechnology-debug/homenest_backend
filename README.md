@@ -190,6 +190,17 @@ A production-grade RESTful API backend engineered for the **HouseNest** PG & Hos
 | `PUT` | `/api/v1/agreements/:id` | Update agreement details or transition status | `admin`, `super_admin` |
 | `DELETE` | `/api/v1/agreements/:id` | Soft delete agreement record | `admin`, `super_admin` |
 
+### 9. Payments & Billing Module (`/api/v1/payments`)
+| Method | Endpoint | Description | Access |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/payments/stats` | Unified KPI statistics for payments (Revenue, Transactions, Collections, Pending, Overdue, Refunds) | `admin`, `super_admin` |
+| `GET` | `/api/v1/payments` | Paginated table supporting tabs (`all`, `pending`, `overdue`, `refunds`) & filters | Private |
+| `GET` | `/api/v1/payments/resident/overview` | Resident mobile overview (Outstanding amount, itemized breakdown, deposit, recent transactions) | `resident`, `admin` |
+| `POST` | `/api/v1/payments/:id/initiate-upi` | Generate dynamic NPCI UPI URI and standard Base64 QR code for checkout | Private |
+| `POST` | `/api/v1/payments/:id/pay` | Complete/record payment (assigns transaction ID, marks paid, generates receipt) | Private |
+| `POST` | `/api/v1/payments` | Create a new billing demand / invoice with itemized breakdown | `admin`, `super_admin` |
+| `GET` | `/api/v1/payments/:id` | Get payment invoice details by primary ID | Private |
+
 ---
 
 ## ⚙️ Environment Configuration
@@ -262,7 +273,7 @@ A complete standalone Postman collection is pre-configured with embedded collect
 - **Collection file**: [`PG_Backend.postman_collection.json`](file:///d:/PG_Backend/PG_Backend.postman_collection.json)
 
 ### Features included in the Postman collection:
-- **8 Clean Modules**: `01 Health`, `02 Authentication`, `03 Building Management`, `04 Floor Management`, `05 Room Management`, `06 User Management`, `07 Resident Stays`, and `08 Agreements`.
+- **9 Clean Modules**: `01 Health`, `02 Authentication`, `03 Building Management`, `04 Floor Management`, `05 Room Management`, `06 User Management`, `07 Resident Stays`, and `08 Agreements`.
 - **Collection-Level Bearer Auth**: Automatic token propagation using `{{accessToken}}` across all private endpoints, with public endpoints configured with `noauth`.
 - **Multipart Form-Data for File Uploads**: `POST /rooms`, `PUT /rooms/:id`, `POST /users`, `PUT /users/:id`, and `PUT /users/profile` use `multipart/form-data` with comprehensive, field-by-field descriptions for text parameters and file binary uploads.
 - **Auto-Capture Scripts**: Login, OTP verification, and entity creation automatically populate collection variables (`accessToken`, `refreshToken`, `pgId`, `roomId`, `userId`, `agreementId`, `stayId`, `resetToken`).

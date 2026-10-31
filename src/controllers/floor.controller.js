@@ -30,14 +30,13 @@ export const getAllFloors = async (req, res, next) => {
     const pg_id = req.query.pg_id ? Number(req.query.pg_id) : (req.pg_id || undefined);
     const building_id = req.query.building_id ? Number(req.query.building_id) : undefined;
 
-    const { search, status, page, limit } = req.query;
+    const { search, page, limit } = req.query;
 
     const { floors, pagination } = await floorService.findAll({
       pg_id,
       building_id,
       owner_id,
       search,
-      status,
       page,
       limit,
     });

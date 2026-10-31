@@ -1,4 +1,5 @@
 import { body, param } from 'express-validator';
+import db from '../config/db.js';
 import ROLES from '../constants/roles.js';
 
 const ALLOWED_STATUSES = ['active', 'pending', 'inactive'];
@@ -96,17 +97,46 @@ export const createUserValidator = [
     .optional({ checkFalsy: true })
     .toInt()
     .isInt({ min: 1 })
-    .withMessage('PG ID must be a valid integer'),
+    .withMessage('PG ID must be a valid integer')
+    .custom(async (pg_id) => {
+      const pg = await db('pgs').where({ id: pg_id }).whereNull('deleted_at').first();
+      if (!pg) {
+        throw new Error('PG facility not found');
+      }
+      return true;
+    }),
 
   body('room_id')
     .optional({ checkFalsy: true })
     .toInt()
     .isInt({ min: 1 })
-    .withMessage('Room ID must be a valid integer'),
+    .withMessage('Room ID must be a valid integer')
+    .custom(async (room_id, { req }) => {
+      const room = await db('rooms').where({ id: room_id }).whereNull('deleted_at').first();
+      if (!room) {
+        throw new Error('Room not found');
+      }
+      const targetPgId = req.body?.pg_id ? Number(req.body.pg_id) : (req.pg_id ? Number(req.pg_id) : null);
+      if (targetPgId && Number(room.pg_id) !== targetPgId) {
+        throw new Error('Selected room does not belong to the specified PG facility');
+      }
+      return true;
+    }),
 
   body('room_no')
     .optional({ checkFalsy: true })
-    .trim(),
+    .trim()
+    .custom(async (room_no, { req }) => {
+      if (req.body?.room_id) return true;
+      const targetPgId = req.body?.pg_id ? Number(req.body.pg_id) : (req.pg_id ? Number(req.pg_id) : null);
+      if (targetPgId && room_no) {
+        const room = await db('rooms').where({ pg_id: targetPgId, room_no }).whereNull('deleted_at').first();
+        if (!room) {
+          throw new Error(`Room '${room_no}' not found for the specified PG facility`);
+        }
+      }
+      return true;
+    }),
 
   body('check_in_date')
     .optional({ checkFalsy: true })
@@ -117,6 +147,34 @@ export const createUserValidator = [
     .optional({ checkFalsy: true })
     .isISO8601()
     .withMessage('Check out date must be a valid date in YYYY-MM-DD format'),
+
+  body('password')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ min: 6 })
+    .withMessage('Password must be at least 6 characters long'),
+
+  body('bed_number')
+    .optional({ checkFalsy: true })
+    .trim(),
+
+  body('monthly_rent')
+    .optional({ checkFalsy: true })
+    .toFloat()
+    .isFloat({ min: 0 })
+    .withMessage('Monthly rent must be a non-negative number'),
+
+  body('maintenance_amount')
+    .optional({ checkFalsy: true })
+    .toFloat()
+    .isFloat({ min: 0 })
+    .withMessage('Maintenance amount must be a non-negative number'),
+
+  body('security_deposit')
+    .optional({ checkFalsy: true })
+    .toFloat()
+    .isFloat({ min: 0 })
+    .withMessage('Security deposit must be a non-negative number'),
 ];
 
 /**
@@ -252,11 +310,35 @@ export const updateUserValidator = [
   body('signature')
     .optional({ checkFalsy: true }),
 
+  body('pg_id')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('PG ID must be a valid integer')
+    .custom(async (pg_id) => {
+      const pg = await db('pgs').where({ id: pg_id }).whereNull('deleted_at').first();
+      if (!pg) {
+        throw new Error('PG facility not found');
+      }
+      return true;
+    }),
+
   body('room_id')
     .optional({ checkFalsy: true })
     .toInt()
     .isInt({ min: 1 })
-    .withMessage('Room ID must be a valid integer'),
+    .withMessage('Room ID must be a valid integer')
+    .custom(async (room_id, { req }) => {
+      const room = await db('rooms').where({ id: room_id }).whereNull('deleted_at').first();
+      if (!room) {
+        throw new Error('Room not found');
+      }
+      const targetPgId = req.body?.pg_id ? Number(req.body.pg_id) : (req.pg_id ? Number(req.pg_id) : null);
+      if (targetPgId && Number(room.pg_id) !== targetPgId) {
+        throw new Error('Selected room does not belong to the specified PG facility');
+      }
+      return true;
+    }),
 
   body('bed_number')
     .optional({ checkFalsy: true })

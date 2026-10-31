@@ -32,6 +32,12 @@ export const up = async (knex) => {
       table.text('amenities').nullable(); // JSON string or comma-separated
       table.text('rules').nullable();
       table.enum('status', ['active', 'inactive']).notNullable().defaultTo('active');
+      table.string('logo', 255).nullable();
+      table.string('pg_upi_id', 100).nullable();
+      table.string('pg_bank_name', 100).nullable();
+      table.string('pg_account_number', 50).nullable();
+      table.string('pg_ifsc_code', 20).nullable();
+      table.string('pg_account_holder_name', 150).nullable();
 
       table.timestamp('created_at').defaultTo(knex.fn.now());
       table.timestamp('updated_at').defaultTo(knex.fn.now());

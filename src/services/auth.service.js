@@ -100,6 +100,11 @@ class AuthService {
     amenities = [],
     rules = null,
     logo = null,
+    pg_upi_id = null,
+    pg_bank_name = null,
+    pg_account_number = null,
+    pg_ifsc_code = null,
+    pg_account_holder_name = null,
   }) => {
     const clean_phone = this.normalizePhone(phone);
     const clean_pg_phone = pg_phone ? this.normalizePhone(pg_phone) : clean_phone;
@@ -146,6 +151,11 @@ class AuthService {
         amenities: parsed_amenities,
         rules,
         logo: logo || null,
+        pg_upi_id: pg_upi_id || null,
+        pg_bank_name: pg_bank_name || null,
+        pg_account_number: pg_account_number || null,
+        pg_ifsc_code: pg_ifsc_code ? String(pg_ifsc_code).toUpperCase() : null,
+        pg_account_holder_name: pg_account_holder_name || null,
       }, trx);
 
       const tokens = generateAuthTokens({

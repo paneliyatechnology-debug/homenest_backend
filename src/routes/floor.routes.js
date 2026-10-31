@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import floorController from '../controllers/floor.controller.js';
 import {
+  listFloorsValidator,
   createFloorValidator,
   updateFloorValidator,
   floorIdParamValidator,
@@ -28,10 +29,10 @@ router.post(
 
 /**
  * @route   GET /api/v1/floors
- * @desc    List all floors (filter by building_id, pg_id, status)
+ * @desc    List all floors (filter by building_id, pg_id)
  * @access  Private
  */
-router.get('/', floorController.getAllFloors);
+router.get('/', validate(listFloorsValidator), floorController.getAllFloors);
 
 /**
  * @route   GET /api/v1/floors/:id
@@ -69,4 +70,3 @@ router.delete(
 );
 
 export default router;
-

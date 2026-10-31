@@ -6,16 +6,25 @@ import db from '../config/db.js';
 
 /**
  * Authenticate JWT middleware.
- * Verifies token from Authorization header or HTTP-only cookies.
+ * Verifies token from Authorization header (Bearer) or HTTP-only cookies (access_token).
+ * Smoothly falls back to cookies if the Authorization header is empty or an unresolved Postman variable.
  */
 export const authenticate = async (req, res, next) => {
   try {
     let token = null;
     const auth_header = req.headers.authorization;
 
+    // 1. Extract from Authorization Bearer header
     if (auth_header && auth_header.startsWith('Bearer ')) {
-      token = auth_header.split(' ')[1];
-    } else if (req.cookies && req.cookies.access_token) {
+      const candidate = auth_header.slice(7).trim();
+      // Validate candidate is not empty and not an unparsed template like {{accessToken}}
+      if (candidate && candidate !== 'undefined' && candidate !== 'null' && !candidate.startsWith('{{')) {
+        token = candidate;
+      }
+    }
+
+    // 2. Fall back to HTTP-only cookie if Authorization header is missing or empty
+    if (!token && req.cookies && req.cookies.access_token) {
       token = req.cookies.access_token;
     }
 
@@ -23,14 +32,27 @@ export const authenticate = async (req, res, next) => {
       throw new AppError('Access token is missing or invalid. Please login', HTTP_STATUS.UNAUTHORIZED);
     }
 
+    // 3. Verify access token with cookie fallback if header candidate fails
     let decoded;
     try {
       decoded = verifyAccessToken(token);
     } catch (err) {
-      if (err.name === 'TokenExpiredError') {
-        throw new AppError('Access token has expired. Please refresh your session or login again', HTTP_STATUS.UNAUTHORIZED);
+      if (req.cookies && req.cookies.access_token && req.cookies.access_token !== token) {
+        try {
+          decoded = verifyAccessToken(req.cookies.access_token);
+          token = req.cookies.access_token;
+        } catch (cookieErr) {
+          if (err.name === 'TokenExpiredError') {
+            throw new AppError('Access token has expired. Please refresh your session or login again', HTTP_STATUS.UNAUTHORIZED);
+          }
+          throw new AppError('Invalid access token', HTTP_STATUS.UNAUTHORIZED);
+        }
+      } else {
+        if (err.name === 'TokenExpiredError') {
+          throw new AppError('Access token has expired. Please refresh your session or login again', HTTP_STATUS.UNAUTHORIZED);
+        }
+        throw new AppError('Invalid access token', HTTP_STATUS.UNAUTHORIZED);
       }
-      throw new AppError('Invalid access token', HTTP_STATUS.UNAUTHORIZED);
     }
 
     const user = await userService.findById(decoded.id, decoded.pg_id);

@@ -25,13 +25,12 @@ export const getAllBuildings = async (req, res, next) => {
     const owner_id = is_admin ? req.user.id : undefined;
     const pg_id = req.query.pg_id ? Number(req.query.pg_id) : (req.pg_id || undefined);
 
-    const { search, status, page, limit } = req.query;
+    const { search, page, limit } = req.query;
 
     const { buildings, pagination } = await buildingService.findAll({
       pg_id,
       owner_id,
       search,
-      status,
       page,
       limit,
     });

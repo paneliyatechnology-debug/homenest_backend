@@ -69,6 +69,18 @@
       "key": "floorId",
       "value": "1",
       "type": "default"
+    },
+    {
+      "key": "adminToken",
+      "value": "",
+      "type": "string",
+      "description": "Admin JWT access token."
+    },
+    {
+      "key": "residentToken",
+      "value": "",
+      "type": "string",
+      "description": "Resident JWT access token."
     }
   ],
   "auth": {
@@ -157,10 +169,30 @@
                   "const body = pm.response.json();",
                   "const data = body && body.data ? body.data : {};",
                   "const token = data.access_token;",
-                  "if (token) pm.collectionVariables.set('accessToken', token);",
-                  "if (data.refresh_token) pm.collectionVariables.set('refreshToken', data.refresh_token);",
-                  "if (body.id) pm.collectionVariables.set('userId', String(body.id));",
-                  "if (data.pg_id) pm.collectionVariables.set('pgId', String(data.pg_id));"
+                  "if (token) {",
+                  "    pm.collectionVariables.set('accessToken', token);",
+                  "    pm.collectionVariables.set('adminToken', token);",
+                  "    pm.collectionVariables.set('residentToken', token);",
+                  "    try { pm.environment.set('accessToken', token); } catch(e) {}",
+                  "    try { pm.environment.set('adminToken', token); } catch(e) {}",
+                  "    try { pm.environment.set('residentToken', token); } catch(e) {}",
+                  "}",
+                  "if (data.refresh_token) {",
+                  "    pm.collectionVariables.set('refreshToken', data.refresh_token);",
+                  "    try { pm.environment.set('refreshToken', data.refresh_token); } catch(e) {}",
+                  "}",
+                  "const user = data.user;",
+                  "if (user && user.id) {",
+                  "    pm.collectionVariables.set('userId', String(user.id));",
+                  "    try { pm.environment.set('userId', String(user.id)); } catch(e) {}",
+                  "}",
+                  "if (user && user.pg_id) {",
+                  "    pm.collectionVariables.set('pgId', String(user.pg_id));",
+                  "    try { pm.environment.set('pgId', String(user.pg_id)); } catch(e) {}",
+                  "} else if (data.pg_id) {",
+                  "    pm.collectionVariables.set('pgId', String(data.pg_id));",
+                  "    try { pm.environment.set('pgId', String(data.pg_id)); } catch(e) {}",
+                  "}"
                 ]
               }
             }
@@ -299,6 +331,36 @@
                   "type": "file",
                   "src": [],
                   "description": "Optional file. PG branch brand logo image. JPEG, PNG, WebP (Max 5MB)."
+                },
+                {
+                  "key": "pg_upi_id",
+                  "value": "jasminkorat204@oksbi",
+                  "type": "text",
+                  "description": "Optional. UPI ID for receiving resident payments directly via QR Code"
+                },
+                {
+                  "key": "pg_bank_name",
+                  "value": "State Bank of India",
+                  "type": "text",
+                  "description": "Optional. Bank name for receiving transfers"
+                },
+                {
+                  "key": "pg_account_number",
+                  "value": "38291048592",
+                  "type": "text",
+                  "description": "Optional. Bank account number"
+                },
+                {
+                  "key": "pg_ifsc_code",
+                  "value": "SBIN0001234",
+                  "type": "text",
+                  "description": "Optional. Bank IFSC code"
+                },
+                {
+                  "key": "pg_account_holder_name",
+                  "value": "Jasmin Patel",
+                  "type": "text",
+                  "description": "Optional. Bank account holder name"
                 }
               ]
             },
@@ -328,11 +390,30 @@
                   "const body = pm.response.json();",
                   "const data = body && body.data ? body.data : {};",
                   "const token = data.access_token;",
-                  "if (token) pm.collectionVariables.set('accessToken', token);",
-                  "if (data.refresh_token) pm.collectionVariables.set('refreshToken', data.refresh_token);",
+                  "if (token) {",
+                  "    pm.collectionVariables.set('accessToken', token);",
+                  "    pm.collectionVariables.set('adminToken', token);",
+                  "    pm.collectionVariables.set('residentToken', token);",
+                  "    try { pm.environment.set('accessToken', token); } catch(e) {}",
+                  "    try { pm.environment.set('adminToken', token); } catch(e) {}",
+                  "    try { pm.environment.set('residentToken', token); } catch(e) {}",
+                  "}",
+                  "if (data.refresh_token) {",
+                  "    pm.collectionVariables.set('refreshToken', data.refresh_token);",
+                  "    try { pm.environment.set('refreshToken', data.refresh_token); } catch(e) {}",
+                  "}",
                   "const user = data.user;",
-                  "if (user && user.id) pm.collectionVariables.set('userId', String(user.id));",
-                  "if (user && user.pg_id) pm.collectionVariables.set('pgId', String(user.pg_id));"
+                  "if (user && user.id) {",
+                  "    pm.collectionVariables.set('userId', String(user.id));",
+                  "    try { pm.environment.set('userId', String(user.id)); } catch(e) {}",
+                  "}",
+                  "if (user && user.pg_id) {",
+                  "    pm.collectionVariables.set('pgId', String(user.pg_id));",
+                  "    try { pm.environment.set('pgId', String(user.pg_id)); } catch(e) {}",
+                  "} else if (data.pg_id) {",
+                  "    pm.collectionVariables.set('pgId', String(data.pg_id));",
+                  "    try { pm.environment.set('pgId', String(data.pg_id)); } catch(e) {}",
+                  "}"
                 ]
               }
             }
@@ -432,11 +513,30 @@
                   "const body = pm.response.json();",
                   "const data = body && body.data ? body.data : {};",
                   "const token = data.access_token;",
-                  "if (token) pm.collectionVariables.set('accessToken', token);",
-                  "if (data.refresh_token) pm.collectionVariables.set('refreshToken', data.refresh_token);",
+                  "if (token) {",
+                  "    pm.collectionVariables.set('accessToken', token);",
+                  "    pm.collectionVariables.set('adminToken', token);",
+                  "    pm.collectionVariables.set('residentToken', token);",
+                  "    try { pm.environment.set('accessToken', token); } catch(e) {}",
+                  "    try { pm.environment.set('adminToken', token); } catch(e) {}",
+                  "    try { pm.environment.set('residentToken', token); } catch(e) {}",
+                  "}",
+                  "if (data.refresh_token) {",
+                  "    pm.collectionVariables.set('refreshToken', data.refresh_token);",
+                  "    try { pm.environment.set('refreshToken', data.refresh_token); } catch(e) {}",
+                  "}",
                   "const user = data.user;",
-                  "if (user && user.id) pm.collectionVariables.set('userId', String(user.id));",
-                  "if (user && user.pg_id) pm.collectionVariables.set('pgId', String(user.pg_id));"
+                  "if (user && user.id) {",
+                  "    pm.collectionVariables.set('userId', String(user.id));",
+                  "    try { pm.environment.set('userId', String(user.id)); } catch(e) {}",
+                  "}",
+                  "if (user && user.pg_id) {",
+                  "    pm.collectionVariables.set('pgId', String(user.pg_id));",
+                  "    try { pm.environment.set('pgId', String(user.pg_id)); } catch(e) {}",
+                  "} else if (data.pg_id) {",
+                  "    pm.collectionVariables.set('pgId', String(data.pg_id));",
+                  "    try { pm.environment.set('pgId', String(data.pg_id)); } catch(e) {}",
+                  "}"
                 ]
               }
             }
@@ -592,8 +692,30 @@
                   "const body = pm.response.json();",
                   "const data = body && body.data ? body.data : {};",
                   "const token = data.access_token;",
-                  "if (token) pm.collectionVariables.set('accessToken', token);",
-                  "if (data.refresh_token) pm.collectionVariables.set('refreshToken', data.refresh_token);"
+                  "if (token) {",
+                  "    pm.collectionVariables.set('accessToken', token);",
+                  "    pm.collectionVariables.set('adminToken', token);",
+                  "    pm.collectionVariables.set('residentToken', token);",
+                  "    try { pm.environment.set('accessToken', token); } catch(e) {}",
+                  "    try { pm.environment.set('adminToken', token); } catch(e) {}",
+                  "    try { pm.environment.set('residentToken', token); } catch(e) {}",
+                  "}",
+                  "if (data.refresh_token) {",
+                  "    pm.collectionVariables.set('refreshToken', data.refresh_token);",
+                  "    try { pm.environment.set('refreshToken', data.refresh_token); } catch(e) {}",
+                  "}",
+                  "const user = data.user;",
+                  "if (user && user.id) {",
+                  "    pm.collectionVariables.set('userId', String(user.id));",
+                  "    try { pm.environment.set('userId', String(user.id)); } catch(e) {}",
+                  "}",
+                  "if (user && user.pg_id) {",
+                  "    pm.collectionVariables.set('pgId', String(user.pg_id));",
+                  "    try { pm.environment.set('pgId', String(user.pg_id)); } catch(e) {}",
+                  "} else if (data.pg_id) {",
+                  "    pm.collectionVariables.set('pgId', String(data.pg_id));",
+                  "    try { pm.environment.set('pgId', String(data.pg_id)); } catch(e) {}",
+                  "}"
                 ]
               }
             }
@@ -723,7 +845,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"North Wing Block\",\n  \"description\": \"New premium student wing with high-speed internet\",\n  \"status\": \"active\",\n  \"pg_id\": \"{{pgId}}\"\n}",
+              "raw": "{\n  \"pg_id\": \"{{pgId}}\",\n  \"name\": \"North Wing Block\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -783,14 +905,9 @@
                   "description": "Optional. Items per page (Default: 10)."
                 },
                 {
-                  "key": "status",
-                  "value": "",
-                  "description": "Optional. active or inactive."
-                },
-                {
                   "key": "search",
                   "value": "",
-                  "description": "Optional. Search building name or description."
+                  "description": "Optional. Search building name or PG facility name."
                 }
               ]
             },
@@ -836,7 +953,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"North Wing Tower\",\n  \"description\": \"Renovated tower with central AC and solar water heating\",\n  \"status\": \"active\"\n}",
+              "raw": "{\n  \"name\": \"North Wing Tower\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -916,7 +1033,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"building_id\": \"{{buildingId}}\",\n  \"floor_number\": 3,\n  \"name\": \"3rd Floor\",\n  \"status\": \"active\"\n}",
+              "raw": "{\n  \"building_id\": \"{{buildingId}}\",\n  \"floor_number\": 3,\n  \"name\": \"3rd Floor\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -981,11 +1098,6 @@
                   "description": "Optional. Records per page (Default: 10)."
                 },
                 {
-                  "key": "status",
-                  "value": "",
-                  "description": "Optional. active or inactive."
-                },
-                {
                   "key": "search",
                   "value": "",
                   "description": "Optional. Search floor name or building name."
@@ -1034,7 +1146,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"floor_number\": 3,\n  \"name\": \"3rd Floor - Executive Suite\",\n  \"status\": \"active\"\n}",
+              "raw": "{\n  \"floor_number\": 3,\n  \"name\": \"3rd Floor - Executive Suite\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1552,7 +1664,7 @@
                   "key": "room_id",
                   "value": "{{roomId}}",
                   "type": "text",
-                  "description": "Optional. Room ID to atomically allocate stay upon onboarding."
+                  "description": "Optional. Room ID to allocate stay upon onboarding. Must belong to the specified PG facility (pg_id)."
                 },
                 {
                   "key": "bed_number",
@@ -1589,6 +1701,18 @@
                   "type": "file",
                   "src": [],
                   "description": "Optional file. Resident profile photograph. JPEG, PNG, JPG, WebP. Max 5MB."
+                },
+                {
+                  "key": "maintenance_amount",
+                  "value": "1000",
+                  "type": "text",
+                  "description": "Optional maintenance fee included in total onboarding due"
+                },
+                {
+                  "key": "password",
+                  "value": "",
+                  "type": "text",
+                  "description": "Optional custom password (auto-generated if omitted)"
                 }
               ]
             },
@@ -2422,6 +2546,469 @@
             },
             "description": "### DELETE /api/v1/agreements/:id\nProtected (Admin / Super Admin). Soft-deletes an agreement record."
           }
+        }
+      ]
+    },
+    {
+      "name": "09 Payments",
+      "description": "Payments, Invoices, Billing Breakdown, QR/UPI checkout, Receipts, and Financial KPI Overview.",
+      "item": [
+        {
+          "name": "Payment Statistics (Unified KPIs)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payments/stats?pg_id={{pgId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "stats"
+              ],
+              "query": [
+                {
+                  "key": "pg_id",
+                  "value": "{{pgId}}",
+                  "description": "Optional. Defaults automatically from access_token.",
+                  "disabled": true
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-03-01",
+                  "description": "Filter payments created on or after this date (YYYY-MM-DD)",
+                  "disabled": true
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-03-31",
+                  "description": "Filter payments created on or before this date (YYYY-MM-DD)",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Unified high-performance statistics endpoint serving both Payment Overview and Payment History screens (Total Revenue, Transactions, Collections, Pending, Overdue, and Refunds in a single query)."
+          },
+          "response": []
+        },
+        {
+          "name": "List Payments (Filters & Pagination)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payments?status=all&page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "all",
+                  "description": "Filter by status: \"all\", \"pending\", \"paid\", \"overdue\", \"refunded\", \"failed\""
+                },
+                {
+                  "key": "pg_id",
+                  "value": "{{pgId}}",
+                  "description": "Filter payments by PG facility branch ID",
+                  "disabled": true
+                },
+                {
+                  "key": "resident_id",
+                  "value": "58",
+                  "description": "Filter payments strictly for a specific resident ID",
+                  "disabled": true
+                },
+                {
+                  "key": "room_type",
+                  "value": "single",
+                  "description": "Filter by room accommodation type: \"single\", \"double\", \"triple\"",
+                  "disabled": true
+                },
+                {
+                  "key": "payment_type",
+                  "value": "rent",
+                  "description": "Filter by bill type: \"rent\", \"maintenance\", \"security_deposit\", \"electricity\", \"other\"",
+                  "disabled": true
+                },
+                {
+                  "key": "payment_method",
+                  "value": "upi",
+                  "description": "Filter by payment method: \"upi\", \"card\", \"net_banking\", \"wallet\", \"bank_transfer\", \"cash\"",
+                  "disabled": true
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-04-01",
+                  "description": "Filter payments starting on or after this date (YYYY-MM-DD)",
+                  "disabled": true
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-04-30",
+                  "description": "Filter payments ending on or before this date (YYYY-MM-DD)",
+                  "disabled": true
+                },
+                {
+                  "key": "date_by",
+                  "value": "due_date",
+                  "description": "Date column to filter by: \"due_date\", \"paid_at\", or \"created_at\"",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Search across resident name, phone, room number, receipt number, or transaction ID",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Pagination page number (default: 1)"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Pagination limit per page (default: 10, max: 100)"
+                }
+              ]
+            },
+            "description": "List paginated payment records with filtering by status, resident, PG branch, room type, payment method, date range, and search."
+          },
+          "response": []
+        },
+        {
+          "name": "Resident Mobile Payment Overview",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payments/resident/overview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "resident",
+                "overview"
+              ],
+              "query": [
+                {
+                  "key": "resident_id",
+                  "value": "58",
+                  "description": "Optional resident ID filter (Admin only; residents always see their own)",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Resident mobile app payment dashboard: returns outstanding amount due card, billing breakdown, refundable security deposit, and recent transactions."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Payment Demand / Invoice",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resident_id\": 58,\n  \"pg_id\": 1,\n  \"stay_id\": 28,\n  \"room_id\": 13,\n  \"title\": \"Monthly Rent & Utility Bill - October 2026\",\n  \"payment_type\": \"rent\",\n  \"billing_period_start\": \"2026-10-01\",\n  \"billing_period_end\": \"2026-10-31\",\n  \"due_date\": \"2026-11-25\",\n  \"rent_amount\": 10000,\n  \"deposit_amount\": 0,\n  \"maintenance_amount\": 1000,\n  \"electricity_amount\": 1500,\n  \"other_amount\": 500,\n  \"amount\": 13000,\n  \"notes\": \"Rent is due by 25th of every month. Late payment may attract a fine.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments"
+              ]
+            },
+            "description": "Create a new payment demand / bill for a resident. If stay_id or room_id are omitted, they are automatically resolved from the resident's current active stay."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Payment by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payments/{{paymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "{{paymentId}}"
+              ]
+            },
+            "description": "Retrieve full details of an invoice / payment record by ID, including resident details, room & bed allocation, billing breakdown, and transaction status."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Payment Demand / Invoice",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Monthly Rent & Utility Bill (Revised) - October 2026\",\n  \"payment_type\": \"rent\",\n  \"billing_period_start\": \"2026-10-01\",\n  \"billing_period_end\": \"2026-10-31\",\n  \"due_date\": \"2026-11-28\",\n  \"rent_amount\": 10000,\n  \"deposit_amount\": 0,\n  \"maintenance_amount\": 1000,\n  \"electricity_amount\": 1800,\n  \"other_amount\": 500,\n  \"amount\": 13300,\n  \"notes\": \"Revised electricity meter reading applied.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payments/{{paymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "{{paymentId}}"
+              ]
+            },
+            "description": "Update editable fields of an existing payment demand / invoice. Automatically recalculates total amount if breakdown amounts are changed."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Payment Demand / Invoice (Soft Delete)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payments/{{paymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "{{paymentId}}"
+              ]
+            },
+            "description": "Soft delete an unpaid or erroneous payment demand by setting deleted_at timestamp. Excludes the record from all lists, exports, and statistics."
+          },
+          "response": []
+        },
+        {
+          "name": "Initiate UPI QR Checkout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payments/{{paymentId}}/initiate-upi",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "{{paymentId}}",
+                "initiate-upi"
+              ]
+            },
+            "description": "Generate dynamic UPI intent URI and saved PNG QR code URL for instant resident checkout via GPay, PhonePe, Paytm, or BHIM."
+          },
+          "response": []
+        },
+        {
+          "name": "Complete / Record Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_method\": \"upi\",\n  \"payment_method_details\": \"GPay UPI Ref #123456789012\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payments/{{paymentId}}/pay",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "{{paymentId}}",
+                "pay"
+              ]
+            },
+            "description": "Process and record a payment transaction. Marks the record as PAID, assigns receipt number and transaction ID, and records paid_at timestamp."
+          },
+          "response": []
+        },
+        {
+          "name": "Export Payments Report (Excel / PDF)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payments/export?format=xlsx&status=all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "export"
+              ],
+              "query": [
+                {
+                  "key": "format",
+                  "value": "xlsx",
+                  "description": "Export format: \"xlsx\" (Excel) or \"pdf\" (Executive PDF Statement) or \"both\""
+                },
+                {
+                  "key": "status",
+                  "value": "all",
+                  "description": "Filter by status: \"all\", \"pending\", \"paid\", \"overdue\", \"refunded\""
+                },
+                {
+                  "key": "resident_id",
+                  "value": "58",
+                  "description": "Filter payments strictly for a specific resident ID",
+                  "disabled": true
+                },
+                {
+                  "key": "pg_id",
+                  "value": "{{pgId}}",
+                  "description": "Filter payments by PG facility branch ID",
+                  "disabled": true
+                },
+                {
+                  "key": "room_type",
+                  "value": "single",
+                  "description": "Filter by room accommodation type: \"single\", \"double\", \"triple\"",
+                  "disabled": true
+                },
+                {
+                  "key": "payment_type",
+                  "value": "rent",
+                  "description": "Filter by bill type: \"rent\", \"maintenance\", \"security_deposit\", \"electricity\", \"other\"",
+                  "disabled": true
+                },
+                {
+                  "key": "payment_method",
+                  "value": "upi",
+                  "description": "Filter by payment method: \"upi\", \"card\", \"net_banking\", \"wallet\", \"bank_transfer\", \"cash\"",
+                  "disabled": true
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-04-01",
+                  "description": "Filter payments starting on or after this date (YYYY-MM-DD)",
+                  "disabled": true
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-04-30",
+                  "description": "Filter payments ending on or before this date (YYYY-MM-DD)",
+                  "disabled": true
+                },
+                {
+                  "key": "date_by",
+                  "value": "due_date",
+                  "description": "Date column to filter by: \"due_date\", \"paid_at\", or \"created_at\"",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Search across resident name, phone, room number, or transaction ID",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Generate high-end executive PDF billing statements (A4 Landscape, Roboto font, IST dates) or professional Excel spreadsheets with KPI summary cards, freeze panes, and formula totals."
+          },
+          "response": []
         }
       ]
     }

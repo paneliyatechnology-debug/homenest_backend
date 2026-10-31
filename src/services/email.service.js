@@ -113,12 +113,16 @@ class EmailService {
     roomNo = null,
     bedNumber = null,
     loginUrl = null,
+    dueAmount = null,
+    rentAmount = null,
+    depositAmount = null,
+    maintenanceAmount = null,
   }) => {
     const fromName = config.brevo.fromName || 'HomeNest';
     const resolvedLoginUrl = loginUrl || `${config.frontendUrl}/login`;
     const formattedRole = role ? role.charAt(0).toUpperCase() + role.slice(1).toLowerCase() : 'Resident';
 
-    const stayDetailsHtml = (pgName || roomNo)
+    const stayDetailsHtml = (pgName || roomNo || dueAmount)
       ? `
         <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px 20px; margin: 24px 0 0;">
           <h4 style="margin: 0 0 12px; color: #1e293b; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">
@@ -139,6 +143,16 @@ class EmailService {
             <tr>
               <td style="padding: 4px 0; color: #64748b;">Assigned Bed:</td>
               <td style="padding: 4px 0; font-weight: 600; color: #0f172a;">${bedNumber}</td>
+            </tr>` : ''}
+            ${dueAmount ? `
+            <tr>
+              <td style="padding: 4px 0; color: #64748b;">Initial Due Amount:</td>
+              <td style="padding: 4px 0; font-weight: 700; color: #166534;">
+                ₹${Number(dueAmount).toLocaleString('en-IN')}
+                <span style="font-size: 12px; font-weight: 400; color: #64748b; display: block; margin-top: 2px;">
+                  (Rent: ₹${Number(rentAmount || 0).toLocaleString('en-IN')}${depositAmount ? ` + Deposit: ₹${Number(depositAmount).toLocaleString('en-IN')}` : ''}${maintenanceAmount ? ` + Maint: ₹${Number(maintenanceAmount).toLocaleString('en-IN')}` : ''})
+                </span>
+              </td>
             </tr>` : ''}
           </table>
         </div>

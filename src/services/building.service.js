@@ -5,15 +5,13 @@ import { HTTP_STATUS } from '../constants/index.js';
 export class BuildingService {
   /**
    * Create a new building for a PG facility
-   * @param {Object} data - { pg_id, name, description, status }
+   * @param {Object} data - { pg_id, name }
    * @returns {Promise<Object>} Created building
    */
   create = async (data) => {
     const {
       pg_id,
       name,
-      description = null,
-      status = 'active',
     } = data;
 
     // Check PG exists
@@ -38,8 +36,6 @@ export class BuildingService {
     const [id] = await db('buildings').insert({
       pg_id,
       name: String(name).trim(),
-      description: description ? String(description).trim() : null,
-      status,
     });
 
     return this.findById(id);
@@ -55,7 +51,6 @@ export class BuildingService {
       pg_id,
       owner_id,
       search,
-      status,
       page = 1,
       limit = 10,
     } = options;
@@ -76,13 +71,9 @@ export class BuildingService {
         if (pg_id) {
           qb.where('buildings.pg_id', pg_id);
         }
-        if (status) {
-          qb.where('buildings.status', status);
-        }
         if (search) {
           qb.where((sqb) => {
             sqb.where('buildings.name', 'like', `%${search}%`)
-              .orWhere('buildings.description', 'like', `%${search}%`)
               .orWhere('pgs.name', 'like', `%${search}%`);
           });
         }
@@ -104,8 +95,6 @@ export class BuildingService {
         'buildings.pg_id',
         'pgs.name as pg_name',
         'buildings.name',
-        'buildings.description',
-        'buildings.status',
         db.raw('COUNT(DISTINCT floors.id) as total_floors'),
         db.raw('COUNT(DISTINCT rooms.id) as total_rooms'),
         'buildings.created_at',
@@ -153,8 +142,6 @@ export class BuildingService {
         'pgs.name as pg_name',
         'pgs.owner_id',
         'buildings.name',
-        'buildings.description',
-        'buildings.status',
         'buildings.created_at',
         'buildings.updated_at'
       )
@@ -174,7 +161,6 @@ export class BuildingService {
         'floors.building_id',
         'floors.floor_number',
         'floors.name',
-        'floors.status',
         db.raw('COUNT(rooms.id) as total_rooms'),
         'floors.created_at',
         'floors.updated_at'
@@ -212,7 +198,7 @@ export class BuildingService {
       throw new AppError('Building not found', HTTP_STATUS.NOT_FOUND);
     }
 
-    const { name, description, status } = data;
+    const { name } = data;
     const update_payload = { updated_at: db.fn.now() };
 
     if (name && name.trim() !== building.name) {
@@ -229,14 +215,6 @@ export class BuildingService {
         );
       }
       update_payload.name = name.trim();
-    }
-
-    if (description !== undefined) {
-      update_payload.description = description ? description.trim() : null;
-    }
-
-    if (status !== undefined) {
-      update_payload.status = status;
     }
 
     await db('buildings').where({ id }).update(update_payload);
@@ -286,4 +264,3 @@ export class BuildingService {
 }
 
 export default new BuildingService();
-
