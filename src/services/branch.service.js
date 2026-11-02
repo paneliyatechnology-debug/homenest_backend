@@ -60,17 +60,9 @@ class BranchService {
     }
 
     if (user.role === ROLES.ADMIN) {
-      if (preferred_pg_id) {
-        const owned = await db('pgs')
-          .where({ id: preferred_pg_id, owner_id: user.id })
-          .whereNull('deleted_at')
-          .first();
-        if (owned) return Number(preferred_pg_id);
-      }
       const pg = await db('pgs')
         .where({ owner_id: user.id })
         .whereNull('deleted_at')
-        .orderBy('id', 'asc')
         .first();
       if (!pg) {
         throw new AppError('No PG facility registered under your account', HTTP_STATUS.BAD_REQUEST);

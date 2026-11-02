@@ -41,18 +41,6 @@ export const create = async (data) => {
     throw new AppError('PG facility (branch) not found', HTTP_STATUS.NOT_FOUND);
   }
 
-  // Check unique room_no in same PG branch among active rooms
-  const existing_room = await db('rooms')
-    .where({ pg_id, room_no })
-    .whereNull('deleted_at')
-    .first();
-  if (existing_room) {
-    throw new AppError(
-      `Room '${room_no}' already exists in this PG branch`,
-      HTTP_STATUS.CONFLICT
-    );
-  }
-
   // Validate building_id
   const building_id = Number(input_building_id);
   const building = await db('buildings')
@@ -84,6 +72,19 @@ export const create = async (data) => {
       .orderBy('id', 'asc')
       .first();
     if (defaultBranch) branch_id = defaultBranch.id;
+  }
+
+  // Check unique room_no in same branch among active rooms
+  const roomFilter = branch_id ? { branch_id, room_no } : { pg_id, room_no };
+  const existing_room = await db('rooms')
+    .where(roomFilter)
+    .whereNull('deleted_at')
+    .first();
+  if (existing_room) {
+    throw new AppError(
+      `Room '${room_no}' already exists in this branch`,
+      HTTP_STATUS.CONFLICT
+    );
   }
 
   const [id] = await db('rooms').insert({

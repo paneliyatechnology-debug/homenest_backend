@@ -1,5 +1,8 @@
 import db from '../config/db.js';
 import { buildFileUrl } from '../utils/url.js';
+const { AppError } = await import('../utils/apiResponse.js');
+const { HTTP_STATUS } = await import('../constants/index.js');
+
 
 /**
  * Service managing Paying Guest (PG) facilities
@@ -38,6 +41,7 @@ class PgService {
 
   /**
    * Create a new PG for an owner (admin)
+   * Enforces 1 PG per admin rule.
    * @param {number|string} owner_id - User ID of the owner
    * @param {object} pg_data - Details of the PG facility
    * @param {object} [trx=null] - Optional Knex transaction instance
@@ -45,6 +49,15 @@ class PgService {
    */
   create = async (owner_id, pg_data, trx = null) => {
     const query = trx ? db('pgs').transacting(trx) : db('pgs');
+
+    // Enforce 1 Admin = 1 PG rule
+    const existing = await query.where({ owner_id }).whereNull('deleted_at').first();
+    if (existing) {
+      throw new AppError(
+        'An admin can only own one PG property. You can create multiple branches under your existing PG.',
+        HTTP_STATUS.CONFLICT
+      );
+    }
 
     const [pg_id] = await query.insert({
       owner_id,
@@ -129,6 +142,19 @@ class PgService {
       pg_account_holder_name: pg.pg_account_holder_name || null,
     };
     return pg;
+  };
+
+  /**
+   * Find single PG owned by an admin
+   * @param {number|string} owner_id - Admin user ID
+   * @param {object} [trx=null] - Optional Knex transaction instance
+   * @returns {Promise<object|null>}
+   */
+  findByOwnerId = async (owner_id, trx = null) => {
+    const query = trx ? db('pgs').transacting(trx) : db('pgs');
+    const pg = await query.where({ owner_id }).whereNull('deleted_at').first();
+    if (!pg) return null;
+    return await this.findById(pg.id, trx);
   };
 
   /**
