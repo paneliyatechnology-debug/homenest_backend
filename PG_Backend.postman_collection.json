@@ -117,6 +117,26 @@
       "key": "payment_id",
       "value": "1",
       "type": "string"
+    },
+    {
+      "key": "complaintId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "complaint_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "staffId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "staff_id",
+      "value": "1",
+      "type": "string"
     }
   ],
   "auth": {
@@ -252,151 +272,153 @@
                   "key": "name",
                   "value": "Sunita Mehra",
                   "type": "text",
-                  "description": "Required. Owner full legal name (2-100 chars)."
+                  "description": "[REQUIRED] Full name of PG Owner (2-100 characters)"
                 },
                 {
                   "key": "email",
                   "value": "sunita.mehra@example.com",
                   "type": "text",
-                  "description": "Required. Unique owner login email address."
+                  "description": "[REQUIRED] Login email address for PG Owner"
                 },
                 {
                   "key": "password",
                   "value": "OwnerPassword@123",
                   "type": "text",
-                  "description": "Required. Account password (min 6 characters)."
+                  "description": "[REQUIRED] Password (min 6 characters)"
                 },
                 {
                   "key": "phone",
                   "value": "9876543220",
                   "type": "text",
-                  "description": "Required. 10-digit Indian mobile contact number."
+                  "description": "[OPTIONAL] 10-digit mobile number"
                 },
                 {
                   "key": "gender",
                   "value": "female",
                   "type": "text",
-                  "description": "Optional. male, female, or other."
+                  "description": "[OPTIONAL] male | female | other"
                 },
                 {
                   "key": "address",
                   "value": "101 Owner Enclave, Ahmedabad",
                   "type": "text",
-                  "description": "Optional. Owner residential address."
+                  "description": "[OPTIONAL] Owner residence address"
                 },
                 {
                   "key": "profile_photo",
                   "type": "file",
                   "src": [],
-                  "description": "Optional file. Owner profile photograph. JPEG, PNG, WebP (Max 5MB)."
+                  "description": "[OPTIONAL] Owner profile image (JPG, PNG, WebP, max 5MB)",
+                  "value": ""
                 },
                 {
                   "key": "pg_name",
                   "value": "HouseNest Sunshine PG",
                   "type": "text",
-                  "description": "Required. Commercial name of the PG branch."
+                  "description": "[REQUIRED] Name of PG facility"
                 },
                 {
                   "key": "pg_type",
                   "value": "girls",
                   "type": "text",
-                  "description": "Optional. boys, girls, coed, or other (Default: coed)."
+                  "description": "[REQUIRED] boys | girls | co-ed"
                 },
                 {
                   "key": "pg_phone",
                   "value": "9876543221",
                   "type": "text",
-                  "description": "Optional. Front desk / facility contact phone number."
+                  "description": "[REQUIRED] Official PG contact phone (10 digits)"
                 },
                 {
                   "key": "pg_email",
                   "value": "sunshine@housenest.com",
                   "type": "text",
-                  "description": "Optional. Facility contact email."
+                  "description": "[OPTIONAL] Official PG email address"
                 },
                 {
                   "key": "pg_address",
                   "value": "Plot 45, Near St. Xavier College",
                   "type": "text",
-                  "description": "Required. Physical street address of PG."
+                  "description": "[REQUIRED] Physical street address of PG"
                 },
                 {
                   "key": "pg_city",
                   "value": "Ahmedabad",
                   "type": "text",
-                  "description": "Required. City location."
+                  "description": "[REQUIRED] City name"
                 },
                 {
                   "key": "pg_state",
                   "value": "Gujarat",
                   "type": "text",
-                  "description": "Required. State location."
+                  "description": "[REQUIRED] State name"
                 },
                 {
                   "key": "pg_pincode",
                   "value": "380009",
                   "type": "text",
-                  "description": "Required. 6-digit Indian PIN code."
+                  "description": "[REQUIRED] 6-digit PIN code"
                 },
                 {
                   "key": "total_rooms",
                   "value": "25",
                   "type": "text",
-                  "description": "Optional. Initial room capacity count."
+                  "description": "[OPTIONAL] Total rooms count (Default: 10)"
                 },
                 {
                   "key": "total_beds",
                   "value": "50",
                   "type": "text",
-                  "description": "Optional. Initial bed capacity count."
+                  "description": "[OPTIONAL] Total bed capacity"
                 },
                 {
                   "key": "amenities",
                   "value": "[\"Wi-Fi\",\"AC\",\"Meals\"]",
                   "type": "text",
-                  "description": "Optional. JSON array or comma-separated string of amenities."
+                  "description": "[OPTIONAL] Amenities list (JSON array or comma-separated string)"
                 },
                 {
                   "key": "rules",
                   "value": "Curfew at 10:30 PM",
                   "type": "text",
-                  "description": "Optional. Facility house rules."
+                  "description": "[OPTIONAL] PG rules and regulations"
                 },
                 {
                   "key": "logo",
                   "type": "file",
                   "src": [],
-                  "description": "Optional file. PG branch brand logo image. JPEG, PNG, WebP (Max 5MB)."
+                  "description": "[OPTIONAL] PG logo image file (JPG, PNG, WebP, max 5MB)",
+                  "value": ""
                 },
                 {
                   "key": "pg_upi_id",
                   "value": "jasminkorat204@oksbi",
                   "type": "text",
-                  "description": "Optional. UPI ID for receiving resident payments directly via QR Code"
+                  "description": "[OPTIONAL] UPI ID for digital payments"
                 },
                 {
                   "key": "pg_bank_name",
                   "value": "State Bank of India",
                   "type": "text",
-                  "description": "Optional. Bank name for receiving transfers"
+                  "description": "[OPTIONAL] Bank name for payouts"
                 },
                 {
                   "key": "pg_account_number",
                   "value": "38291048592",
                   "type": "text",
-                  "description": "Optional. Bank account number"
+                  "description": "[OPTIONAL] Bank account number"
                 },
                 {
                   "key": "pg_ifsc_code",
                   "value": "SBIN0001234",
                   "type": "text",
-                  "description": "Optional. Bank IFSC code"
+                  "description": "[OPTIONAL] 11-digit IFSC code"
                 },
                 {
                   "key": "pg_account_holder_name",
                   "value": "Jasmin Patel",
                   "type": "text",
-                  "description": "Optional. Bank account holder name"
+                  "description": "[OPTIONAL] Bank account holder name"
                 }
               ]
             },
@@ -412,7 +434,7 @@
                 "register-pg"
               ]
             },
-            "description": "### POST /api/v1/auth/register-pg\nPublic. Atomically creates an owner account (`role: admin`) and registers their initial PG facility in a single database transaction.\nSupports `multipart/form-data` with optional owner profile photo and PG brand logo.\n\n**Body keys**\n| Key | Type | Required | Meaning |\n| --- | --- | --- | --- |\n| `name` | string | Yes | Owner full legal name (2-100 chars) |\n| `email` | string | Yes | Unique login email |\n| `password` | string | Yes | Account password (min 6 chars) |\n| `phone` | string | Yes | 10-digit Indian mobile number |\n| `gender` | string | No | `male`, `female`, or `other` |\n| `address` | string | No | Owner residential address |\n| `profile_photo` | file | No | Optional owner profile photo (JPEG, PNG, WebP) |\n| `pg_name` | string | Yes | Commercial name of the PG branch |\n| `pg_type` | string | No | `boys`, `girls`, `coed`, or `other` (Default: `coed`) |\n| `pg_phone` | string | No | Front desk phone number |\n| `pg_email` | string | No | Facility contact email |\n| `pg_address` | string | Yes | Physical street address |\n| `pg_city` | string | Yes | City location |\n| `pg_state` | string | Yes | State location |\n| `pg_pincode` | string | Yes | 6-digit Indian PIN code |\n| `total_rooms` | integer | No | Initial room capacity |\n| `total_beds` | integer | No | Initial bed capacity |\n| `amenities` | array/string | No | Available amenities (e.g. [\"WiFi\",\"AC\"]) |\n| `rules` | string | No | Facility house rules |\n| `logo` | file | No | Optional PG branch brand logo image |"
+            "description": "### Register PG Owner & Facility\n\nOnboards a new PG Owner account and atomically registers their initial PG facility and primary branch.\nSupports **multipart/form-data** with optional files (`profile_photo` and `logo`).\n\n---\n#### Form Fields:\n- **Owner Account**:\n  - `name` [REQUIRED] Full name of PG owner (2-100 characters).\n  - `email` [REQUIRED] Email address (used for owner login).\n  - `password` [REQUIRED] Secure account password (minimum 6 characters).\n  - `phone` [OPTIONAL] 10-digit mobile number.\n  - `gender` [OPTIONAL] `male` | `female` | `other`.\n  - `address` [OPTIONAL] Owner's personal address.\n  - `profile_photo` [OPTIONAL - File] Owner avatar image (JPG, PNG, WebP, max 5MB).\n- **PG Facility Details**:\n  - `pg_name` [REQUIRED] Name of the PG establishment (e.g., \"HomeNest Luxury PG\").\n  - `pg_type` [REQUIRED] `boys` | `girls` | `co-ed`.\n  - `pg_phone` [REQUIRED] Primary phone number for the PG facility.\n  - `pg_email` [OPTIONAL] Official PG email (defaults to owner email if omitted).\n  - `pg_address` [REQUIRED] Street address of the PG facility.\n  - `pg_city` [REQUIRED] City location.\n  - `pg_state` [REQUIRED] State location.\n  - `pg_pincode` [REQUIRED] 6-digit Indian PIN code.\n  - `total_rooms` [OPTIONAL] Total number of rooms in initial branch (Default: 10).\n  - `total_beds` [OPTIONAL] Total bed capacity in initial branch.\n  - `amenities` [OPTIONAL] JSON string or comma-separated list (e.g. `[\"WiFi\", \"AC\", \"Laundry\", \"Daily Cleaning\", \"Meals\"]`).\n  - `rules` [OPTIONAL] House rules text for residents.\n  - `logo` [OPTIONAL - File] PG facility branding logo (JPG, PNG, WebP, max 5MB).\n- **PG Bank & Settlement Details**:\n  - `pg_upi_id` [OPTIONAL] UPI VPA ID for digital payments (e.g. `pgowner@okhdfcbank`).\n  - `pg_bank_name` [OPTIONAL] Beneficiary Bank Name (e.g. \"HDFC Bank\").\n  - `pg_account_number` [OPTIONAL] Bank account number.\n  - `pg_ifsc_code` [OPTIONAL] 11-digit IFSC code.\n  - `pg_account_holder_name` [OPTIONAL] Beneficiary name as per bank records."
           }
         },
         {
@@ -492,7 +514,7 @@
                 "login"
               ]
             },
-            "description": "### POST /api/v1/auth/login\nPublic. Authenticates with email and password. Encodes `pg_id` in the JWT and sets HTTP-only security cookies.\n\n**Body keys**\n| Key | Type | Required | Meaning |\n| --- | --- | --- | --- |\n| `email` | string | Yes | Account email address |\n| `password` | string | Yes | Account password |\n\n**Response `data`**\n| Key | Type | Meaning |\n| --- | --- | --- |\n| `access_token` | string | JWT access token with encoded `pg_id` |\n| `refresh_token` | string | Long-lived refresh token |\n| `user` | object | Authenticated user profile |"
+            "description": "### User Login (Admin / Resident / Staff)\n\nAuthenticates user via email and password. Returns JWT access & refresh tokens.\nAuto-saves `{{accessToken}}` and `{{refreshToken}}` in collection variables upon success.\n\n---\n#### Body (JSON):\n- `email` [REQUIRED] Registered email address.\n- `password` [REQUIRED] Account password."
           }
         },
         {
@@ -881,7 +903,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"pg_id\": \"{{pgId}}\",\n  \"branch_id\": \"{{branchId}}\",\n  \"name\": \"North Wing Block\"\n}",
+              "raw": "{\n  \"branch_id\": \"{{branchId}}\",\n  \"name\": \"Block A - Silver Wing\",\n  \"pg_id\": \"{{pgId}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -899,7 +921,7 @@
                 "buildings"
               ]
             },
-            "description": "### POST /api/v1/buildings\nPrivate (Admin / Super Admin). Create a new building under a PG facility. Automatically captures `buildingId`."
+            "description": "### Create Building\n\nCreates a new building in the specified branch under the PG facility.\n\n---\n#### Body (JSON):\n- `branch_id` [REQUIRED] Branch ID where the building is located.\n- `name` [REQUIRED] Building name / identifier (1-100 characters).\n- `pg_id` [OPTIONAL] PG facility ID (defaults to owner's PG facility)."
           }
         },
         {
@@ -927,33 +949,33 @@
                 {
                   "key": "pg_id",
                   "value": "{{pgId}}",
-                  "description": "Optional. Defaults automatically from access_token.",
+                  "description": "[OPTIONAL] PG facility ID",
                   "disabled": true
                 },
                 {
                   "key": "page",
                   "value": "1",
-                  "description": "Optional. Page number (Default: 1)."
+                  "description": "[OPTIONAL] Page number (Default: 1)"
                 },
                 {
                   "key": "limit",
                   "value": "10",
-                  "description": "Optional. Items per page (Default: 10)."
+                  "description": "[OPTIONAL] Items per page (Default: 10)"
                 },
                 {
                   "key": "search",
                   "value": "",
-                  "description": "Optional. Search building name or PG facility name."
+                  "description": "[OPTIONAL] Search by building name"
                 },
                 {
                   "key": "branch_id",
                   "value": "{{branchId}}",
-                  "description": "Filter by specific branch ID under the PG",
+                  "description": "[OPTIONAL] Filter by Branch ID",
                   "disabled": true
                 }
               ]
             },
-            "description": "### GET /api/v1/buildings\nPrivate. Paginated list of buildings with total floors and rooms count."
+            "description": "### List Buildings\n\nReturns all buildings with pagination and optional search filter.\n\n---\n#### Query Parameters:\n- `branch_id` [OPTIONAL] Filter buildings by Branch ID.\n- `search` [OPTIONAL] Search pattern for building name.\n- `page` [OPTIONAL] Page number (Default: 1).\n- `limit` [OPTIONAL] Number of items per page (Default: 10, Max: 100).\n- `pg_id` [OPTIONAL] PG facility ID."
           }
         },
         {
@@ -1014,7 +1036,7 @@
                 "{{buildingId}}"
               ]
             },
-            "description": "### PUT /api/v1/buildings/:id\nPrivate (Admin / Super Admin). Update building name, description, or operational status."
+            "description": "### Update Building\n\nUpdates building name or reassigns building to another branch.\n\n---\n#### Body (JSON):\n- `branch_id` [REQUIRED] Associated Branch ID.\n- `name` [OPTIONAL] New name for the building (1-100 characters)."
           }
         },
         {
@@ -1075,7 +1097,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"building_id\": \"{{buildingId}}\",\n  \"floor_number\": 3,\n  \"name\": \"3rd Floor\"\n}",
+              "raw": "{\n  \"building_id\": \"{{buildingId}}\",\n  \"floor_number\": 1,\n  \"name\": \"First Floor\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1093,7 +1115,7 @@
                 "floors"
               ]
             },
-            "description": "### POST /api/v1/floors\nPrivate (Admin / Super Admin). Create a new floor under a building. Automatically captures `floorId`."
+            "description": "### Create Floor\n\nAdds a new floor under a specific building.\n\n---\n#### Body (JSON):\n- `building_id` [REQUIRED] Building ID where the floor is created.\n- `floor_number` [REQUIRED] Integer floor number (e.g. 0 for Ground, 1 for 1st, 2 for 2nd).\n- `name` [OPTIONAL] Floor display name (e.g. \"Ground Floor\", \"1st Floor\")."
           }
         },
         {
@@ -1121,38 +1143,38 @@
                 {
                   "key": "building_id",
                   "value": "{{buildingId}}",
-                  "description": "Optional. Filter floors by specific building."
+                  "description": "[OPTIONAL] Filter by Building ID"
                 },
                 {
                   "key": "pg_id",
                   "value": "{{pgId}}",
-                  "description": "Optional. Defaults automatically from access_token.",
+                  "description": "[OPTIONAL] PG facility ID",
                   "disabled": true
                 },
                 {
                   "key": "page",
                   "value": "1",
-                  "description": "Optional. Page number (Default: 1)."
+                  "description": "[OPTIONAL] Page number (Default: 1)"
                 },
                 {
                   "key": "limit",
                   "value": "10",
-                  "description": "Optional. Records per page (Default: 10)."
+                  "description": "[OPTIONAL] Items per page (Default: 10)"
                 },
                 {
                   "key": "search",
                   "value": "",
-                  "description": "Optional. Search floor name or building name."
+                  "description": "[OPTIONAL] Search by floor name"
                 },
                 {
                   "key": "branch_id",
                   "value": "{{branchId}}",
-                  "description": "Filter by specific branch ID under the PG",
+                  "description": "[OPTIONAL] Filter by Branch ID",
                   "disabled": true
                 }
               ]
             },
-            "description": "### GET /api/v1/floors\nPrivate. Paginated list of floors with assigned room counts."
+            "description": "### List Floors\n\nRetrieves list of floors for a building with pagination.\n\n---\n#### Query Parameters:\n- `building_id` [OPTIONAL] Filter floors by Building ID.\n- `branch_id` [OPTIONAL] Filter floors by Branch ID.\n- `search` [OPTIONAL] Search by floor name.\n- `page` [OPTIONAL] Page number (Default: 1).\n- `limit` [OPTIONAL] Limit per page (Default: 10).\n- `pg_id` [OPTIONAL] PG facility ID."
           }
         },
         {
@@ -1213,7 +1235,7 @@
                 "{{floorId}}"
               ]
             },
-            "description": "### PUT /api/v1/floors/:id\nPrivate (Admin / Super Admin). Update floor number, display name, or status."
+            "description": "### Update Floor\n\nUpdates floor number or floor display name.\n\n---\n#### Body (JSON):\n- `floor_number` [OPTIONAL] Integer floor number.\n- `name` [OPTIONAL] Floor display name (1-100 characters)."
           }
         },
         {
@@ -1346,55 +1368,62 @@
                   "key": "room_no",
                   "value": "A-301",
                   "type": "text",
-                  "description": "Required. Room number / label (1-50 chars). Unique per PG."
+                  "description": "[REQUIRED] Room number (1-50 chars)"
                 },
                 {
                   "key": "room_type",
                   "value": "single",
                   "type": "text",
-                  "description": "Required. Room classification: single, double, triple, deluxe, etc."
+                  "description": "[REQUIRED] Room category (e.g. Single, Double Sharing, Triple Sharing)"
                 },
                 {
                   "key": "building_id",
                   "value": "{{buildingId}}",
                   "type": "text",
-                  "description": "Optional. Foreign key referencing buildings table. Defaults automatically if omitted."
+                  "description": "[REQUIRED] Building ID"
                 },
                 {
                   "key": "floor_id",
                   "value": "{{floorId}}",
                   "type": "text",
-                  "description": "Optional. Foreign key referencing floors table. Defaults automatically if omitted."
+                  "description": "[REQUIRED] Floor ID"
                 },
                 {
                   "key": "status",
                   "value": "vacant",
                   "type": "text",
-                  "description": "Optional. Operational status: vacant, occupied, maintenance, out_of_service (Default: vacant)."
+                  "description": "[OPTIONAL] vacant | occupied | maintenance | out_of_service"
                 },
                 {
                   "key": "capacity",
                   "value": "1",
                   "type": "text",
-                  "description": "Optional. Maximum resident bed capacity (Default: 1)."
+                  "description": "[OPTIONAL] Total bed capacity (Default: 1)"
                 },
                 {
                   "key": "size",
                   "value": "14 m*2",
                   "type": "text",
-                  "description": "Optional. Room physical dimensions (e.g. 14 m*2)."
+                  "description": "[OPTIONAL] Room size description"
                 },
                 {
                   "key": "pg_id",
                   "value": "{{pgId}}",
                   "type": "text",
-                  "description": "Optional. Branch ID. Defaults automatically from access_token."
+                  "description": "[OPTIONAL] PG facility ID"
                 },
                 {
                   "key": "image",
                   "type": "file",
                   "src": [],
-                  "description": "Optional file. Room photograph. JPEG, PNG, JPG, WebP. Max 5MB."
+                  "description": "[OPTIONAL] Room photo image (JPG, PNG, WebP, max 5MB)",
+                  "value": ""
+                },
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "type": "text",
+                  "description": "[OPTIONAL] Branch ID"
                 }
               ]
             },
@@ -1409,7 +1438,7 @@
                 "rooms"
               ]
             },
-            "description": "### POST /api/v1/rooms\nProtected (Admin / Super Admin). Creates a new room using `multipart/form-data`. `image` file is completely optional. If `pg_id` is omitted, it defaults from `access_token`."
+            "description": "### Create Room\n\nRegisters a new room in a building and floor. Supports optional room photo upload.\n\n---\n#### Form Fields:\n- `room_no` [REQUIRED] Room number / code (e.g. \"101\", \"A-201\").\n- `room_type` [REQUIRED] Room sharing category (e.g. \"Single\", \"Double Sharing\", \"Triple Sharing\").\n- `building_id` [REQUIRED] Building ID.\n- `floor_id` [REQUIRED] Floor ID.\n- `branch_id` [OPTIONAL] Branch ID.\n- `capacity` [OPTIONAL] Bed capacity integer (min 1, default 1).\n- `size` [OPTIONAL] Room dimensions/size (e.g. \"160 sq ft\").\n- `status` [OPTIONAL] `vacant` | `occupied` | `maintenance` | `out_of_service` (Default: `vacant`).\n- `pg_id` [OPTIONAL] PG facility ID.\n- `image` [OPTIONAL - File] Room image photo (JPG, PNG, WebP, max 5MB)."
           }
         },
         {
@@ -1437,58 +1466,58 @@
                 {
                   "key": "page",
                   "value": "1",
-                  "description": "Optional. Page number (Default: 1)."
+                  "description": "[OPTIONAL] Page number (Default: 1)"
                 },
                 {
                   "key": "limit",
                   "value": "10",
-                  "description": "Optional. Records per page (Default: 10)."
+                  "description": "[OPTIONAL] Limit per page (Default: 10)"
                 },
                 {
                   "key": "building_id",
                   "value": "{{buildingId}}",
-                  "description": "Optional. Filter rooms by building ID.",
+                  "description": "[OPTIONAL] Filter by Building ID",
                   "disabled": true
                 },
                 {
                   "key": "floor_id",
                   "value": "{{floorId}}",
-                  "description": "Optional. Filter rooms by floor ID.",
+                  "description": "[OPTIONAL] Filter by Floor ID",
                   "disabled": true
                 },
                 {
                   "key": "status",
                   "value": "",
-                  "description": "Optional. vacant, occupied, maintenance, out_of_service.",
+                  "description": "[OPTIONAL] vacant | occupied | maintenance | out_of_service",
                   "disabled": true
                 },
                 {
                   "key": "room_type",
                   "value": "",
-                  "description": "Optional. Filter by room classification (e.g. single).",
+                  "description": "[OPTIONAL] Filter by room type (e.g. Single, Double Sharing)",
                   "disabled": true
                 },
                 {
                   "key": "search",
                   "value": "",
-                  "description": "Optional. Search by room number.",
+                  "description": "[OPTIONAL] Search by room number",
                   "disabled": true
                 },
                 {
                   "key": "pg_id",
                   "value": "{{pgId}}",
-                  "description": "Optional. Defaults automatically from access_token.",
+                  "description": "[OPTIONAL] PG facility ID",
                   "disabled": true
                 },
                 {
                   "key": "branch_id",
                   "value": "{{branchId}}",
-                  "description": "Filter by specific branch ID under the PG",
+                  "description": "[OPTIONAL] Filter by Branch ID",
                   "disabled": true
                 }
               ]
             },
-            "description": "### GET /api/v1/rooms\nProtected. Paginated room inventory with joined current occupant names and dynamic room image URLs. Scoped automatically to the token's `pg_id`."
+            "description": "### List Rooms\n\nRetrieves paginated room listings with comprehensive filters.\n\n---\n#### Query Parameters:\n- `branch_id` [OPTIONAL] Filter rooms by Branch ID.\n- `building_id` [OPTIONAL] Filter rooms by Building ID.\n- `floor_id` [OPTIONAL] Filter rooms by Floor ID.\n- `room_type` [OPTIONAL] Filter by type (e.g. \"Single\", \"Double Sharing\").\n- `status` [OPTIONAL] Filter by status (`vacant` | `occupied` | `maintenance` | `out_of_service`).\n- `search` [OPTIONAL] Search room number or building name.\n- `page` [OPTIONAL] Page number (Default: 1).\n- `limit` [OPTIONAL] Limit per page (Default: 10).\n- `pg_id` [OPTIONAL] PG facility ID."
           }
         },
         {
@@ -1535,49 +1564,56 @@
                   "key": "room_no",
                   "value": "A-301",
                   "type": "text",
-                  "description": "Optional. Room number / label."
+                  "description": "[OPTIONAL] Updated room number"
                 },
                 {
                   "key": "room_type",
                   "value": "single",
                   "type": "text",
-                  "description": "Optional. Room classification: single, double, triple."
+                  "description": "[OPTIONAL] Updated room type"
                 },
                 {
                   "key": "building_id",
                   "value": "{{buildingId}}",
                   "type": "text",
-                  "description": "Optional. New building ID to reassign room."
+                  "description": "[OPTIONAL] Reassign building"
                 },
                 {
                   "key": "floor_id",
                   "value": "{{floorId}}",
                   "type": "text",
-                  "description": "Optional. New floor ID to reassign room."
+                  "description": "[OPTIONAL] Reassign floor"
                 },
                 {
                   "key": "status",
                   "value": "maintenance",
                   "type": "text",
-                  "description": "Optional. Set status: vacant, occupied, maintenance, out_of_service."
+                  "description": "[OPTIONAL] vacant | occupied | maintenance | out_of_service"
                 },
                 {
                   "key": "capacity",
                   "value": "1",
                   "type": "text",
-                  "description": "Optional. Resident capacity."
+                  "description": "[OPTIONAL] Capacity count"
                 },
                 {
                   "key": "size",
                   "value": "14 m*2",
                   "type": "text",
-                  "description": "Optional. Room size dimensions."
+                  "description": "[OPTIONAL] Size description"
                 },
                 {
                   "key": "image",
                   "type": "file",
                   "src": [],
-                  "description": "Optional file. New replacement room image file. Max 5MB."
+                  "description": "[OPTIONAL] New room photo file",
+                  "value": ""
+                },
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "type": "text",
+                  "description": "[OPTIONAL] Reassign branch"
                 }
               ]
             },
@@ -1658,115 +1694,134 @@
                   "key": "name",
                   "value": "Kishan Patel",
                   "type": "text",
-                  "description": "Required. Full legal name of user / resident (2-100 chars)."
+                  "description": "[REQUIRED] Full name (2-100 chars)"
                 },
                 {
                   "key": "email",
                   "value": "kishan.patel@example.com",
                   "type": "text",
-                  "description": "Required. Valid unique account email address."
+                  "description": "[REQUIRED] Email address"
                 },
                 {
                   "key": "phone",
                   "value": "9876543250",
                   "type": "text",
-                  "description": "Optional. 10-digit Indian mobile contact number."
+                  "description": "[OPTIONAL] 10-digit mobile number"
                 },
                 {
                   "key": "gender",
                   "value": "male",
                   "type": "text",
-                  "description": "Optional. male, female, or other."
+                  "description": "[OPTIONAL] male | female | other"
                 },
                 {
                   "key": "role",
                   "value": "resident",
                   "type": "text",
-                  "description": "Optional. resident, admin, or super_admin (Default: resident)."
+                  "description": "[OPTIONAL] resident | admin | super_admin (Default: resident)"
                 },
                 {
                   "key": "status",
                   "value": "active",
                   "type": "text",
-                  "description": "Optional. active, pending, or inactive (Default: active)."
+                  "description": "[OPTIONAL] active | pending | inactive | on_leave"
                 },
                 {
                   "key": "date_of_birth",
                   "value": "1999-08-20",
                   "type": "text",
-                  "description": "Optional. ISO Date string (YYYY-MM-DD)."
+                  "description": "[OPTIONAL] YYYY-MM-DD format"
                 },
                 {
                   "key": "nationality",
                   "value": "Indian",
                   "type": "text",
-                  "description": "Optional. Resident nationality (Default: Indian)."
+                  "description": "[OPTIONAL] Nationality (Default: Indian)"
                 },
                 {
                   "key": "marital_status",
                   "value": "single",
                   "type": "text",
-                  "description": "Optional. single, married, divorced, widowed (Default: single)."
+                  "description": "[OPTIONAL] single | married"
                 },
                 {
                   "key": "occupation",
                   "value": "Software Developer",
                   "type": "text",
-                  "description": "Optional. Resident profession / job title."
+                  "description": "[OPTIONAL] Occupation"
                 },
                 {
                   "key": "room_id",
                   "value": "{{roomId}}",
                   "type": "text",
-                  "description": "Optional. Room ID to allocate stay upon onboarding. Must belong to the specified PG facility (pg_id)."
+                  "description": "[OPTIONAL - Stay] Room ID to allocate stay"
                 },
                 {
                   "key": "bed_number",
                   "value": "Bed-1",
                   "type": "text",
-                  "description": "Optional. Bed identifier (Default: Bed-1)."
+                  "description": "[OPTIONAL - Stay] Bed identifier"
                 },
                 {
                   "key": "monthly_rent",
                   "value": "8500",
                   "type": "text",
-                  "description": "Optional. Monthly rent amount for stay."
+                  "description": "[OPTIONAL - Stay] Monthly rent in ₹"
                 },
                 {
                   "key": "security_deposit",
                   "value": "8500",
                   "type": "text",
-                  "description": "Optional. Security deposit amount."
+                  "description": "[OPTIONAL - Stay] Security deposit in ₹"
                 },
                 {
                   "key": "check_in_date",
                   "value": "2026-10-01",
                   "type": "text",
-                  "description": "Optional. Stay commencement date (YYYY-MM-DD)."
+                  "description": "[OPTIONAL - Stay] Check-in date (YYYY-MM-DD)"
                 },
                 {
                   "key": "pg_id",
                   "value": "{{pgId}}",
                   "type": "text",
-                  "description": "Optional. Branch ID. Defaults automatically from access_token."
+                  "description": "[OPTIONAL - Stay] PG facility ID"
                 },
                 {
                   "key": "profile_photo",
                   "type": "file",
                   "src": [],
-                  "description": "Optional file. Resident profile photograph. JPEG, PNG, JPG, WebP. Max 5MB."
+                  "description": "[OPTIONAL] Profile photo image file",
+                  "value": ""
                 },
                 {
                   "key": "maintenance_amount",
                   "value": "1000",
                   "type": "text",
-                  "description": "Optional maintenance fee included in total onboarding due"
+                  "description": "[OPTIONAL - Stay] Monthly maintenance in ₹"
                 },
                 {
                   "key": "password",
+                  "value": "password123",
+                  "type": "text",
+                  "description": "[OPTIONAL] Password (min 6 chars)"
+                },
+                {
+                  "key": "address",
+                  "value": "22 Krishna Nagar, Surat, Gujarat",
+                  "type": "text",
+                  "description": "[OPTIONAL] Permanent address"
+                },
+                {
+                  "key": "check_out_date",
                   "value": "",
                   "type": "text",
-                  "description": "Optional custom password (auto-generated if omitted)"
+                  "description": "[OPTIONAL - Stay] Check-out date (YYYY-MM-DD)"
+                },
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "type": "text",
+                  "description": "[OPTIONAL - Stay] Branch ID"
                 }
               ]
             },
@@ -1781,7 +1836,7 @@
                 "users"
               ]
             },
-            "description": "### POST /api/v1/users\nProtected (Admin / Super Admin). Matches the **Create New Resident** screen. Automatically generates a secure random password if omitted, stores its bcrypt hash, and dispatches a branded welcome email containing login credentials (email & password) and stay/facility details to the resident. If `role: resident` and `room_id` is passed, atomically creates the active stay record in `resident_pg_stays` and sets room status to `occupied`."
+            "description": "### Create User (Onboard Resident / Admin)\n\nCreates a new user account. If creating a Resident, supports automatic atomic room allocation and onboarding payment demand creation.\n\n---\n#### Form Fields:\n- **Core User Fields**:\n  - `name` [REQUIRED] Full user name (2-100 characters).\n  - `email` [REQUIRED] Email address.\n  - `phone` [OPTIONAL] 10-digit mobile number.\n  - `gender` [OPTIONAL] `male` | `female` | `other`.\n  - `role` [OPTIONAL] `resident` | `admin` | `super_admin` (Default: `resident`).\n  - `status` [OPTIONAL] `active` | `pending` | `inactive` | `on_leave` (Default: `active`).\n  - `password` [OPTIONAL] Account password (Default: auto-generated secure password).\n  - `date_of_birth` [OPTIONAL] YYYY-MM-DD.\n  - `nationality` [OPTIONAL] Default: \"Indian\".\n  - `marital_status` [OPTIONAL] `single` | `married`.\n  - `occupation` [OPTIONAL] Occupation title (Student, Software Engineer, etc.).\n  - `address` [OPTIONAL] Permanent address.\n  - `profile_photo` [OPTIONAL - File] User avatar image.\n- **Resident Stay Allocation Fields (When role = resident)**:\n  - `room_id` [OPTIONAL] Room ID to allocate bed/stay.\n  - `bed_number` [OPTIONAL] Allocated bed identifier (e.g. \"Bed-1\").\n  - `monthly_rent` [OPTIONAL] Monthly rent amount in ₹.\n  - `maintenance_amount` [OPTIONAL] Monthly maintenance charge in ₹.\n  - `security_deposit` [OPTIONAL] Security deposit in ₹.\n  - `check_in_date` [OPTIONAL] Check-in date (YYYY-MM-DD, defaults to current date).\n  - `check_out_date` [OPTIONAL] Expected checkout date (YYYY-MM-DD).\n  - `branch_id` [OPTIONAL] Branch ID.\n  - `pg_id` [OPTIONAL] PG facility ID."
           }
         },
         {
@@ -1809,40 +1864,40 @@
                 {
                   "key": "page",
                   "value": "1",
-                  "description": "Optional. Page number (Default: 1)."
+                  "description": "[OPTIONAL] Page number (Default: 1)"
                 },
                 {
                   "key": "limit",
                   "value": "10",
-                  "description": "Optional. Page size (Default: 10)."
+                  "description": "[OPTIONAL] Limit per page (Default: 10)"
                 },
                 {
                   "key": "role",
                   "value": "resident",
-                  "description": "Optional. Filter by role: resident, admin, super_admin."
+                  "description": "[OPTIONAL] Filter by role (resident | admin | staff)"
                 },
                 {
                   "key": "status",
                   "value": "",
-                  "description": "Optional. Filter by status: active, pending, inactive.",
+                  "description": "[OPTIONAL] Filter by status (active | pending | inactive | on_leave)",
                   "disabled": true
                 },
                 {
                   "key": "search",
                   "value": "",
-                  "description": "Optional. Search name, email, phone.",
+                  "description": "[OPTIONAL] Search by name, email, or phone",
                   "disabled": true
                 },
                 {
                   "key": "pg_id",
                   "value": "{{pgId}}",
-                  "description": "Optional. Defaults automatically from access_token.",
+                  "description": "[OPTIONAL] PG facility ID",
                   "disabled": true
                 },
                 {
                   "key": "branch_id",
                   "value": "{{branchId}}",
-                  "description": "Filter by specific branch ID under the PG",
+                  "description": "[OPTIONAL] Filter by Branch ID",
                   "disabled": true
                 }
               ]
@@ -1868,109 +1923,132 @@
                   "key": "name",
                   "value": "Kishan Patel",
                   "type": "text",
-                  "description": "Required for Resident. Full legal name as per identity proof (2-100 chars)."
+                  "description": "[REQUIRED for Resident] Full name"
                 },
                 {
                   "key": "date_of_birth",
                   "value": "1999-08-20",
                   "type": "text",
-                  "description": "Required for Resident. Date of birth (YYYY-MM-DD)."
+                  "description": "[REQUIRED for Resident] Date of birth (YYYY-MM-DD)"
                 },
                 {
                   "key": "gender",
                   "value": "male",
                   "type": "text",
-                  "description": "Required for Resident. male, female, or other."
+                  "description": "[REQUIRED for Resident] male | female | other"
                 },
                 {
                   "key": "phone",
                   "value": "9876452598",
                   "type": "text",
-                  "description": "Required for Resident. 10-digit Indian mobile contact number."
+                  "description": "[REQUIRED for Resident] 10-digit mobile number"
                 },
                 {
                   "key": "email",
                   "value": "kishan.patel@example.com",
                   "type": "text",
-                  "description": "Required for Resident. Account email address."
+                  "description": "[REQUIRED for Resident] Email address"
                 },
                 {
                   "key": "address_line_1",
                   "value": "45 Green park society",
                   "type": "text",
-                  "description": "Required for Resident. Current residential street address."
+                  "description": "[REQUIRED for Resident] Address Line 1"
                 },
                 {
                   "key": "city",
                   "value": "Rajkot",
                   "type": "text",
-                  "description": "Required for Resident. City location."
+                  "description": "[REQUIRED for Resident] City"
                 },
                 {
                   "key": "state",
                   "value": "Gujarat",
                   "type": "text",
-                  "description": "Required for Resident. State location."
+                  "description": "[REQUIRED for Resident] State"
                 },
                 {
                   "key": "pincode",
                   "value": "465601",
                   "type": "text",
-                  "description": "Required for Resident. 6-digit Indian PIN code."
+                  "description": "[REQUIRED for Resident] 6-digit PIN code"
                 },
                 {
                   "key": "emergency_contact_name",
                   "value": "Rupaliben Patel",
                   "type": "text",
-                  "description": "Required for Resident. Emergency contact person full name."
+                  "description": "[REQUIRED for Resident] Emergency contact name"
                 },
                 {
                   "key": "emergency_contact_relationship",
                   "value": "Mother",
                   "type": "text",
-                  "description": "Required for Resident. Relationship to emergency contact (e.g. Mother, Father, Guardian, Sibling, Spouse, Friend, Other)."
+                  "description": "[REQUIRED for Resident] Relationship"
                 },
                 {
                   "key": "emergency_contact_phone",
                   "value": "9876452598",
                   "type": "text",
-                  "description": "Required for Resident. 10-digit emergency contact phone number."
+                  "description": "[REQUIRED for Resident] Emergency contact phone"
                 },
                 {
                   "key": "profile_photo",
                   "type": "file",
                   "src": [],
-                  "description": "Required for Resident. Passport size photograph (JPEG, PNG, WebP. Max 5MB)."
+                  "description": "[REQUIRED for Resident - File] Passport size photo",
+                  "value": ""
                 },
                 {
                   "key": "aadhar_card",
                   "type": "file",
                   "src": [],
-                  "description": "Required for Resident. Aadhar card document (PDF, JPG, PNG. Max 5MB)."
+                  "description": "[REQUIRED for Resident - File] Aadhar card document",
+                  "value": ""
                 },
                 {
                   "key": "address_proof",
                   "type": "file",
                   "src": [],
-                  "description": "Required for Resident. Address proof document (PDF, JPG, PNG. Max 5MB)."
+                  "description": "[REQUIRED for Resident - File] Address proof document",
+                  "value": ""
                 },
                 {
                   "key": "education_certificate",
                   "type": "file",
                   "src": [],
-                  "description": "Optional file. Previous education certificate (PDF, JPG, PNG. Max 5MB)."
+                  "description": "[OPTIONAL - File] Educational certificate",
+                  "value": ""
                 },
                 {
                   "key": "terms_accepted",
                   "value": "true",
                   "type": "text",
-                  "description": "Required for Resident. Must be true to confirm agreement to HouseNest PG terms and conditions."
+                  "description": "[REQUIRED for Resident] true/false acceptance of PG terms"
                 },
                 {
                   "key": "signature",
                   "type": "file",
                   "src": [],
-                  "description": "Required for Resident. Digital signature file (PNG, JPG) or base64 data URL string."
+                  "description": "[REQUIRED for Resident - File] Digital signature image",
+                  "value": ""
+                },
+                {
+                  "key": "nationality",
+                  "value": "Indian",
+                  "type": "text",
+                  "description": "[OPTIONAL] Nationality"
+                },
+                {
+                  "key": "marital_status",
+                  "value": "single",
+                  "type": "text",
+                  "description": "[OPTIONAL] single | married"
+                },
+                {
+                  "key": "occupation",
+                  "value": "Software Engineer",
+                  "type": "text",
+                  "description": "[OPTIONAL] Occupation"
                 }
               ]
             },
@@ -1986,7 +2064,7 @@
                 "profile"
               ]
             },
-            "description": "### PUT /api/v1/users/profile\nProtected (Any authenticated user). Updates the user profile.\n\n**Role-Based Validation Behavior:**\n- **Role `resident`**: Validates all onboarding data submitted together according to the UI (Personal Details, Address & Emergency Contact, Document Uploads, Agreement & Digital Signature).\n- **Role `admin` / `super_admin`**: All fields remain completely optional, allowing property owners and administrators to update individual profile fields without requiring resident-specific onboarding documents."
+            "description": "### Update Profile (Resident / Admin)\n\nUpdates currently logged-in user profile.\n- **Resident role**: Validates all onboarding fields (personal, address, documents, agreement, signature).\n- **Admin role**: Allows partial updates.\n\n---\n#### Form Fields:\n- **Personal Details**: `name`, `date_of_birth`, `gender`, `phone`, `email`, `nationality`, `marital_status`, `occupation`.\n- **Address & Emergency**: `address_line_1`, `address`, `city`, `state`, `pincode`, `emergency_contact_name`, `emergency_contact_relationship`, `emergency_contact_phone`.\n- **Documents (Files)**: `profile_photo`, `aadhar_card`, `address_proof`, `education_certificate`.\n- **Agreement & Signature**: `terms_accepted` (`true` / `false`), `signature` (File)."
           }
         },
         {
@@ -2348,7 +2426,7 @@
                 "vacate"
               ]
             },
-            "description": "### PUT /api/v1/stays/:id/vacate\nProtected (Admin / Super Admin). Checks out resident from PG. Marks stay as `completed` and resets room status to `vacant` if no remaining active occupants."
+            "description": "### Vacate / Check-out Resident Stay\nCloses an active resident stay, updates room occupancy, and records check-out date.\n\n#### Path Parameters:\n- `id` **[REQUIRED]**: Stay ID.\n\n#### Request Body (JSON):\n- `check_out_date` **[OPTIONAL]**: ISO date (`YYYY-MM-DD`) when resident vacates. Defaults to today's date if omitted.\n- `notes` **[OPTIONAL]**: Admin settlement or checkout remarks (e.g., key handover, deposit deductions).\n\n#### Permissions:\n- Admin / Super Admin only."
           }
         }
       ]
@@ -2427,7 +2505,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"resident_id\": 3,\n  \"agreement_no\": \"AGR-2026-009\",\n  \"room_id\": 3,\n  \"room_type\": \"single\",\n  \"agreement_type\": \"11_months\",\n  \"start_date\": \"2026-10-01\",\n  \"end_date\": \"2027-08-31\",\n  \"status\": \"signed\",\n  \"pg_id\": 1\n}",
+              "raw": "{\n  \"resident_id\": \"{{residentId}}\",\n  \"agreement_no\": \"AGR-2026-001\",\n  \"agreement_type\": \"11 Months Standard\",\n  \"start_date\": \"2026-11-01\",\n  \"end_date\": \"2027-09-30\",\n  \"branch_id\": \"{{branchId}}\",\n  \"room_id\": \"{{roomId}}\",\n  \"room_type\": \"Double Sharing\",\n  \"status\": \"pending\",\n  \"pg_id\": \"{{pgId}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2445,7 +2523,7 @@
                 "agreements"
               ]
             },
-            "description": "### POST /api/v1/agreements\nProtected (Admin / Super Admin). Matches the **Create New Agreement** portal screen. If `pg_id` is omitted, defaults automatically from `access_token`.\n\n**Body keys**\n| Key | Type | Required | Meaning |\n| --- | --- | --- | --- |\n| `resident_id` | integer | Yes | Resident user account ID |\n| `agreement_no` | string | Yes | Unique agreement reference number |\n| `room_id` | integer | No | Physical room ID |\n| `room_type` | string | No | Single, double, etc. Auto-resolved from room if omitted |\n| `agreement_type` | string | No | Tenancy duration (e.g. 11_months, monthly) |\n| `start_date` | string | No | Start date (YYYY-MM-DD) |\n| `end_date` | string | No | End date (YYYY-MM-DD) |\n| `status` | string | No | `signed`, `pending`, `draft`, `expired` (Default: draft) |\n| `pg_id` | integer | No | Defaults automatically from access_token |"
+            "description": "### Create New Agreement\n\nCreates a rental tenancy agreement for a resident.\n\n---\n#### Body (JSON):\n- `resident_id` [REQUIRED] Resident User ID.\n- `agreement_no` [REQUIRED] Unique agreement identifier (e.g. \"AGR-2026-001\").\n- `agreement_type` [REQUIRED] Tenure type (e.g. \"11 Months Standard\", \"6 Months Student\").\n- `start_date` [REQUIRED] Agreement commencement date (YYYY-MM-DD).\n- `end_date` [OPTIONAL] Agreement expiry date (YYYY-MM-DD).\n- `branch_id` [OPTIONAL] Branch ID.\n- `room_id` [OPTIONAL] Room ID.\n- `room_type` [OPTIONAL] Room sharing category.\n- `status` [OPTIONAL] `pending` | `signed` | `draft` | `expired` (Default: `pending`).\n- `pg_id` [OPTIONAL] PG facility ID."
           }
         },
         {
@@ -2473,17 +2551,17 @@
                 {
                   "key": "page",
                   "value": "1",
-                  "description": "Optional. Page number (Default: 1)."
+                  "description": "[OPTIONAL] Page number (Default: 1)"
                 },
                 {
                   "key": "limit",
                   "value": "10",
-                  "description": "Optional. Records per page (Default: 10)."
+                  "description": "[OPTIONAL] Items per page (Default: 10)"
                 },
                 {
                   "key": "status",
                   "value": "",
-                  "description": "Optional. signed, pending, draft, expired.",
+                  "description": "[OPTIONAL] pending | signed | draft | expired",
                   "disabled": true
                 },
                 {
@@ -2495,25 +2573,25 @@
                 {
                   "key": "search",
                   "value": "",
-                  "description": "Optional. Search agreement number or resident name.",
+                  "description": "[OPTIONAL] Search by agreement number or resident name",
                   "disabled": true
                 },
                 {
                   "key": "resident_id",
                   "value": "",
-                  "description": "Optional. Filter by specific resident user ID.",
+                  "description": "[OPTIONAL] Filter by resident ID",
                   "disabled": true
                 },
                 {
                   "key": "pg_id",
                   "value": "{{pgId}}",
-                  "description": "Optional. Defaults automatically from access_token.",
+                  "description": "[OPTIONAL] PG facility ID",
                   "disabled": true
                 },
                 {
                   "key": "branch_id",
                   "value": "{{branchId}}",
-                  "description": "Filter by specific branch ID under the PG",
+                  "description": "[OPTIONAL] Filter by Branch ID",
                   "disabled": true
                 }
               ]
@@ -2584,7 +2662,7 @@
                 "{{agreementId}}"
               ]
             },
-            "description": "### PUT /api/v1/agreements/:id\nProtected (Admin / Super Admin). Updates agreement status or tenancy duration details."
+            "description": "### Update Rental Agreement\nUpdates details, duration, room allocation, or status of an existing agreement.\n\n#### Path Parameters:\n- `id` **[REQUIRED]**: Agreement ID.\n\n#### Request Body (JSON):\n- `branch_id` **[OPTIONAL]**: Branch ID.\n- `agreement_no` **[OPTIONAL]**: Unique agreement number (2-100 characters).\n- `room_id` **[OPTIONAL]**: Assigned Room ID.\n- `room_type` **[OPTIONAL]**: Room type (e.g., single, double, triple).\n- `agreement_type` **[OPTIONAL]**: Agreement contract type (e.g., `rental`, `lease`, `hostel`).\n- `start_date` **[OPTIONAL]**: Agreement start date in `YYYY-MM-DD` format.\n- `end_date` **[OPTIONAL]**: Agreement expiry date in `YYYY-MM-DD` format.\n- `status` **[OPTIONAL]**: Enum: `signed`, `pending`, `draft`, `expired`.\n\n#### Permissions:\n- Admin / Super Admin only."
           }
         },
         {
@@ -2685,77 +2763,82 @@
                 {
                   "key": "status",
                   "value": "all",
-                  "description": "Filter by status: \"all\", \"pending\", \"paid\", \"overdue\", \"refunded\", \"failed\""
+                  "description": "[OPTIONAL] all | pending | paid | completed | overdue | refunded | failed"
                 },
                 {
                   "key": "pg_id",
                   "value": "{{pgId}}",
-                  "description": "Filter payments by PG facility branch ID",
+                  "description": "[OPTIONAL] PG facility ID",
                   "disabled": true
                 },
                 {
                   "key": "resident_id",
                   "value": "58",
-                  "description": "Filter payments strictly for a specific resident ID",
+                  "description": "[OPTIONAL] Filter by resident ID",
                   "disabled": true
                 },
                 {
                   "key": "room_type",
                   "value": "single",
-                  "description": "Filter by room accommodation type: \"single\", \"double\", \"triple\"",
+                  "description": "[OPTIONAL] single | double | triple",
                   "disabled": true
                 },
                 {
                   "key": "payment_type",
                   "value": "rent",
-                  "description": "Filter by bill type: \"rent\", \"maintenance\", \"security_deposit\", \"electricity\", \"other\"",
+                  "description": "[OPTIONAL] rent | maintenance | security_deposit | electricity | other",
                   "disabled": true
                 },
                 {
                   "key": "payment_method",
                   "value": "upi",
-                  "description": "Filter by payment method: \"upi\", \"card\", \"net_banking\", \"wallet\", \"bank_transfer\", \"cash\"",
+                  "description": "[OPTIONAL] upi | card | net_banking | wallet | bank_transfer | cash",
                   "disabled": true
                 },
                 {
                   "key": "start_date",
                   "value": "2026-04-01",
-                  "description": "Filter payments starting on or after this date (YYYY-MM-DD)",
+                  "description": "[OPTIONAL] Filter start date (YYYY-MM-DD)",
                   "disabled": true
                 },
                 {
                   "key": "end_date",
                   "value": "2026-04-30",
-                  "description": "Filter payments ending on or before this date (YYYY-MM-DD)",
+                  "description": "[OPTIONAL] Filter end date (YYYY-MM-DD)",
                   "disabled": true
                 },
                 {
                   "key": "date_by",
                   "value": "due_date",
-                  "description": "Date column to filter by: \"due_date\", \"paid_at\", or \"created_at\"",
+                  "description": "[OPTIONAL] Filter date basis: due_date | paid_at | created_at",
                   "disabled": true
                 },
                 {
                   "key": "search",
                   "value": "",
-                  "description": "Search across resident name, phone, room number, receipt number, or transaction ID",
+                  "description": "[OPTIONAL] Search invoice number, resident name, or transaction ID",
                   "disabled": true
                 },
                 {
                   "key": "page",
                   "value": "1",
-                  "description": "Pagination page number (default: 1)"
+                  "description": "[OPTIONAL] Page number (Default: 1)"
                 },
                 {
                   "key": "limit",
                   "value": "10",
-                  "description": "Pagination limit per page (default: 10, max: 100)"
+                  "description": "[OPTIONAL] Items per page (Default: 10)"
                 },
                 {
                   "key": "branch_id",
                   "value": "{{branchId}}",
-                  "description": "Filter by specific branch ID under the PG",
+                  "description": "[OPTIONAL] Filter by Branch ID",
                   "disabled": true
+                },
+                {
+                  "key": "tab",
+                  "value": "",
+                  "description": "[OPTIONAL] Tab filter: pending | completed | overdue | refunds"
                 }
               ]
             },
@@ -2836,7 +2919,7 @@
                 "payments"
               ]
             },
-            "description": "Create a new payment demand / bill for a resident. If stay_id or room_id are omitted, they are automatically resolved from the resident's current active stay."
+            "description": "### Create Payment Demand / Invoice\nGenerates a new payment invoice for a resident (rent, maintenance, deposit, electricity, or other).\n\n#### Request Body (JSON):\n- `resident_id` **[REQUIRED]**: User ID of resident.\n- `title` **[REQUIRED]**: Invoice bill title (e.g., `\"Monthly Rent - Nov 2026\"`).\n- `payment_type` **[REQUIRED]**: Enum: `rent`, `maintenance`, `security_deposit`, `electricity`, `other`.\n- `amount` **[REQUIRED]**: Total bill amount in INR (non-negative number).\n- `due_date` **[REQUIRED]**: Payment deadline date in `YYYY-MM-DD` format.\n- `pg_id` **[OPTIONAL]**: PG facility ID.\n- `branch_id` **[OPTIONAL]**: Branch ID.\n- `stay_id` **[OPTIONAL]**: Resident Stay record ID.\n- `room_id` **[OPTIONAL]**: Room ID.\n- `billing_period_start` **[OPTIONAL]**: Start date of billing period (`YYYY-MM-DD`).\n- `billing_period_end` **[OPTIONAL]**: End date of billing period (`YYYY-MM-DD`).\n- `rent_amount` **[OPTIONAL]**: Base rent portion of the bill.\n- `deposit_amount` **[OPTIONAL]**: Security deposit portion.\n- `maintenance_amount` **[OPTIONAL]**: Maintenance charge portion.\n- `electricity_amount` **[OPTIONAL]**: Electricity charge portion.\n- `other_amount` **[OPTIONAL]**: Miscellaneous charge portion.\n- `notes` **[OPTIONAL]**: Remarks or bill notes for the resident.\n\n#### Permissions:\n- Admin / Super Admin only."
           },
           "response": [],
           "event": [
@@ -2915,7 +2998,7 @@
                 "{{paymentId}}"
               ]
             },
-            "description": "Update editable fields of an existing payment demand / invoice. Automatically recalculates total amount if breakdown amounts are changed."
+            "description": "### Update Payment Demand / Invoice\nUpdates an existing pending or overdue payment invoice.\n\n#### Path Parameters:\n- `id` **[REQUIRED]**: Payment ID.\n\n#### Request Body (JSON):\n- `title` **[OPTIONAL]**: Updated invoice title.\n- `payment_type` **[OPTIONAL]**: Enum: `rent`, `maintenance`, `security_deposit`, `electricity`, `other`.\n- `amount` **[OPTIONAL]**: Updated total amount.\n- `due_date` **[OPTIONAL]**: Updated due date (`YYYY-MM-DD`).\n- `billing_period_start` **[OPTIONAL]**: Billing period start date.\n- `billing_period_end` **[OPTIONAL]**: Billing period end date.\n- `rent_amount` **[OPTIONAL]**: Rent component.\n- `deposit_amount` **[OPTIONAL]**: Security deposit component.\n- `maintenance_amount` **[OPTIONAL]**: Maintenance fee component.\n- `electricity_amount` **[OPTIONAL]**: Electricity fee component.\n- `other_amount` **[OPTIONAL]**: Miscellaneous fee component.\n- `status` **[OPTIONAL]**: Enum: `paid`, `pending`, `overdue`, `refunded`, `failed`.\n- `notes` **[OPTIONAL]**: Additional notes.\n\n#### Permissions:\n- Admin / Super Admin only."
           },
           "response": []
         },
@@ -3007,7 +3090,7 @@
                 "pay"
               ]
             },
-            "description": "Process and record a payment transaction. Marks the record as PAID, assigns receipt number and transaction ID, and records paid_at timestamp."
+            "description": "### Complete / Record Payment\nRecords payment fulfillment for an existing invoice, updating status to `paid` and setting `paid_at`.\n\n#### Path Parameters:\n- `id` **[REQUIRED]**: Payment ID.\n\n#### Request Body (JSON):\n- `payment_method` **[REQUIRED]**: Enum: `upi`, `card`, `net_banking`, `wallet`, `bank_transfer`, `cash`.\n- `payment_method_details` **[OPTIONAL]**: Transaction UTR number, UPI reference, or cheque ID (2-100 characters).\n\n#### Permissions:\n- Authenticated Resident (for their own payment) or Admin / Super Admin."
           },
           "response": []
         },
@@ -3164,52 +3247,57 @@
                 {
                   "key": "status",
                   "value": "all",
-                  "description": "Filter by status: 'all', 'pending', 'approved', 'in_office', 'left', 'rejected'."
+                  "description": "[OPTIONAL] all | pending | approved | rejected | in_office | left"
                 },
                 {
                   "key": "purpose",
                   "value": "all",
-                  "description": "Filter by purpose: 'all', 'Meeting', 'Delivery', 'Family', 'Personal', etc."
+                  "description": "[OPTIONAL] Filter by purpose"
                 },
                 {
                   "key": "pg_id",
                   "value": "{{pgId}}",
-                  "description": "Optional. Filter by PG facility branch ID (Admin only).",
+                  "description": "[OPTIONAL] PG facility ID",
                   "disabled": true
                 },
                 {
                   "key": "start_date",
                   "value": "2026-03-01",
-                  "description": "Filter visitors visiting on or after this date (YYYY-MM-DD).",
+                  "description": "[OPTIONAL] Filter from date (YYYY-MM-DD)",
                   "disabled": true
                 },
                 {
                   "key": "end_date",
                   "value": "2026-03-31",
-                  "description": "Filter visitors visiting on or before this date (YYYY-MM-DD).",
+                  "description": "[OPTIONAL] Filter to date (YYYY-MM-DD)",
                   "disabled": true
                 },
                 {
                   "key": "search",
                   "value": "Aarav",
-                  "description": "Search by visitor name, phone, resident name, room no, or pass code.",
+                  "description": "[OPTIONAL] Search visitor name, phone, or pass code",
                   "disabled": true
                 },
                 {
                   "key": "page",
                   "value": "1",
-                  "description": "Page number for pagination."
+                  "description": "[OPTIONAL] Page number (Default: 1)"
                 },
                 {
                   "key": "limit",
                   "value": "10",
-                  "description": "Records per page."
+                  "description": "[OPTIONAL] Limit per page (Default: 10)"
                 },
                 {
                   "key": "branch_id",
                   "value": "{{branchId}}",
-                  "description": "Filter by specific branch ID under the PG",
+                  "description": "[OPTIONAL] Filter by Branch ID",
                   "disabled": true
+                },
+                {
+                  "key": "resident_id",
+                  "value": "",
+                  "description": "[OPTIONAL] Filter by resident ID"
                 }
               ]
             },
@@ -3229,43 +3317,43 @@
                   "key": "visitor_name",
                   "value": "Aarav Sharma",
                   "type": "text",
-                  "description": "(Required) Full legal name of the visitor (2-150 chars)"
+                  "description": "[REQUIRED] Visitor full name (2-150 chars)"
                 },
                 {
                   "key": "visitor_phone",
                   "value": "+91 56478 23456",
                   "type": "text",
-                  "description": "(Required) Mobile contact number of the visitor"
+                  "description": "[REQUIRED] Contact phone number"
                 },
                 {
                   "key": "purpose",
                   "value": "Meeting",
                   "type": "text",
-                  "description": "(Optional) Purpose of visit (e.g. Meeting, Personal, Delivery, Family)"
+                  "description": "[OPTIONAL] Purpose of visit"
                 },
                 {
                   "key": "visit_date",
                   "value": "2026-10-31",
                   "type": "text",
-                  "description": "(Optional) Scheduled visit date in YYYY-MM-DD format (Defaults to today)"
+                  "description": "[REQUIRED] Visit date (YYYY-MM-DD)"
                 },
                 {
                   "key": "valid_until",
                   "value": "2026-10-31",
                   "type": "text",
-                  "description": "(Optional) Expiration date of the pass in YYYY-MM-DD format (Defaults to visit_date)"
+                  "description": "[OPTIONAL] Pass validity date (YYYY-MM-DD)"
                 },
                 {
                   "key": "entry_time",
                   "value": "10:24 AM",
                   "type": "text",
-                  "description": "(Optional) Expected entry time (e.g. 10:24 AM)"
+                  "description": "[OPTIONAL] Expected entry time"
                 },
                 {
                   "key": "resident_id",
                   "value": "3",
                   "type": "text",
-                  "description": "(Required for Admin) ID of the resident being visited"
+                  "description": "[OPTIONAL] Resident ID being visited"
                 },
                 {
                   "key": "pg_id",
@@ -3277,19 +3365,31 @@
                   "key": "branch_id",
                   "value": "{{branchId}}",
                   "type": "text",
-                  "description": "(Optional) Branch ID. Defaults to resident active stay branch"
+                  "description": "[OPTIONAL] Branch ID"
                 },
                 {
                   "key": "admin_notes",
                   "value": "Visitor verified at security gate",
                   "type": "text",
-                  "description": "(Optional) Internal admin remarks or notes"
+                  "description": "[OPTIONAL] Security / guard notes"
                 },
                 {
                   "key": "visitor_photo",
                   "type": "file",
                   "src": [],
                   "description": "(Optional) Visitor photograph file. JPEG, JPG, PNG, WebP (Max 5MB)"
+                },
+                {
+                  "key": "status",
+                  "value": "approved",
+                  "type": "text",
+                  "description": "[OPTIONAL] pending | approved | in_office (Default: pending)"
+                },
+                {
+                  "key": "photo",
+                  "type": "file",
+                  "src": [],
+                  "description": "[OPTIONAL] Visitor photo file (JPG, PNG, WebP, max 5MB)"
                 }
               ]
             },
@@ -3304,7 +3404,7 @@
                 "visitors"
               ]
             },
-            "description": "Create a visitor record (FormData). Supports optional 'visitor_photo' image file upload. If created by Resident: status is automatically set to \"pending\" (awaiting admin approval). If created by Admin: status defaults to \"approved\" (generates pass code, QR code, and sends digital pass email to resident)."
+            "description": "### Create Visitor Pass\n\nGenerates a new visitor digital gate pass with a unique QR code. Supports optional visitor camera snapshot.\n\n---\n#### Form Fields:\n- `visitor_name` [REQUIRED] Full name of visitor (2-150 characters).\n- `visitor_phone` [REQUIRED] Contact phone number.\n- `visit_date` [REQUIRED] Date of scheduled visit (YYYY-MM-DD).\n- `purpose` [OPTIONAL] Reason for visit (e.g., \"Family visit\", \"Courier Delivery\", \"Friend\").\n- `valid_until` [OPTIONAL] Date until which the pass remains valid (YYYY-MM-DD).\n- `entry_time` [OPTIONAL] Expected arrival time (e.g. \"14:30\").\n- `resident_id` [OPTIONAL] Resident ID being visited (auto-set if created by resident).\n- `branch_id` [OPTIONAL] Branch ID.\n- `status` [OPTIONAL] `pending` | `approved` | `in_office` (Default: `pending`).\n- `admin_notes` [OPTIONAL] Security / management remarks.\n- `pg_id` [OPTIONAL] PG facility ID.\n- `photo` [OPTIONAL - File] Visitor camera photo file (JPG, PNG, WebP, max 5MB)."
           },
           "response": [],
           "event": [
@@ -3544,7 +3644,7 @@
                 "status"
               ]
             },
-            "description": "Approve, reject, or update visitor status (Admin only). Approving generates QR code and automatically emails the digital pass to the resident."
+            "description": "### Update Visitor Pass Status (Approval / Rejection)\nAdmin or Security updates visitor status to approved, rejected, in_office, or left.\n\n#### Path Parameters:\n- `id` **[REQUIRED]**: Visitor ID.\n\n#### Request Body (JSON):\n- `status` **[REQUIRED]**: Enum: `pending`, `approved`, `rejected`, `in_office`, `left`.\n- `admin_notes` **[OPTIONAL]**: Remarks, reason for rejection, or security gate comments.\n- `branch_id` **[OPTIONAL]**: Branch ID context.\n\n#### Permissions:\n- Admin / Super Admin / Security Guard."
           },
           "response": []
         },
@@ -3574,7 +3674,7 @@
                 "scan"
               ]
             },
-            "description": "Gate QR Code scanner endpoint (Admin / Security staff). First scan on approved pass marks \"in_office\" (records Entry time). Second scan marks \"left\" (records Exit time)."
+            "description": "### Scan Visitor Pass QR Code (Gate Entry & Exit)\nValidates visitor pass QR code at gate checkpoint. Automatically toggles or logs entry/exit timestamps.\n\n#### Request Body (JSON):\n- `pass_code` **[REQUIRED]**: Unique visitor pass QR code string (e.g. `VIS-20261031-102`).\n- `gate_name` **[OPTIONAL]**: Gate name or entry terminal identifier (e.g. `\"Gate A - North\"`).\n- `notes` **[OPTIONAL]**: Guard inspection notes or vehicle plate remarks.\n\n#### Permissions:\n- Admin / Super Admin / Security Guard."
           },
           "response": []
         },
@@ -3651,32 +3751,32 @@
                 {
                   "key": "pg_id",
                   "value": "{{pgId}}",
-                  "description": "Filter branches by PG facility (Optional; auto-resolved for logged-in Admin)"
+                  "description": "[OPTIONAL] PG facility ID"
                 },
                 {
                   "key": "status",
                   "value": "all",
-                  "description": "Filter by status: all | active | maintenance | upcoming (Optional, default: all)"
+                  "description": "[OPTIONAL] all | active | maintenance | upcoming"
                 },
                 {
                   "key": "search",
                   "value": "",
-                  "description": "Search keyword matching branch name, location, or PG name (Optional)"
+                  "description": "[OPTIONAL] Search branch name"
                 },
                 {
                   "key": "location",
                   "value": "",
-                  "description": "Filter by location / city area (Optional)"
+                  "description": "[OPTIONAL] Search location string"
                 },
                 {
                   "key": "page",
                   "value": "1",
-                  "description": "Page number for pagination (Optional, default: 1)"
+                  "description": "[OPTIONAL] Page number (Default: 1)"
                 },
                 {
                   "key": "limit",
                   "value": "10",
-                  "description": "Number of records per page (Optional, default: 10, max: 100)"
+                  "description": "[OPTIONAL] Limit per page (Default: 10)"
                 },
                 {
                   "key": "sort_by",
@@ -3720,37 +3820,38 @@
                   "key": "name",
                   "value": "Sindhu Bhavan Branch",
                   "type": "text",
-                  "description": "(Required) Unique branch name within the PG facility (2 - 150 chars)"
+                  "description": "[REQUIRED] Branch name (2-150 characters)"
                 },
                 {
                   "key": "location",
                   "value": "Bodakdev, Ahmedabad",
                   "type": "text",
-                  "description": "(Required) Physical location / neighborhood / city (2 - 255 chars)"
+                  "description": "[REQUIRED] Physical branch address"
                 },
                 {
                   "key": "total_rooms",
                   "value": "120",
                   "type": "text",
-                  "description": "(Optional, default: 0) Total room capacity. Note: occupied_rooms and available_rooms are auto-calculated."
+                  "description": "[OPTIONAL] Total rooms capacity (Default: 0)"
                 },
                 {
                   "key": "status",
                   "value": "active",
                   "type": "text",
-                  "description": "(Optional, default: 'active') Status: active | maintenance | upcoming"
+                  "description": "[OPTIONAL] active | maintenance | upcoming (Default: active)"
                 },
                 {
                   "key": "pg_id",
                   "value": "{{pgId}}",
                   "type": "text",
-                  "description": "(Optional) Target PG ID. Auto-resolved for authenticated admin if omitted."
+                  "description": "[OPTIONAL] PG facility ID"
                 },
                 {
                   "key": "branch_photo",
                   "type": "file",
                   "src": [],
-                  "description": "(Optional) JPG, JPEG, or PNG branch photo file (Max 5MB)"
+                  "description": "[OPTIONAL] Branch photo image file (JPG, PNG, WebP, max 5MB)",
+                  "value": ""
                 }
               ]
             },
@@ -3795,7 +3896,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Prahlad Nagar Branch\",\n  \"location\": \"Prahlad Nagar, Ahmedabad\",\n  \"total_rooms\": 80,\n  \"status\": \"active\",\n  \"pg_id\": \"{{pgId}}\"\n}",
+              "raw": "{\n  \"name\": \"Satellite Branch\",\n  \"location\": \"Near ISRO Colony, Satellite Road, Ahmedabad\",\n  \"total_rooms\": 40,\n  \"status\": \"active\",\n  \"pg_id\": \"{{pgId}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -3969,32 +4070,42 @@
                 {
                   "key": "branch_id",
                   "value": "{{branchId}}",
-                  "description": "Filter by Branch ID (optional for Admin, forced for Resident)"
+                  "description": "[OPTIONAL] Filter by Branch ID"
                 },
                 {
                   "key": "start_date",
                   "value": "2026-11-01",
-                  "description": "Start date (YYYY-MM-DD)"
+                  "description": "[OPTIONAL] Start date of weekly menu (YYYY-MM-DD)"
                 },
                 {
                   "key": "end_date",
                   "value": "2026-11-07",
-                  "description": "End date (YYYY-MM-DD)"
+                  "description": "[OPTIONAL] End date of weekly menu (YYYY-MM-DD)"
                 },
                 {
                   "key": "meal_type",
                   "value": "all",
-                  "description": "all | breakfast | lunch | dinner"
+                  "description": "[OPTIONAL] all | breakfast | lunch | dinner"
                 },
                 {
                   "key": "page",
                   "value": "1",
-                  "description": "Page number"
+                  "description": "[OPTIONAL] Page number (Default: 1)"
                 },
                 {
                   "key": "limit",
                   "value": "20",
-                  "description": "Items per page"
+                  "description": "[OPTIONAL] Items per page (Default: 20)"
+                },
+                {
+                  "key": "date",
+                  "value": "",
+                  "description": "[OPTIONAL] Single date query (alternative to date range)"
+                },
+                {
+                  "key": "day_of_week",
+                  "value": "",
+                  "description": "[OPTIONAL] Filter by day (monday, tuesday, etc.)"
                 }
               ]
             },
@@ -4014,61 +4125,68 @@
                   "key": "branch_id",
                   "value": "{{branchId}}",
                   "type": "text",
-                  "description": "Branch ID (optional, defaults to admin branch)"
+                  "description": "[OPTIONAL] Branch ID (defaults to active branch)"
                 },
                 {
                   "key": "menu_date",
                   "value": "2026-11-01",
                   "type": "text",
-                  "description": "Menu Calendar Date (YYYY-MM-DD)"
+                  "description": "[REQUIRED] Date of meal (YYYY-MM-DD)"
                 },
                 {
                   "key": "meal_type",
                   "value": "breakfast",
                   "type": "text",
-                  "description": "breakfast | lunch | dinner"
+                  "description": "[REQUIRED] breakfast | lunch | dinner"
                 },
                 {
                   "key": "name",
                   "value": "Aloo Paratha with Curd & Pickle",
                   "type": "text",
-                  "description": "Food item title"
+                  "description": "[REQUIRED] Food item title (2-150 chars)"
                 },
                 {
                   "key": "description",
                   "value": "Freshly prepared wheat flatbread stuffed with spiced potatoes",
                   "type": "text",
-                  "description": "Optional description"
+                  "description": "[OPTIONAL] Detailed meal description"
                 },
                 {
                   "key": "start_time",
                   "value": "08:00 AM",
                   "type": "text",
-                  "description": "Serving start time"
+                  "description": "[OPTIONAL] Service start time"
                 },
                 {
                   "key": "end_time",
                   "value": "10:30 AM",
                   "type": "text",
-                  "description": "Serving end time"
+                  "description": "[OPTIONAL] Service end time"
                 },
                 {
                   "key": "included_items",
                   "value": "Hot Tea, Fresh Curd, Mixed Pickle",
                   "type": "text",
-                  "description": "Included side items"
+                  "description": "[OPTIONAL] Sub-items included"
                 },
                 {
                   "key": "is_active",
                   "value": "true",
                   "type": "text",
-                  "description": "Active status"
+                  "description": "[OPTIONAL] true/false availability toggle"
                 },
                 {
                   "key": "image",
                   "type": "file",
                   "src": [],
-                  "description": "Optional food photo (max 5MB)"
+                  "description": "[OPTIONAL] Meal photo file (JPG, PNG, WebP, max 5MB)",
+                  "value": ""
+                },
+                {
+                  "key": "sort_order",
+                  "value": "1",
+                  "type": "text",
+                  "description": "[OPTIONAL] Display order index"
                 }
               ]
             },
@@ -4083,7 +4201,7 @@
                 "food-menu"
               ]
             },
-            "description": "### POST /api/v1/food-menu\nPrivate (Admin / Super Admin).\nCreate a single food menu entry for a specific branch and date.\nSupports multipart/form-data with image upload."
+            "description": "### Create Food Menu Item (Date-wise)\n\nCreates a meal offering for a specific date and category (`breakfast`, `lunch`, `dinner`). Supports optional food image upload.\n\n---\n#### Form Fields:\n- `menu_date` [REQUIRED] Date when meal is served (YYYY-MM-DD).\n- `meal_type` [REQUIRED] `breakfast` | `lunch` | `dinner`.\n- `name` [REQUIRED] Meal name (e.g., \"Special Gujarati Thali\").\n- `description` [OPTIONAL] Detailed description of items served.\n- `start_time` [OPTIONAL] Meal start time string (e.g. \"12:30 PM\").\n- `end_time` [OPTIONAL] Meal end time string (e.g. \"02:30 PM\").\n- `included_items` [OPTIONAL] Comma-separated or array of items (e.g. \"Paneer Butter Masala, Roti, Dal, Rice, Gulab Jamun\").\n- `branch_id` [OPTIONAL] Branch ID (defaults to active branch if omitted).\n- `is_active` [OPTIONAL] Boolean `true` | `false` (Default: `true`).\n- `sort_order` [OPTIONAL] Order integer (Default: 0).\n- `image` [OPTIONAL - File] Food photo image (JPG, PNG, WebP, max 5MB)."
           },
           "response": [],
           "event": [
@@ -4135,48 +4253,56 @@
                 {
                   "key": "menu_date",
                   "value": "2026-11-01",
-                  "type": "text"
+                  "type": "text",
+                  "description": "[OPTIONAL] Target menu date in YYYY-MM-DD format (e.g. 2026-11-05)."
                 },
                 {
                   "key": "meal_type",
                   "value": "breakfast",
-                  "type": "text"
+                  "type": "text",
+                  "description": "[OPTIONAL] Enum: BREAKFAST, LUNCH, SNACKS, DINNER."
                 },
                 {
                   "key": "name",
                   "value": "Aloo Paratha with Mint Chutney",
-                  "type": "text"
+                  "type": "text",
+                  "description": "[OPTIONAL] Title / name of meal combo (2-100 characters)."
                 },
                 {
                   "key": "description",
                   "value": "Updated recipe with fresh mint chutney",
-                  "type": "text"
+                  "type": "text",
+                  "description": "[OPTIONAL] Detailed description of items served (max 500 characters)."
                 },
                 {
                   "key": "start_time",
                   "value": "08:00 AM",
-                  "type": "text"
+                  "type": "text",
+                  "description": "[OPTIONAL] Serving window start time in HH:mm format (e.g. 08:00)."
                 },
                 {
                   "key": "end_time",
                   "value": "10:30 AM",
-                  "type": "text"
+                  "type": "text",
+                  "description": "[OPTIONAL] Serving window end time in HH:mm format (e.g. 10:30)."
                 },
                 {
                   "key": "included_items",
                   "value": "Tea, Mint Chutney, Curd",
-                  "type": "text"
+                  "type": "text",
+                  "description": "[OPTIONAL] JSON array of item names or comma-separated list (e.g. [\"Poha\", \"Tea\", \"Banana\"])."
                 },
                 {
                   "key": "is_active",
                   "value": "true",
-                  "type": "text"
+                  "type": "text",
+                  "description": "[OPTIONAL] Boolean: true/false to enable or disable this menu item."
                 },
                 {
                   "key": "image",
                   "type": "file",
                   "src": [],
-                  "description": "Optional image to replace existing photo"
+                  "description": "[OPTIONAL] Menu photo (JPG, PNG, WEBP, max 5MB)."
                 }
               ]
             },
@@ -4229,19 +4355,20 @@
                   "key": "rating",
                   "value": "5",
                   "type": "text",
-                  "description": "Required: Rating from 1 to 5 stars"
+                  "description": "[REQUIRED] Rating score (1 to 5 stars)"
                 },
                 {
                   "key": "comments",
                   "value": "Hot parathas and fresh curd, loved the taste!",
                   "type": "text",
-                  "description": "Optional comments (max 300 characters)"
+                  "description": "[OPTIONAL] Feedback comments (max 300 chars)"
                 },
                 {
                   "key": "image",
                   "type": "file",
                   "src": [],
-                  "description": "Optional feedback photo (JPG/PNG/WebP, max 5MB)"
+                  "description": "[OPTIONAL] Food photo upload (JPG, PNG, max 5MB)",
+                  "value": ""
                 }
               ]
             },
@@ -4258,7 +4385,7 @@
                 "feedback"
               ]
             },
-            "description": "### POST /api/v1/food-menu/:id/feedback\nCanonical RESTful endpoint for residents to submit meal feedback (rating 1-5, optional comments max 300 chars, optional image file) for menu item ID.\n\n**Supported Alias Paths**:\n- POST /api/v1/food-menu/1/feedback (Standard REST sub-resource URL)\n- POST /api/v1/food-menu/feedback/1 (Supported alias with menu ID at end)\n- POST /api/v1/food-menu/feedback (Supported alias with menu_id in form-data or JSON body)\n\n**Server Auto-population**:\n- menu_id: Populated directly from URL param / body\n- meal_type, \branch_id, pg_id: Derived automatically from \food_menus item\n- \feedback_date: Current server timestamp\n- **Deduplication**: If this resident already reviewed this menu item, updates existing record automatically."
+            "description": "### Submit Meal Feedback (Resident)\n\nResident provides rating and review for a served meal.\n**Validation Rule**: Feedback can only be submitted on or after the meal's start time and date.\n\n---\n#### Form Fields:\n- `rating` [REQUIRED] Star rating integer from 1 to 5.\n- `comments` [OPTIONAL] Constructive review commentary (Max 300 characters).\n- `image` [OPTIONAL - File] Quality snapshot photo attachment (JPG, PNG, WebP, max 5MB)."
           },
           "response": []
         },
@@ -4408,6 +4535,674 @@
               ]
             },
             "description": "### GET /api/v1/food-menu/feedback/summary\nPrivate (Admin / Super Admin).\nView aggregate ratings statistics: overall average rating, total reviews, meal-wise breakdown, and star rating percentages."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "13 Complaint Management",
+      "item": [
+        {
+          "name": "Resident / Admin - Get Predefined Complaint Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/complaints/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "complaints",
+                "categories"
+              ]
+            },
+            "description": "Fetches all 10 predefined complaint categories (Cleaning, AC, WiFi, Water, Food, Electricity, Furniture, Plumbing, Appliances, Other)"
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Get Complaint Dashboard KPIs & Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/complaints/stats?branch_id={{branchId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "complaints",
+                "stats"
+              ],
+              "query": [
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "description": "Filter by Branch ID (optional for Admin)"
+                }
+              ]
+            },
+            "description": "Returns real-time complaint KPIs: total, open, in_progress, resolved, overdue count, and priority counts"
+          },
+          "response": []
+        },
+        {
+          "name": "Resident / Admin - List Complaints",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/complaints?status=all&priority=all&page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "complaints"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "all",
+                  "description": "all | OPEN | IN_PROGRESS | RESOLVED"
+                },
+                {
+                  "key": "category_id",
+                  "value": "",
+                  "description": "Filter by Category ID"
+                },
+                {
+                  "key": "priority",
+                  "value": "all",
+                  "description": "all | LOW | MEDIUM | HIGH"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Search by complaint number or description"
+                },
+                {
+                  "key": "assigned_to_user_id",
+                  "value": "",
+                  "description": "Filter by assigned staff ID"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Items per page"
+                }
+              ]
+            },
+            "description": "Lists complaints with pagination, filtering, and latest-first sorting. Residents see own; Admins see branch complaints."
+          },
+          "response": []
+        },
+        {
+          "name": "Resident - Create Complaint (Report Issue)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.id) {",
+                  "    pm.collectionVariables.set(\"complaintId\", res.data.id);",
+                  "    pm.collectionVariables.set(\"complaint_id\", res.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "category_id",
+                  "value": "1",
+                  "type": "text",
+                  "description": "[REQUIRED] Category ID (1: Cleaning, 2: AC, 3: WiFi, 4: Water, 5: Food, 6: Electricity, 7: Furniture, 8: Plumbing, 9: Appliances, 10: Other)"
+                },
+                {
+                  "key": "description",
+                  "value": "Room cleaning has not been done for the last 2 days. Please arrange housekeeping.",
+                  "type": "text",
+                  "description": "[REQUIRED] Detailed description of the problem (Min 5, Max 500 characters)"
+                },
+                {
+                  "key": "location_id",
+                  "value": "{{roomId}}",
+                  "type": "text",
+                  "description": "[OPTIONAL] Room ID where resident stays. If omitted, backend automatically defaults to resident's active assigned room."
+                },
+                {
+                  "key": "priority",
+                  "value": "MEDIUM",
+                  "type": "text",
+                  "description": "[OPTIONAL] Priority: LOW | MEDIUM | HIGH (Default: MEDIUM)"
+                },
+                {
+                  "key": "title",
+                  "value": "Cleaning Request",
+                  "type": "text",
+                  "description": "[OPTIONAL] Short summary or title for the complaint (Max 150 characters)"
+                },
+                {
+                  "key": "notify_updates",
+                  "value": "true",
+                  "type": "text",
+                  "description": "[OPTIONAL] Boolean true/false to receive notification updates on status change (Default: true)"
+                },
+                {
+                  "key": "issue_type",
+                  "value": "INTERMITTENT_CONNECTION",
+                  "type": "text",
+                  "description": "[OPTIONAL - WiFi Category Only] Subtype: NO_CONNECTION | SLOW_SPEED | INTERMITTENT_CONNECTION | OTHER"
+                },
+                {
+                  "key": "device_type",
+                  "value": "LAPTOP",
+                  "type": "text",
+                  "description": "[OPTIONAL - WiFi Category Only] Subtype: MOBILE | LAPTOP | TABLET | SMART_TV | OTHER"
+                },
+                {
+                  "key": "attachments",
+                  "type": "file",
+                  "src": [],
+                  "description": "[OPTIONAL] Multiple image attachments (Max 5 images, up to 5MB each, JPG/PNG/WebP)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/complaints",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "complaints"
+              ]
+            },
+            "description": "### Resident - Create / Report Issue (Unified Complaint API)\n\nA single unified endpoint for residents to report issues and register complaints across all property categories.\nSupports both **multipart/form-data** (with image attachments) and **application/json** (for text-only complaints).\n\n---\n\n#### Request Details:\n- **Method**: `POST`\n- **URL**: `{{baseUrl}}/api/v1/complaints`\n- **Authentication**: Bearer Access Token (`Resident` role)\n- **Content-Type**: `multipart/form-data` (recommended) or `application/json`\n\n---\n\n#### Form Fields Reference:\n\n| Field Name | Type | Requirement | Default | Description / Allowed Values |\n| :--- | :---: | :---: | :---: | :--- |\n| **`category_id`** | Integer / String | **REQUIRED** | - | Predefined category identifier (1 to 10). See category reference list below. |\n| **`description`** | String | **REQUIRED** | - | Detailed description of the problem (Min: 5, Max: 500 characters). |\n| **`location_id`** | Integer | Optional | Resident Room | Room ID where the issue is located. If omitted or null, backend automatically defaults to the resident's active room. |\n| **`priority`** | String | Optional | `MEDIUM` | Priority level: `LOW` \\| `MEDIUM` \\| `HIGH`. |\n| **`title`** | String | Optional | Auto-derived | Short summary or title for the complaint (Max: 150 characters). |\n| **`notify_updates`** | Boolean / String | Optional | `true` | Whether resident wants notification alerts when complaint status changes or notes are logged (`true` / `false`). |\n| **`issue_type`** | String | Optional (WiFi) | - | Specific subtype for WiFi/Network complaints: `NO_CONNECTION`, `SLOW_SPEED`, `INTERMITTENT_CONNECTION`, `OTHER`. |\n| **`device_type`** | String | Optional (WiFi) | - | Device affected: `MOBILE`, `LAPTOP`, `TABLET`, `SMART_TV`, `OTHER`. |\n| **`attachments`** | File (Array) | Optional | - | Multiple image files (up to 5 images, Max 5MB each). Allowed formats: JPG, PNG, WebP. Form field name can also be `images` or `photos`. |\n\n---\n\n#### Category IDs Reference List:\n- `1` - **Cleaning** (Room, corridor, washroom cleanliness)\n- `2` - **AC** (Cooling issues, remote, power, servicing)\n- `3` - **WiFi** (Supports category-specific `issue_type` and `device_type` fields)\n- `4` - **Water** (Supply, geyser/hot water, drinking water)\n- `5` - **Food** (Mess quality, hygiene, timing)\n- `6` - **Electricity** (Switches, lights, fans, power sockets)\n- `7` - **Furniture** (Bed, study table, chair, wardrobe/cupboard)\n- `8` - **Plumbing** (Tap leaks, flush, drainage, pipe blockage)\n- `9` - **Appliances** (Washing machine, refrigerator, induction/microwave)\n- `10` - **Other** (General issues)\n\n---\n\n#### WiFi Specific Subtypes Guide:\n- When `category_id = 3` (WiFi), you can optionally pass:\n  - **`issue_type`**: `NO_CONNECTION` | `SLOW_SPEED` | `INTERMITTENT_CONNECTION` | `OTHER`\n  - **`device_type`**: `MOBILE` | `LAPTOP` | `TABLET` | `SMART_TV` | `OTHER`\n- For other categories, these fields are optional/ignored and do not cause validation errors.\n\n---\n\n#### Backend Business Rules:\n1. **Access Validation**: Authenticated resident can only file complaints for their own assigned room/stay. Cross-room attempts return `403 Forbidden`.\n2. **Auto Reference Number**: Generates unique reference code (e.g., `CMP-202611-0025`).\n3. **Initial Status**: Always initializes status to `OPEN` with initial timeline event `CREATED`.\n4. **Postman Variables**: Auto-saves `{{complaintId}}` and `{{complaint_id}}` for subsequent status, details, updates, and feedback requests."
+          },
+          "response": []
+        },
+        {
+          "name": "Resident / Admin - Get Complaint Details by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/complaints/{{complaintId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "complaints",
+                "{{complaintId}}"
+              ]
+            },
+            "description": "Returns complaint full details: category, description, location details, attachments, assigned staff, status timeline history, updates, and feedback."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Assign Complaint & Set Due Date",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"assigned_to_user_id\": 2,\n  \"due_date\": \"2026-11-10T18:00:00.000Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/complaints/{{complaintId}}/assignment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "complaints",
+                "{{complaintId}}",
+                "assignment"
+              ]
+            },
+            "description": "### Admin - Assign Complaint to Staff & Set SLA Due Date\nAssigns an open/in-progress complaint to a staff member (technician, housekeeping, electrician, etc.) with a resolution deadline.\n\n#### Path Parameters:\n- `id` **[REQUIRED]**: Complaint ID.\n\n#### Request Body (JSON):\n- `assigned_to` or `assigned_to_user_id` **[REQUIRED]**: User ID of staff member assigned to resolve the issue.\n- `due_date` **[OPTIONAL]**: Target completion ISO timestamp (e.g., `2026-11-04T18:00:00Z`).\n\n#### Permissions:\n- Admin / Super Admin only."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Update Complaint Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"RESOLVED\",\n  \"resolution_notes\": \"Technician inspected the router, replaced the faulty cable, and speed verified at 100 Mbps.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/complaints/{{complaintId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "complaints",
+                "{{complaintId}}",
+                "status"
+              ]
+            },
+            "description": "### Admin - Update Complaint Status\nTransitions complaint status between `OPEN`, `IN_PROGRESS`, and `RESOLVED`.\n\n#### Path Parameters:\n- `id` **[REQUIRED]**: Complaint ID.\n\n#### Request Body (JSON):\n- `status` **[REQUIRED]**: Enum: `OPEN`, `IN_PROGRESS`, `RESOLVED`.\n- `resolution_notes` **[OPTIONAL]**: Detailed comments describing steps taken or resolution summary (max 1000 characters).\n\n#### Permissions:\n- Admin / Super Admin / Assigned Staff."
+          },
+          "response": []
+        },
+        {
+          "name": "Resident / Admin - Add Message or Note to Timeline",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "notes",
+                  "value": "Staff inspected the room and scheduled technician for 3 PM today.",
+                  "type": "text",
+                  "description": "[OPTIONAL] Alias for message or internal staff resolution note (2-1000 characters)."
+                },
+                {
+                  "key": "attachments",
+                  "type": "file",
+                  "src": [],
+                  "description": "[OPTIONAL] Photo attachments (JPG, PNG, max 5MB each, up to 5 files)."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/complaints/{{complaintId}}/updates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "complaints",
+                "{{complaintId}}",
+                "updates"
+              ]
+            },
+            "description": "Adds an update note/message with optional photo attachments into the complaint timeline."
+          },
+          "response": []
+        },
+        {
+          "name": "Resident - Submit Feedback for Resolved Complaint",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5,\n  \"comments\": \"Issue was resolved very quickly! Staff was polite and professional.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/complaints/{{complaintId}}/feedback",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "complaints",
+                "{{complaintId}}",
+                "feedback"
+              ]
+            },
+            "description": "Resident submits 1-5 star rating and optional comments once complaint is marked RESOLVED."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "14 Staff Management (User Module)",
+      "item": [
+        {
+          "name": "Admin - Get Staff Dashboard KPI Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/staff/stats?branch_id={{branchId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "staff",
+                "stats"
+              ],
+              "query": [
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "description": "Filter by Branch ID (optional, defaults to all branches)"
+                }
+              ]
+            },
+            "description": "Returns staff KPI metrics matching Image 1: total_staff, active, on_leave, inactive, and roles breakdown across KITCHEN_STAFF, HOUSEKEEPING, SECURITY_GUARD, ACCOUNTANT, BRANCH_MANAGER, WARDEN, MAINTENANCE."
+          },
+          "response": []
+        },
+        {
+          "name": "Resident / Admin - List Staff Members & Directory",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/staff?branch_id={{branchId}}&staff_role=all&status=all&search=&page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "staff"
+              ],
+              "query": [
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "description": "[OPTIONAL for Admin, IGNORED for Resident] Integer branch ID or \"all\". For Admin: filters staff assigned to this branch; if omitted or \"all\", returns staff across all PG branches. For Resident: automatically locked to resident's active stay branch."
+                },
+                {
+                  "key": "staff_role",
+                  "value": "all",
+                  "description": "[OPTIONAL] Enum: all, KITCHEN_STAFF, HOUSEKEEPING, SECURITY_GUARD, ACCOUNTANT, BRANCH_MANAGER, WARDEN, MAINTENANCE. Also accepts mobile pill aliases: Manager, Security, Cleaning."
+                },
+                {
+                  "key": "status",
+                  "value": "all",
+                  "description": "[OPTIONAL] Enum: all, active, on_leave, inactive. For Admin: defaults to all. For Resident: defaults to active so only available staff are shown in contact directory."
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "[OPTIONAL] Search query matching name, phone, email, or role."
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "[OPTIONAL] Pagination page number (default: 1)."
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "[OPTIONAL] Pagination limit per page (default: 10, max: 100)."
+                }
+              ]
+            },
+            "description": "### Resident / Admin - List Staff Members & Directory (Unified API)\n\nA single high-performance endpoint serving both:\n1. **Admin Staff Management Table** (Image 1):\n   - Multi-branch selection filter (`branch_id`).\n   - Filter by role, status (`active`, `on_leave`, `inactive`), and search.\n   - Full pagination metadata (`page`, `limit`, `total_records`, `total_pages`).\n2. **Resident Staff Contact Directory** (Image 3 Mobile View):\n   - Automatically locked and scoped to the resident's active stay branch.\n   - External branch ID parameters are safely ignored for resident tokens.\n   - Returns instant calling (`call_action`: `tel:...`) and messaging (`message_action`: `sms:...`) deep-links.\n   - Supports role category tabs/pills: `Manager`, `Security`, `Cleaning`, `All`.\n\n---\n#### Query Parameters:\n- `branch_id` **[OPTIONAL for Admin, IGNORED for Resident]**: Branch ID filter.\n- `staff_role` **[OPTIONAL]**: Enum or mobile pill alias (`all`, `KITCHEN_STAFF`, `HOUSEKEEPING`, `SECURITY_GUARD`, `ACCOUNTANT`, `BRANCH_MANAGER`, `WARDEN`, `MAINTENANCE`, or `Manager`, `Security`, `Cleaning`).\n- `status` **[OPTIONAL]**: `all`, `active`, `on_leave`, `inactive`. (Residents default to `active`).\n- `search` **[OPTIONAL]**: Text search across name, phone, email, or role.\n- `page` **[OPTIONAL]**: Page number (default: 1).\n- `limit` **[OPTIONAL]**: Results per page (default: 10).\n\n---\n#### Response Data Item:\n```json\n{\n  \"id\": 100,\n  \"name\": \"Rohit Sharma\",\n  \"role\": \"BRANCH_MANAGER\",\n  \"staff_role\": \"BRANCH_MANAGER\",\n  \"email\": \"rohitsharmamanager@gmail.com\",\n  \"phone\": \"+91 56789 25456\",\n  \"status\": \"active\",\n  \"profile_photo\": null,\n  \"photo_url\": null,\n  \"branches\": [\n    { \"id\": 1, \"name\": \"Main Branch\" },\n    { \"id\": 2, \"name\": \"Navrangpura Branch\" }\n  ],\n  \"branch_names\": \"Main Branch, Navrangpura Branch\",\n  \"branch_name\": \"Main Branch\",\n  \"call_action\": \"tel:+915678925456\",\n  \"message_action\": \"sms:+915678925456\"\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Add New Staff Member (Multi-Branch)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.id) {",
+                  "    pm.collectionVariables.set(\"staffId\", res.data.id);",
+                  "    pm.collectionVariables.set(\"staff_id\", res.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Rohit Sharma",
+                  "type": "text",
+                  "description": "[REQUIRED] Full staff name (2-100 chars)"
+                },
+                {
+                  "key": "staff_role",
+                  "value": "BRANCH_MANAGER",
+                  "type": "text",
+                  "description": "[REQUIRED] KITCHEN_STAFF | HOUSEKEEPING | SECURITY_GUARD | ACCOUNTANT | BRANCH_MANAGER | WARDEN | MAINTENANCE"
+                },
+                {
+                  "key": "branch_ids",
+                  "value": "[1, 2]",
+                  "type": "text",
+                  "description": "[REQUIRED] Single branch ID or array of branch IDs (e.g. [1, 2])"
+                },
+                {
+                  "key": "email",
+                  "value": "rohitsharma@gmail.com",
+                  "type": "text",
+                  "description": "[REQUIRED] Staff email address"
+                },
+                {
+                  "key": "phone",
+                  "value": "+91 56789 25456",
+                  "type": "text",
+                  "description": "[REQUIRED] Staff contact phone number"
+                },
+                {
+                  "key": "status",
+                  "value": "active",
+                  "type": "text",
+                  "description": "[OPTIONAL] active | on_leave | inactive (Default: active)"
+                },
+                {
+                  "key": "profile_photo",
+                  "type": "file",
+                  "src": [],
+                  "description": "[OPTIONAL] Staff photo image file (JPG, PNG, max 5MB)",
+                  "value": ""
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/staff",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "staff"
+              ]
+            },
+            "description": "### Add Staff Member (User Module - Multi-Branch)\n\nAdds a staff member under the User module with multi-branch assignment capability.\n\n---\n#### Form Fields:\n- `name` [REQUIRED] Staff member full name (2-100 characters).\n- `staff_role` [REQUIRED] Operational role:\n  - `KITCHEN_STAFF` | `HOUSEKEEPING` | `SECURITY_GUARD` | `ACCOUNTANT` | `BRANCH_MANAGER` | `WARDEN` | `MAINTENANCE`.\n- `branch_ids` [REQUIRED] Single branch ID or array of branch IDs (e.g. `[1, 2]` or `\"1, 2\"`).\n- `email` [REQUIRED] Staff email address.\n- `phone` [REQUIRED] Contact phone number (8-20 digits).\n- `status` [OPTIONAL] `active` | `on_leave` | `inactive` (Default: `active`).\n- `profile_photo` [OPTIONAL - File] Staff avatar image (JPG, PNG, WebP, max 5MB)."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Get Staff Member Details by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/staff/{{staffId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "staff",
+                "{{staffId}}"
+              ]
+            },
+            "description": "Retrieves single staff details with assigned branches list and photo URL from users module."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Update Staff Member Details",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Rohit Sharma (Senior)",
+                  "type": "text",
+                  "description": "[OPTIONAL] Full name of staff member (2-100 characters)."
+                },
+                {
+                  "key": "staff_role",
+                  "value": "BRANCH_MANAGER",
+                  "type": "text",
+                  "description": "[OPTIONAL] Enum: KITCHEN_STAFF, HOUSEKEEPING, SECURITY_GUARD, ACCOUNTANT, BRANCH_MANAGER, WARDEN, MAINTENANCE."
+                },
+                {
+                  "key": "branch_ids",
+                  "value": "[1, 2, 3]",
+                  "type": "text",
+                  "description": "[OPTIONAL] JSON array of branch IDs or comma-separated branch IDs (e.g. [{{branchId}}])."
+                },
+                {
+                  "key": "phone",
+                  "value": "+91 56789 25456",
+                  "type": "text",
+                  "description": "[OPTIONAL] 10-15 digit mobile phone number."
+                },
+                {
+                  "key": "status",
+                  "value": "active",
+                  "type": "text",
+                  "description": "[OPTIONAL] Enum: ACTIVE, INACTIVE, ON_LEAVE."
+                },
+                {
+                  "key": "profile_photo",
+                  "type": "file",
+                  "src": [],
+                  "description": "[OPTIONAL] Staff profile picture (JPG, PNG, max 5MB)."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/staff/{{staffId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "staff",
+                "{{staffId}}"
+              ]
+            },
+            "description": "Updates staff profile, multi-branch assignment, or photo (Image 2 Edit mode)."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Quick Update Staff Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"on_leave\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/staff/{{staffId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "staff",
+                "{{staffId}}",
+                "status"
+              ]
+            },
+            "description": "Quick toggle staff status: active, on_leave, or inactive."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Delete Staff Member",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/staff/{{staffId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "staff",
+                "{{staffId}}"
+              ]
+            },
+            "description": "Soft deletes staff member in users table and marks status inactive."
           },
           "response": []
         }

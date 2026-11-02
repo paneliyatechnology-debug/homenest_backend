@@ -5,6 +5,12 @@ import {
   updateUserValidator,
   updateProfileValidator,
   userIdParamValidator,
+  createStaffValidator,
+  updateStaffValidator,
+  updateStaffStatusValidator,
+  listStaffQueryValidator,
+  staffStatsQueryValidator,
+  staffDirectoryQueryValidator,
 } from '../validators/user.validator.js';
 import validate from '../middlewares/validate.middleware.js';
 import { authenticate, authorize } from '../middlewares/auth.middleware.js';
@@ -15,6 +21,111 @@ const router = Router();
 
 // Apply authentication to all user routes
 router.use(authenticate);
+
+// ==========================================
+// STAFF MANAGEMENT ROUTES (Under User Module)
+// ==========================================
+
+/**
+ * @route   GET /api/v1/users/staff/stats
+ * @desc    Get staff dashboard KPI cards (total, active, on_leave, inactive, roles breakdown)
+ * @access  Private (Admin / Super Admin)
+ */
+router.get(
+  '/staff/stats',
+  authorize(ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  validate(staffStatsQueryValidator),
+  userController.getStaffStats
+);
+
+/**
+ * @route   GET /api/v1/users/staff
+ * @desc    Get staff listing / directory (Unified for Resident Branch Directory & Admin Multi-Branch Management)
+ * @access  Private (Resident / Admin / Super Admin / Branch Manager)
+ */
+router.get(
+  '/staff',
+  authorize(ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.BRANCH_MANAGER, ROLES.RESIDENT),
+  validate(listStaffQueryValidator),
+  userController.getStaff
+);
+
+/**
+ * @route   GET /api/v1/users/staff/directory
+ * @desc    Backward compatibility alias -> routes to unified getStaff
+ * @access  Private (Resident / Admin / Super Admin / Branch Manager)
+ */
+router.get(
+  '/staff/directory',
+  authorize(ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.BRANCH_MANAGER, ROLES.RESIDENT),
+  validate(listStaffQueryValidator),
+  userController.getStaff
+);
+
+/**
+ * @route   POST /api/v1/users/staff
+ * @desc    Create new staff user with multi-branch assignment and optional photo (Image 2 form)
+ * @access  Private (Admin / Super Admin)
+ */
+router.post(
+  '/staff',
+  authorize(ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  handleUserPhotoUpload,
+  validate(createStaffValidator),
+  userController.createStaff
+);
+
+/**
+ * @route   GET /api/v1/users/staff/:id
+ * @desc    Get staff details by ID
+ * @access  Private (Admin / Super Admin)
+ */
+router.get(
+  '/staff/:id',
+  validate(userIdParamValidator),
+  userController.getStaffById
+);
+
+/**
+ * @route   PUT /api/v1/users/staff/:id
+ * @desc    Update staff details (Image 2 Edit mode)
+ * @access  Private (Admin / Super Admin)
+ */
+router.put(
+  '/staff/:id',
+  authorize(ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  handleUserPhotoUpload,
+  validate(updateStaffValidator),
+  userController.updateStaff
+);
+
+/**
+ * @route   PATCH /api/v1/users/staff/:id/status
+ * @desc    Quick update staff status (active | on_leave | inactive)
+ * @access  Private (Admin / Super Admin)
+ */
+router.patch(
+  '/staff/:id/status',
+  authorize(ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  validate(updateStaffStatusValidator),
+  userController.updateStaffStatus
+);
+
+/**
+ * @route   DELETE /api/v1/users/staff/:id
+ * @desc    Soft delete a staff member
+ * @access  Private (Admin / Super Admin)
+ */
+router.delete(
+  '/staff/:id',
+  authorize(ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  validate(userIdParamValidator),
+  userController.deleteStaff
+);
+
+// ==========================================
+// CORE USER & PROFILE ROUTES
+// ==========================================
 
 /**
  * @route   POST /api/v1/users

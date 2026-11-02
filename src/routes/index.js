@@ -11,6 +11,7 @@ import visitorRoutes from './visitor.routes.js';
 import branchRoutes from './branch.routes.js';
 import cronRoutes from './cron.routes.js';
 import foodMenuRoutes from './foodMenu.routes.js';
+import complaintRoutes from './complaint.routes.js';
 import { success } from '../utils/apiResponse.js';
 
 const router = Router();
@@ -39,5 +40,6 @@ router.use('/visitors', visitorRoutes);
 router.use('/branches', branchRoutes);
 router.use('/crons', cronRoutes);
 router.use('/food-menu', foodMenuRoutes);
+router.use('/complaints', complaintRoutes);
 
 export default router;

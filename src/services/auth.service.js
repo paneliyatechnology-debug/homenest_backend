@@ -131,7 +131,7 @@ class AuthService {
         address: address || null,
         profile_photo: profile_photo || null,
         role: ROLES.ADMIN,
-        is_active: true,
+        status: 'active',
         created_at: db.fn.now(),
         updated_at: db.fn.now(),
       });
@@ -171,6 +171,12 @@ class AuthService {
         updated_at: db.fn.now(),
       });
 
+      // Link owner to initial branch in user_branches
+      await trx('user_branches').insert({
+        user_id: owner_id,
+        branch_id: initial_branch_id,
+      });
+
       const tokens = generateAuthTokens({
         id: owner_id,
         email,
@@ -199,7 +205,7 @@ class AuthService {
       throw new AppError('Invalid email or password', HTTP_STATUS.UNAUTHORIZED);
     }
 
-    if (!user.is_active) {
+    if (user.status !== 'active') {
       throw new AppError('Your account is deactivated. Please contact support', HTTP_STATUS.FORBIDDEN);
     }
 
@@ -280,7 +286,7 @@ class AuthService {
     await redis.del(redis_key);
 
     const user = await userService.findByPhone(phone);
-    if (!user || !user.is_active) {
+    if (!user || user.status !== 'active') {
       throw new AppError('User no longer exists or is deactivated.', HTTP_STATUS.UNAUTHORIZED);
     }
 
@@ -405,7 +411,7 @@ class AuthService {
     }
 
     const user = await userService.findById(decoded.id, decoded.pg_id);
-    if (!user || !user.is_active) {
+    if (!user || user.status !== 'active') {
       throw new AppError('User no longer exists or is deactivated', HTTP_STATUS.UNAUTHORIZED);
     }
 

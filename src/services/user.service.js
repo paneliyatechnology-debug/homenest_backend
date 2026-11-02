@@ -4,7 +4,7 @@ import config from '../config/index.js';
 import { hashPassword, generateSecurePassword } from '../utils/password.js';
 import emailService from './email.service.js';
 import { AppError } from '../utils/apiResponse.js';
-import { HTTP_STATUS, ROLES } from '../constants/index.js';
+import { HTTP_STATUS, ROLES, STAFF_ROLES, ALL_STAFF_ROLES } from '../constants/index.js';
 import { deleteUserPhotoFile, deleteDocumentFile } from '../middlewares/upload.middleware.js';
 import { buildFileUrl } from '../utils/url.js';
 import { syncBranchStats } from './branch.service.js';
@@ -80,7 +80,6 @@ const formatAdminUser = (user, options = {}) => {
     profile_photo_url,
     status: user.status || 'active',
     role: user.role,
-    is_active: user.is_active !== undefined ? user.is_active : 1,
     created_at: user.created_at,
     updated_at: user.updated_at,
 
@@ -157,7 +156,6 @@ const formatResidentUser = (user, options = {}) => {
     profile_photo_url,
     status: user.status || 'active',
     role: user.role || ROLES.RESIDENT,
-    is_active: user.is_active !== undefined ? user.is_active : 1,
     created_at: user.created_at || null,
     updated_at: user.updated_at || null,
     deleted_at: user.deleted_at || null,
@@ -555,7 +553,6 @@ class UserService {
         occupation: occupation || null,
         profile_photo: profile_photo || null,
         status: status || 'active',
-        is_active: status !== 'inactive',
         created_at: db.fn.now(),
         updated_at: db.fn.now(),
       });
@@ -570,10 +567,12 @@ class UserService {
           allocatedPgName = targetPg.name;
         }
 
+        const assignedBranchId = branch_id ? Number(branch_id) : (target_room.branch_id || null);
+
         const [stay_id] = await trx('resident_pg_stays').insert({
           resident_id: user_id,
           pg_id: target_room.pg_id,
-          branch_id: branch_id ? Number(branch_id) : (target_room.branch_id || null),
+          branch_id: assignedBranchId,
           room_id: target_room.id,
           bed_number: bed_number || 'Bed-1',
           monthly_rent: parseFloat(monthly_rent) || 0.0,
@@ -585,6 +584,17 @@ class UserService {
           created_at: db.fn.now(),
           updated_at: db.fn.now(),
         });
+
+        // Sync resident branch in user_branches table
+        if (assignedBranchId) {
+          await trx('user_branches')
+            .insert({
+              user_id,
+              branch_id: assignedBranchId,
+            })
+            .onConflict(['user_id', 'branch_id'])
+            .ignore();
+        }
 
         if (status === 'active') {
           await trx('rooms').where({ id: target_room.id }).update({
@@ -861,10 +871,10 @@ class UserService {
     }
 
     const allowed_updates = {
-      ...(update_data.name !== undefined && { name: update_data.name.trim() }),
-      ...(update_data.email !== undefined && { email: update_data.email.toLowerCase().trim() }),
-      ...(update_data.phone !== undefined && { phone: update_data.phone.trim() }),
-      ...(update_data.gender !== undefined && { gender: String(update_data.gender).toLowerCase() }),
+      ...(update_data.name !== undefined && update_data.name !== null && update_data.name !== '' && { name: update_data.name.trim() }),
+      ...(update_data.email !== undefined && update_data.email !== null && update_data.email !== '' && { email: update_data.email.toLowerCase().trim() }),
+      ...(update_data.phone !== undefined && update_data.phone !== null && update_data.phone !== '' && { phone: update_data.phone.trim() }),
+      ...(update_data.gender !== undefined && update_data.gender !== null && update_data.gender !== '' && { gender: String(update_data.gender).toLowerCase() }),
       ...(update_data.address !== undefined && { address: update_data.address }),
       ...(update_data.address_line_1 !== undefined && {
         address_line_1: update_data.address_line_1,
@@ -909,7 +919,6 @@ class UserService {
       ...(update_data.signature !== undefined && { signature: update_data.signature }),
       ...(update_data.status !== undefined && {
         status: update_data.status,
-        is_active: update_data.status !== 'inactive',
       }),
       ...(update_data.role !== undefined && { role: update_data.role }),
       updated_at: db.fn.now(),
@@ -970,11 +979,20 @@ class UserService {
         }
 
         await db('resident_pg_stays').where({ id: active_stay.id }).update(stay_updates);
+
+        // Sync user_branches if branch updated
+        if (stay_updates.branch_id) {
+          await db('user_branches')
+            .insert({ user_id: id, branch_id: stay_updates.branch_id })
+            .onConflict(['user_id', 'branch_id'])
+            .ignore();
+        }
       } else if (target_room) {
+        const assignedBranchId = update_data.branch_id ? Number(update_data.branch_id) : (target_room.branch_id || null);
         await db('resident_pg_stays').insert({
           resident_id: id,
           pg_id: target_room.pg_id,
-          branch_id: update_data.branch_id ? Number(update_data.branch_id) : (target_room.branch_id || null),
+          branch_id: assignedBranchId,
           room_id: target_room.id,
           bed_number: update_data.bed_number || 'Bed-1',
           monthly_rent: parseFloat(update_data.monthly_rent) || 0.0,
@@ -987,6 +1005,14 @@ class UserService {
           updated_at: db.fn.now(),
         });
         await db('rooms').where({ id: target_room.id }).update({ status: 'occupied', updated_at: db.fn.now() });
+
+        // Sync user_branches
+        if (assignedBranchId) {
+          await db('user_branches')
+            .insert({ user_id: id, branch_id: assignedBranchId })
+            .onConflict(['user_id', 'branch_id'])
+            .ignore();
+        }
       }
     }
 
@@ -1054,7 +1080,7 @@ class UserService {
       .where({ id })
       .update({
         deleted_at: db.fn.now(),
-        is_active: false,
+        status: 'inactive',
         updated_at: db.fn.now(),
       });
 
@@ -1078,6 +1104,583 @@ class UserService {
 
     return rows_affected > 0;
   };
+
+  // ==========================================
+  // STAFF MANAGEMENT METHODS (Under User Module)
+  // ==========================================
+
+  /**
+   * Helper: Normalize user-provided staff role to standard enum
+   */
+  static normalizeStaffRole = (roleInput) => {
+    if (!roleInput || typeof roleInput !== 'string') return null;
+    const clean = roleInput.trim().toUpperCase().replace(/[\s\-]+/g, '_');
+
+    if (ALL_STAFF_ROLES.includes(clean)) {
+      return clean;
+    }
+
+    if (clean === 'MANAGER' || clean === 'RESIDENT_MANAGER' || clean === 'PROPERTY_MANAGER') {
+      return STAFF_ROLES.BRANCH_MANAGER;
+    }
+    if (clean === 'SECURITY' || clean === 'GUARD') {
+      return STAFF_ROLES.SECURITY_GUARD;
+    }
+    if (clean === 'CLEANING' || clean === 'HOUSEKEEPING_STAFF' || clean === 'CLEANER') {
+      return STAFF_ROLES.HOUSEKEEPING;
+    }
+    if (clean === 'COOK' || clean === 'KITCHEN' || clean === 'CHEF') {
+      return STAFF_ROLES.KITCHEN_STAFF;
+    }
+    if (clean === 'TECHNICIAN' || clean === 'ELECTRICIAN' || clean === 'PLUMBER') {
+      return STAFF_ROLES.MAINTENANCE;
+    }
+
+    return null;
+  };
+
+  /**
+   * Helper: Resolve PG property context for staff management
+   */
+  resolveAdminPg = async (user, candidatePgId = null) => {
+    if (user.role === ROLES.SUPER_ADMIN) {
+      if (candidatePgId) {
+        const pg = await db('pgs').where({ id: candidatePgId }).whereNull('deleted_at').first();
+        if (!pg) throw new AppError('PG property not found', HTTP_STATUS.NOT_FOUND);
+        return pg;
+      }
+      const pg = await db('pgs').whereNull('deleted_at').orderBy('id', 'asc').first();
+      if (!pg) throw new AppError('No active PG properties found in the system', HTTP_STATUS.NOT_FOUND);
+      return pg;
+    }
+
+    if (user.role === ROLES.ADMIN) {
+      const pg = await db('pgs').where({ owner_id: user.id }).whereNull('deleted_at').first();
+      if (!pg) {
+        throw new AppError('No active PG property found under your account', HTTP_STATUS.FORBIDDEN);
+      }
+      return pg;
+    }
+
+    if (user.role === ROLES.RESIDENT) {
+      const stay = await db('resident_pg_stays')
+        .where({ resident_id: user.id, status: 'active' })
+        .whereNull('deleted_at')
+        .orderBy('id', 'desc')
+        .first();
+
+      if (!stay || !stay.pg_id || !stay.branch_id) {
+        throw new AppError('No active PG stay found for resident', HTTP_STATUS.FORBIDDEN);
+      }
+
+      return {
+        id: stay.pg_id,
+        branch_id: stay.branch_id,
+      };
+    }
+
+    throw new AppError('Unauthorized access', HTTP_STATUS.FORBIDDEN);
+  };
+
+  /**
+   * Helper: Attach multi-branch assignments to staff user records
+   */
+  attachBranchesToUsers = async (userRecords = []) => {
+    if (!userRecords.length) return [];
+
+    const userIds = userRecords.map((u) => u.id);
+    const branchLinks = await db('user_branches')
+      .whereIn('user_branches.user_id', userIds)
+      .join('branches', 'user_branches.branch_id', 'branches.id')
+      .whereNull('branches.deleted_at')
+      .select('user_branches.user_id', 'branches.id as branch_id', 'branches.name as branch_name')
+      .orderBy('branches.name', 'asc');
+
+    const branchMap = {};
+    branchLinks.forEach((link) => {
+      if (!branchMap[link.user_id]) {
+        branchMap[link.user_id] = [];
+      }
+      branchMap[link.user_id].push({
+        id: link.branch_id,
+        name: link.branch_name,
+      });
+    });
+
+    return userRecords.map((user) => {
+      const branches = branchMap[user.id] || [];
+      return {
+        id: user.id,
+        name: user.name,
+        role: user.staff_role || user.role,
+        staff_role: user.staff_role || null,
+        email: user.email,
+        phone: user.phone || null,
+        status: user.status,
+        profile_photo: user.profile_photo || null,
+        photo: user.profile_photo || null,
+        photo_url: buildFileUrl('users', user.profile_photo),
+        branches,
+        branch_names: branches.map((b) => b.name).join(', ') || 'Unassigned',
+        created_at: user.created_at,
+        updated_at: user.updated_at,
+      };
+    });
+  };
+
+  /**
+   * 1. Get Staff KPI Statistics (Image 1)
+   */
+  getStaffStats = async (user, query = {}) => {
+    const pg = await this.resolveAdminPg(user);
+
+    let base = db('users')
+      .where('users.role', ROLES.STAFF)
+      .where('users.pg_id', pg.id)
+      .whereNull('users.deleted_at');
+
+    if (query.branch_id) {
+      base = base.whereIn(
+        'users.id',
+        db('user_branches').where('branch_id', query.branch_id).select('user_id')
+      );
+    }
+
+    const counts = await base.clone()
+      .select(
+        db.raw('COUNT(id) as total_staff'),
+        db.raw('COUNT(CASE WHEN status = "active" THEN 1 END) as active_staff'),
+        db.raw('COUNT(CASE WHEN status = "on_leave" THEN 1 END) as on_leave_staff'),
+        db.raw('COUNT(CASE WHEN status = "inactive" THEN 1 END) as inactive_staff')
+      )
+      .first();
+
+    const roleCounts = await base.clone()
+      .select('staff_role', db.raw('COUNT(id) as count'))
+      .whereNotNull('staff_role')
+      .groupBy('staff_role');
+
+    const rolesBreakdown = {};
+    ALL_STAFF_ROLES.forEach((r) => {
+      rolesBreakdown[r] = 0;
+    });
+    roleCounts.forEach((r) => {
+      rolesBreakdown[r.staff_role] = parseInt(r.count, 10);
+    });
+
+    const total = parseInt(counts?.total_staff || 0, 10);
+    const active = parseInt(counts?.active_staff || 0, 10);
+    const onLeave = parseInt(counts?.on_leave_staff || 0, 10);
+    const inactive = parseInt(counts?.inactive_staff || 0, 10);
+
+    return {
+      pg_id: pg.id,
+      branch_id: query.branch_id ? Number(query.branch_id) : null,
+      total_staff: total,
+      total: total,
+      active: active,
+      on_leave: onLeave,
+      inactive: inactive,
+      roles: rolesBreakdown,
+    };
+  };
+
+  /**
+   * 2. List Staff Members & Directory (Unified for Resident Branch View & Admin Multi-Branch Table)
+   *
+   * - For Resident Token:
+   *   Automatically locked to resident's active branch stay from resident_pg_stays.
+   *   External branch_id filters are overridden/scoped to resident's branch.
+   *   Defaults to active staff for direct calling and messaging.
+   *   Attaches call_action and message_action.
+   *
+   * - For Admin / Super Admin Token:
+   *   Multi-branch selection filter: if branch_id is provided, filters to that branch.
+   *   If branch_id is omitted or 'all', returns staff across all branches of the PG.
+   *   Full status filtering: 'all', 'active', 'on_leave', 'inactive'.
+   *   Search across name, email, phone, role, with pagination.
+   */
+  getStaff = async (user, query = {}) => {
+    const isResident = user.role === ROLES.RESIDENT;
+    let targetPgId = null;
+    let targetBranchId = null;
+    let branchInfo = null;
+
+    if (isResident) {
+      const stay = await db('resident_pg_stays')
+        .where({ resident_id: user.id, status: 'active' })
+        .whereNull('deleted_at')
+        .orderBy('id', 'desc')
+        .first();
+
+      if (!stay || !stay.branch_id) {
+        throw new AppError('No active branch stay found for resident', HTTP_STATUS.FORBIDDEN);
+      }
+      targetBranchId = stay.branch_id;
+      targetPgId = stay.pg_id;
+    } else {
+      const pg = await this.resolveAdminPg(user);
+      targetPgId = pg.id;
+      if (query.branch_id && query.branch_id !== 'all') {
+        targetBranchId = Number(query.branch_id);
+      }
+    }
+
+    if (targetBranchId) {
+      const branch = await db('branches')
+        .where({ id: targetBranchId })
+        .whereNull('deleted_at')
+        .select('id', 'name', 'location')
+        .first();
+      if (branch) {
+        branchInfo = branch;
+      }
+    }
+
+    const {
+      staff_role,
+      role,
+      status,
+      search,
+      page = 1,
+      limit = 10,
+    } = query;
+
+    const current_page = Math.max(1, parseInt(page, 10) || 1);
+    const per_page = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
+    const offset = (current_page - 1) * per_page;
+
+    let base = db('users')
+      .where('users.role', ROLES.STAFF)
+      .where('users.pg_id', targetPgId)
+      .whereNull('users.deleted_at');
+
+    if (targetBranchId) {
+      base = base.whereIn(
+        'users.id',
+        db('user_branches').where('branch_id', targetBranchId).select('user_id')
+      );
+    }
+
+    const targetRole = staff_role || role;
+    if (targetRole && targetRole !== 'all') {
+      const normalized = UserService.normalizeStaffRole(targetRole);
+      if (normalized) {
+        base = base.where('users.staff_role', normalized);
+      } else {
+        base = base.where('users.staff_role', 'like', `%${targetRole.trim()}%`);
+      }
+    }
+
+    if (isResident) {
+      if (status && status !== 'all') {
+        base = base.where('users.status', status.toLowerCase());
+      } else {
+        base = base.where('users.status', 'active');
+      }
+    } else {
+      if (status && status !== 'all') {
+        base = base.where('users.status', status.toLowerCase());
+      }
+    }
+
+    if (search && search.trim()) {
+      const q = `%${search.trim()}%`;
+      base = base.where((builder) => {
+        builder
+          .where('users.name', 'like', q)
+          .orWhere('users.email', 'like', q)
+          .orWhere('users.phone', 'like', q)
+          .orWhere('users.staff_role', 'like', q);
+      });
+    }
+
+    const totalRow = await base.clone().count('users.id as total').first();
+    const total = parseInt(totalRow?.total || 0, 10);
+
+    const sortColumn = isResident ? 'users.name' : 'users.id';
+    const sortOrder = isResident ? 'asc' : 'desc';
+
+    const rows = await base.clone()
+      .select('users.*')
+      .orderBy(sortColumn, sortOrder)
+      .limit(per_page)
+      .offset(offset);
+
+    const formattedStaff = await this.attachBranchesToUsers(rows);
+
+    const staffWithActions = formattedStaff.map((s) => ({
+      ...s,
+      branch_name: branchInfo ? branchInfo.name : s.branch_names,
+      call_action: s.phone ? `tel:${s.phone.replace(/[\s\-]/g, '')}` : null,
+      message_action: s.phone ? `sms:${s.phone.replace(/[\s\-]/g, '')}` : null,
+    }));
+
+    return {
+      staff: staffWithActions,
+      data: staffWithActions,
+      branch: branchInfo,
+      pagination: {
+        total,
+        page: current_page,
+        limit: per_page,
+        total_pages: Math.ceil(total / per_page) || 1,
+      },
+    };
+  };
+
+  /**
+   * 3. Resident Staff Contact Directory (Alias to unified getStaff)
+   */
+  getStaffDirectory = async (user, query = {}) => {
+    return await this.getStaff(user, query);
+  };
+
+  /**
+   * 4. Create Staff Member under Users Module (Image 2)
+   */
+  createStaff = async (data, file = null, user) => {
+    const pg = await this.resolveAdminPg(user);
+
+    const branchIds = data.branch_ids || [];
+    if (!branchIds.length) {
+      throw new AppError('At least one branch must be assigned to staff', HTTP_STATUS.BAD_REQUEST);
+    }
+
+    const validBranches = await db('branches')
+      .whereIn('id', branchIds)
+      .where('pg_id', pg.id)
+      .whereNull('deleted_at')
+      .select('id', 'name');
+
+    if (validBranches.length !== branchIds.length) {
+      throw new AppError('One or more selected branches do not belong to your property', HTTP_STATUS.BAD_REQUEST);
+    }
+
+    const roleInput = data.staff_role || data.role;
+    const staffRole = UserService.normalizeStaffRole(roleInput);
+    if (!staffRole) {
+      throw new AppError(
+        `Invalid staff role '${roleInput}'. Must be one of: ${ALL_STAFF_ROLES.join(', ')}`,
+        HTTP_STATUS.BAD_REQUEST
+      );
+    }
+
+    const email = data.email.trim().toLowerCase();
+    const phone = data.phone.trim();
+    const name = data.name.trim();
+    const status = (data.status || 'active').toLowerCase();
+    const photoFilename = file ? file.filename : null;
+
+    const existingUser = await db('users')
+      .where({ email })
+      .whereNull('deleted_at')
+      .first();
+
+    if (existingUser) {
+      throw new AppError(`A user with email '${email}' already exists`, HTTP_STATUS.CONFLICT);
+    }
+
+    const tempPassword = generateSecurePassword(12);
+    const hashedPassword = await hashPassword(tempPassword);
+
+    const newStaff = await db.transaction(async (trx) => {
+      const [userId] = await trx('users').insert({
+        name,
+        email,
+        phone,
+        role: ROLES.STAFF,
+        staff_role: staffRole,
+        pg_id: pg.id,
+        status,
+        profile_photo: photoFilename,
+        password: hashedPassword,
+      });
+
+      const branchInserts = branchIds.map((bId) => ({
+        user_id: userId,
+        branch_id: bId,
+      }));
+      await trx('user_branches').insert(branchInserts);
+
+      return {
+        id: userId,
+        name,
+        role: staffRole,
+        staff_role: staffRole,
+        email,
+        phone,
+        status,
+        profile_photo: photoFilename,
+        photo_url: buildFileUrl('users', photoFilename),
+        branches: validBranches,
+        branch_names: validBranches.map((b) => b.name).join(', '),
+      };
+    });
+
+    return newStaff;
+  };
+
+  /**
+   * 5. Get Staff Member Details by ID
+   */
+  getStaffById = async (id, user) => {
+    const pg = await this.resolveAdminPg(user);
+
+    const staff = await db('users')
+      .where({ 'users.id': id, 'users.role': ROLES.STAFF })
+      .where('users.pg_id', pg.id)
+      .whereNull('users.deleted_at')
+      .first();
+
+    if (!staff) {
+      throw new AppError('Staff member not found', HTTP_STATUS.NOT_FOUND);
+    }
+
+    const [formatted] = await this.attachBranchesToUsers([staff]);
+    return formatted;
+  };
+
+  /**
+   * 6. Update Staff Details (Image 2 Edit mode)
+   */
+  updateStaff = async (id, data, file = null, user) => {
+    const pg = await this.resolveAdminPg(user);
+
+    const staff = await db('users')
+      .where({ id, role: ROLES.STAFF, pg_id: pg.id })
+      .whereNull('deleted_at')
+      .first();
+
+    if (!staff) {
+      throw new AppError('Staff member not found', HTTP_STATUS.NOT_FOUND);
+    }
+
+    let branchIds = data.branch_ids;
+    if (branchIds && branchIds.length) {
+      const validBranches = await db('branches')
+        .whereIn('id', branchIds)
+        .where('pg_id', pg.id)
+        .whereNull('deleted_at')
+        .select('id', 'name');
+
+      if (validBranches.length !== branchIds.length) {
+        throw new AppError('One or more selected branches do not belong to your property', HTTP_STATUS.BAD_REQUEST);
+      }
+    }
+
+    if (data.email && data.email.toLowerCase() !== staff.email.toLowerCase()) {
+      const email = data.email.trim().toLowerCase();
+      const duplicate = await db('users')
+        .where({ email })
+        .whereNot({ id })
+        .whereNull('deleted_at')
+        .first();
+
+      if (duplicate) {
+        throw new AppError(`A user with email '${email}' already exists`, HTTP_STATUS.CONFLICT);
+      }
+    }
+
+    let photoFilename = staff.profile_photo;
+    if (file) {
+      if (staff.profile_photo) {
+        deleteUserPhotoFile(staff.profile_photo);
+      }
+      photoFilename = file.filename;
+    }
+
+    const updatePayload = {
+      updated_at: db.fn.now(),
+    };
+    if (data.name) updatePayload.name = data.name.trim();
+    if (data.email) updatePayload.email = data.email.trim().toLowerCase();
+    if (data.phone) updatePayload.phone = data.phone.trim();
+    if (data.status) {
+      updatePayload.status = data.status.toLowerCase();
+    }
+    if (data.staff_role || data.role) {
+      const normalized = UserService.normalizeStaffRole(data.staff_role || data.role);
+      if (normalized) updatePayload.staff_role = normalized;
+    }
+    if (photoFilename !== staff.profile_photo) {
+      updatePayload.profile_photo = photoFilename;
+    }
+
+    await db.transaction(async (trx) => {
+      await trx('users').where({ id }).update(updatePayload);
+
+      if (branchIds && branchIds.length) {
+        await trx('user_branches').where({ user_id: id }).delete();
+        const branchInserts = branchIds.map((bId) => ({
+          user_id: id,
+          branch_id: bId,
+        }));
+        await trx('user_branches').insert(branchInserts);
+      }
+    });
+
+    return await this.getStaffById(id, user);
+  };
+
+  /**
+   * 7. Quick Update Staff Status (active | on_leave | inactive)
+   */
+  updateStaffStatus = async (id, status, user) => {
+    const pg = await this.resolveAdminPg(user);
+    const normalizedStatus = status.toLowerCase();
+
+    const staff = await db('users')
+      .where({ id, role: ROLES.STAFF, pg_id: pg.id })
+      .whereNull('deleted_at')
+      .first();
+
+    if (!staff) {
+      throw new AppError('Staff member not found', HTTP_STATUS.NOT_FOUND);
+    }
+
+    await db('users').where({ id }).update({
+      status: normalizedStatus,
+      updated_at: db.fn.now(),
+    });
+
+    return {
+      id,
+      name: staff.name,
+      old_status: staff.status,
+      new_status: normalizedStatus,
+      message: `Staff status updated to ${normalizedStatus} successfully`,
+    };
+  };
+
+  /**
+   * 8. Soft Delete Staff Member
+   */
+  deleteStaff = async (id, user) => {
+    const pg = await this.resolveAdminPg(user);
+
+    const staff = await db('users')
+      .where({ id, role: ROLES.STAFF, pg_id: pg.id })
+      .whereNull('deleted_at')
+      .first();
+
+    if (!staff) {
+      throw new AppError('Staff member not found', HTTP_STATUS.NOT_FOUND);
+    }
+
+    await db('users').where({ id }).update({
+      status: 'inactive',
+      deleted_at: db.fn.now(),
+      updated_at: db.fn.now(),
+    });
+
+    return {
+      id,
+      name: staff.name,
+      message: 'Staff member removed successfully',
+    };
+  };
+
 }
 
 export default new UserService();

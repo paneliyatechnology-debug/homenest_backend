@@ -141,6 +141,18 @@ class BranchService {
 
     await this.syncBranchStats(branch_id, trx);
 
+    // Link owner to branch in user_branches for consistency
+    if (pg && pg.owner_id) {
+      const userBranchesTable = trx ? trx('user_branches') : db('user_branches');
+      await userBranchesTable
+        .insert({
+          user_id: pg.owner_id,
+          branch_id,
+        })
+        .onConflict(['user_id', 'branch_id'])
+        .ignore();
+    }
+
     return await this.findById(branch_id, { user, trx });
   };
 

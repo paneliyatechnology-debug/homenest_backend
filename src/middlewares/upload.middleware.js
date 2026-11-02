@@ -12,9 +12,11 @@ const visitors_upload_dir = path.join(process.cwd(), 'uploads', 'visitors');
 const branches_upload_dir = path.join(process.cwd(), 'uploads', 'branches');
 const food_menu_upload_dir = path.join(process.cwd(), 'uploads', 'food_menu');
 const food_feedback_upload_dir = path.join(process.cwd(), 'uploads', 'food_feedback');
+const complaints_upload_dir = path.join(process.cwd(), 'uploads', 'complaints');
+const staff_upload_dir = path.join(process.cwd(), 'uploads', 'staff');
 
 // Ensure upload directories exist
-[rooms_upload_dir, users_upload_dir, pgs_upload_dir, documents_upload_dir, visitors_upload_dir, branches_upload_dir, food_menu_upload_dir, food_feedback_upload_dir].forEach((dir) => {
+[rooms_upload_dir, users_upload_dir, pgs_upload_dir, documents_upload_dir, visitors_upload_dir, branches_upload_dir, food_menu_upload_dir, food_feedback_upload_dir, complaints_upload_dir, staff_upload_dir].forEach((dir) => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -150,6 +152,7 @@ export const handleUserPhotoUpload = (req, res, next) => {
       { name: 'profile_photo', maxCount: 1 },
       { name: 'passport_photo', maxCount: 1 },
       { name: 'image', maxCount: 1 },
+      { name: 'photo', maxCount: 1 },
       { name: 'aadhar_card', maxCount: 1 },
       { name: 'address_proof', maxCount: 1 },
       { name: 'education_certificate', maxCount: 1 },
@@ -170,6 +173,9 @@ export const handleUserPhotoUpload = (req, res, next) => {
       } else if (req.files?.image?.[0]) {
         req.body.profile_photo = req.files.image[0].filename;
         req.file = req.files.image[0];
+      } else if (req.files?.photo?.[0]) {
+        req.body.profile_photo = req.files.photo[0].filename;
+        req.file = req.files.photo[0];
       }
 
       if (req.files?.aadhar_card?.[0]) {
@@ -549,6 +555,80 @@ export const deleteFoodFeedbackImageFile = (filename) => {
   }
 };
 
+// Complaint attachments photo storage
+const complaint_storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, complaints_upload_dir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const unique_name = `complaint-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+    cb(null, unique_name);
+  },
+});
+
+const upload_complaints = multer({
+  storage: complaint_storage,
+  fileFilter: file_filter,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit per image
+});
+
+/**
+ * Middleware for complaint attachments upload (multiple images up to 5).
+ * Supports field 'attachments', 'images', or 'photos'.
+ */
+export const handleComplaintAttachmentsUpload = (req, res, next) => {
+  const content_type = req.headers['content-type'] || '';
+  if (content_type.startsWith('multipart/form-data')) {
+    upload_complaints.fields([
+      { name: 'attachments', maxCount: 5 },
+      { name: 'images', maxCount: 5 },
+      { name: 'photos', maxCount: 5 },
+    ])(req, res, (err) => {
+      if (err) {
+        if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+          return next(new AppError('Attachment file size exceeds 5MB limit', HTTP_STATUS.BAD_REQUEST));
+        }
+        if (err instanceof multer.MulterError && err.code === 'LIMIT_UNEXPECTED_FILE') {
+          return next(new AppError('Maximum 5 attachment images allowed', HTTP_STATUS.BAD_REQUEST));
+        }
+        return next(err);
+      }
+      if (req.files) {
+        req.filesList = [
+          ...(req.files['attachments'] || []),
+          ...(req.files['images'] || []),
+          ...(req.files['photos'] || []),
+        ];
+      } else {
+        req.filesList = [];
+      }
+      next();
+    });
+  } else {
+    req.filesList = [];
+    next();
+  }
+};
+
+/**
+ * Delete a local complaint attachment file safely
+ * @param {string|null} filename
+ */
+export const deleteComplaintAttachmentFile = (filename) => {
+  if (!filename) return;
+  try {
+    const file_path = path.join(complaints_upload_dir, path.basename(filename));
+    if (fs.existsSync(file_path)) {
+      fs.unlinkSync(file_path);
+    }
+  } catch (err) {
+    console.warn(`[Warning] Could not delete complaint attachment: ${filename}`, err.message);
+  }
+};
+
+// Staff photo upload & delete helpers (Alias to user photo methods since staff are users)
+export const handleStaffPhotoUpload = handleUserPhotoUpload;
+export const deleteStaffPhotoFile = deleteUserPhotoFile;
+
 export default {
   handleRoomImageUpload,
   handleUserPhotoUpload,
@@ -566,4 +646,8 @@ export default {
   deleteFoodMenuImageFile,
   handleFoodFeedbackImageUpload,
   deleteFoodFeedbackImageFile,
+  handleComplaintAttachmentsUpload,
+  deleteComplaintAttachmentFile,
+  handleStaffPhotoUpload,
+  deleteStaffPhotoFile,
 };

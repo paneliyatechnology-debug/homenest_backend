@@ -226,7 +226,7 @@ export const sendOtpValidator = [
       if (!user) {
         throw new Error('No registered user found with this mobile number. Please register first.');
       }
-      if (!user.is_active) {
+      if (user.status !== 'active') {
         throw new Error('Your account is deactivated. Please contact support.');
       }
       return true;
@@ -269,7 +269,7 @@ export const forgotPasswordValidator = [
       if (!user) {
         throw new Error('No account found with this email address.');
       }
-      if (!user.is_active) {
+      if (user.status !== 'active') {
         throw new Error('Your account is deactivated. Please contact support.');
       }
       return true;

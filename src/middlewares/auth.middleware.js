@@ -61,7 +61,7 @@ export const authenticate = async (req, res, next) => {
       throw new AppError('User belonging to this token no longer exists', HTTP_STATUS.UNAUTHORIZED);
     }
 
-    if (!user.is_active) {
+    if (user.status !== 'active') {
       throw new AppError('User account is deactivated', HTTP_STATUS.FORBIDDEN);
     }
 

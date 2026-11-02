@@ -129,6 +129,116 @@ export const deleteUser = async (req, res, next) => {
   }
 };
 
+
+/**
+ * ==========================================
+ * STAFF MANAGEMENT CONTROLLER METHODS (Under User Module)
+ * ==========================================
+ */
+
+/**
+ * Get staff KPI statistics for admin dashboard (Image 1 cards)
+ */
+export const getStaffStats = async (req, res, next) => {
+  try {
+    const stats = await userService.getStaffStats(req.user, req.query);
+    return success(res, 'Staff statistics retrieved successfully', stats);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Get staff listing & contact directory (Unified for Resident Branch View & Admin Multi-Branch Management)
+ */
+export const getStaff = async (req, res, next) => {
+  try {
+    const result = await userService.getStaff(req.user, req.query);
+    return success(
+      res,
+      'Staff list retrieved successfully',
+      result.staff,
+      HTTP_STATUS.OK,
+      {
+        ...result.pagination,
+        ...(result.branch ? { branch: result.branch } : {}),
+      }
+    );
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Shared alias for staff directory
+ */
+export const getStaffDirectory = getStaff;
+
+/**
+ * Create a new staff member under user module (Image 2 form)
+ */
+export const createStaff = async (req, res, next) => {
+  try {
+    const result = await userService.createStaff(req.body, req.file, req.user);
+    return success(res, 'Staff member added successfully', result, HTTP_STATUS.CREATED);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Get single staff details by ID
+ */
+export const getStaffById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const staff = await userService.getStaffById(Number(id), req.user);
+    return success(res, 'Staff details retrieved successfully', staff);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Update staff details (Image 2 Edit mode)
+ */
+export const updateStaff = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const updated = await userService.updateStaff(Number(id), req.body, req.file, req.user);
+    return success(res, 'Staff member updated successfully', updated);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Quick update staff status (active | on_leave | inactive)
+ */
+export const updateStaffStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await userService.updateStaffStatus(Number(id), req.body.status, req.user);
+    return success(res, result.message, result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Soft delete staff member
+ */
+export const deleteStaff = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await userService.deleteStaff(Number(id), req.user);
+    return success(res, result.message, result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+
 export default {
   createUser,
   getAllUsers,
@@ -136,4 +246,12 @@ export default {
   updateProfile,
   updateUser,
   deleteUser,
+  getStaffStats,
+  getStaff,
+  getStaffDirectory,
+  createStaff,
+  getStaffById,
+  updateStaff,
+  updateStaffStatus,
+  deleteStaff,
 };
