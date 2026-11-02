@@ -87,6 +87,36 @@
       "value": "1",
       "type": "string",
       "description": "Branch ID under PG facility. Seeded branches are 1 to 5."
+    },
+    {
+      "key": "menuId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "menu_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "visitorId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "visitor_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "paymentId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "payment_id",
+      "value": "1",
+      "type": "string"
     }
   ],
   "auth": {
@@ -2808,7 +2838,23 @@
             },
             "description": "Create a new payment demand / bill for a resident. If stay_id or room_id are omitted, they are automatically resolved from the resident's current active stay."
           },
-          "response": []
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const paymentId = body.id || (body.data && body.data.id);",
+                  "if (body.success && paymentId) {",
+                  "    pm.collectionVariables.set('paymentId', String(paymentId));",
+                  "    pm.collectionVariables.set('payment_id', String(paymentId));",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Get Payment by ID",
@@ -3260,7 +3306,23 @@
             },
             "description": "Create a visitor record (FormData). Supports optional 'visitor_photo' image file upload. If created by Resident: status is automatically set to \"pending\" (awaiting admin approval). If created by Admin: status defaults to \"approved\" (generates pass code, QR code, and sends digital pass email to resident)."
           },
-          "response": []
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const visitorId = body.id || (body.data && body.data.id);",
+                  "if (body.success && visitorId) {",
+                  "    pm.collectionVariables.set('visitorId', String(visitorId));",
+                  "    pm.collectionVariables.set('visitor_id', String(visitorId));",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Get Visitor Details by ID",
@@ -3268,7 +3330,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/visitors/1",
+              "raw": "{{baseUrl}}/api/v1/visitors/{{visitorId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -3276,7 +3338,7 @@
                 "api",
                 "v1",
                 "visitors",
-                "1"
+                "{{visitorId}}"
               ]
             },
             "description": "Retrieve full details of a specific visitor record including host resident, room number, status, and pass information."
@@ -3289,7 +3351,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/visitors/1/logs",
+              "raw": "{{baseUrl}}/api/v1/visitors/{{visitorId}}/logs",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -3297,7 +3359,7 @@
                 "api",
                 "v1",
                 "visitors",
-                "1",
+                "{{visitorId}}",
                 "logs"
               ]
             },
@@ -3440,7 +3502,7 @@
               ]
             },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/visitors/1",
+              "raw": "{{baseUrl}}/api/v1/visitors/{{visitorId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -3448,7 +3510,7 @@
                 "api",
                 "v1",
                 "visitors",
-                "1"
+                "{{visitorId}}"
               ]
             },
             "description": "Update visitor details (FormData). Supports optional 'visitor_photo' image upload. Residents can update their pass only when status is \"pending\". Admins can update anytime."
@@ -3470,7 +3532,7 @@
               "raw": "{\n  \"status\": \"approved\",\n  \"admin_notes\": \"Approved by gate security\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/visitors/1/status",
+              "raw": "{{baseUrl}}/api/v1/visitors/{{visitorId}}/status",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -3478,7 +3540,7 @@
                 "api",
                 "v1",
                 "visitors",
-                "1",
+                "{{visitorId}}",
                 "status"
               ]
             },
@@ -3522,7 +3584,7 @@
             "method": "DELETE",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/visitors/1",
+              "raw": "{{baseUrl}}/api/v1/visitors/{{visitorId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -3530,7 +3592,7 @@
                 "api",
                 "v1",
                 "visitors",
-                "1"
+                "{{visitorId}}"
               ]
             },
             "description": "Soft delete a visitor pass. Residents can delete their pass only when status is \"pending\". Admins can delete at any time."
@@ -3882,6 +3944,472 @@
             },
             "description": "### DELETE /api/v1/branches/:id\n**Access**: Private (Admin / Super Admin)\nSoft-deletes the branch record (`deleted_at` timestamp set)."
           }
+        }
+      ]
+    },
+    {
+      "name": "12 Food Menu & Feedback Management",
+      "item": [
+        {
+          "name": "Resident / Admin - Get Food Menu by Date Range",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/food-menu?branch_id={{branchId}}&start_date=2026-11-01&end_date=2026-11-07&meal_type=all&page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "food-menu"
+              ],
+              "query": [
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "description": "Filter by Branch ID (optional for Admin, forced for Resident)"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-11-01",
+                  "description": "Start date (YYYY-MM-DD)"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-11-07",
+                  "description": "End date (YYYY-MM-DD)"
+                },
+                {
+                  "key": "meal_type",
+                  "value": "all",
+                  "description": "all | breakfast | lunch | dinner"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Items per page"
+                }
+              ]
+            },
+            "description": "### GET /api/v1/food-menu\nPrivate (Resident / Admin / Super Admin).\nRetrieve branch food menu organized date-wise and categorized by Breakfast, Lunch, and Dinner.\nSupports single date (?date=YYYY-MM-DD) or range filter (?start_date=...&end_date=...). Residents automatically see their own submitted meal ratings."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Create Food Menu Item (Date-wise)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "type": "text",
+                  "description": "Branch ID (optional, defaults to admin branch)"
+                },
+                {
+                  "key": "menu_date",
+                  "value": "2026-11-01",
+                  "type": "text",
+                  "description": "Menu Calendar Date (YYYY-MM-DD)"
+                },
+                {
+                  "key": "meal_type",
+                  "value": "breakfast",
+                  "type": "text",
+                  "description": "breakfast | lunch | dinner"
+                },
+                {
+                  "key": "name",
+                  "value": "Aloo Paratha with Curd & Pickle",
+                  "type": "text",
+                  "description": "Food item title"
+                },
+                {
+                  "key": "description",
+                  "value": "Freshly prepared wheat flatbread stuffed with spiced potatoes",
+                  "type": "text",
+                  "description": "Optional description"
+                },
+                {
+                  "key": "start_time",
+                  "value": "08:00 AM",
+                  "type": "text",
+                  "description": "Serving start time"
+                },
+                {
+                  "key": "end_time",
+                  "value": "10:30 AM",
+                  "type": "text",
+                  "description": "Serving end time"
+                },
+                {
+                  "key": "included_items",
+                  "value": "Hot Tea, Fresh Curd, Mixed Pickle",
+                  "type": "text",
+                  "description": "Included side items"
+                },
+                {
+                  "key": "is_active",
+                  "value": "true",
+                  "type": "text",
+                  "description": "Active status"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": [],
+                  "description": "Optional food photo (max 5MB)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/food-menu",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "food-menu"
+              ]
+            },
+            "description": "### POST /api/v1/food-menu\nPrivate (Admin / Super Admin).\nCreate a single food menu entry for a specific branch and date.\nSupports multipart/form-data with image upload."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const menuId = body.id || (body.data && body.data.id);",
+                  "if (body.success && menuId) {",
+                  "    pm.collectionVariables.set('menuId', String(menuId));",
+                  "    pm.collectionVariables.set('menu_id', String(menuId));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin - Get Food Menu Item By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/food-menu/{{menuId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "food-menu",
+                "{{menuId}}"
+              ]
+            },
+            "description": "### GET /api/v1/food-menu/:id\nPrivate (Admin / Super Admin / Resident).\nRetrieve details for a single food menu item by ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Update Food Menu Item",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "menu_date",
+                  "value": "2026-11-01",
+                  "type": "text"
+                },
+                {
+                  "key": "meal_type",
+                  "value": "breakfast",
+                  "type": "text"
+                },
+                {
+                  "key": "name",
+                  "value": "Aloo Paratha with Mint Chutney",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Updated recipe with fresh mint chutney",
+                  "type": "text"
+                },
+                {
+                  "key": "start_time",
+                  "value": "08:00 AM",
+                  "type": "text"
+                },
+                {
+                  "key": "end_time",
+                  "value": "10:30 AM",
+                  "type": "text"
+                },
+                {
+                  "key": "included_items",
+                  "value": "Tea, Mint Chutney, Curd",
+                  "type": "text"
+                },
+                {
+                  "key": "is_active",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": [],
+                  "description": "Optional image to replace existing photo"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/food-menu/{{menuId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "food-menu",
+                "{{menuId}}"
+              ]
+            },
+            "description": "### PUT /api/v1/food-menu/:id\nPrivate (Admin / Super Admin).\nUpdate menu item details, serving times, active status, or photo."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Delete Food Menu Item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/food-menu/{{menuId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "food-menu",
+                "{{menuId}}"
+              ]
+            },
+            "description": "### DELETE /api/v1/food-menu/:id\nPrivate (Admin / Super Admin).\nSoft delete a menu item by ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Resident - Submit or Update Meal Feedback",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "rating",
+                  "value": "5",
+                  "type": "text",
+                  "description": "Required: Rating from 1 to 5 stars"
+                },
+                {
+                  "key": "comments",
+                  "value": "Hot parathas and fresh curd, loved the taste!",
+                  "type": "text",
+                  "description": "Optional comments (max 300 characters)"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": [],
+                  "description": "Optional feedback photo (JPG/PNG/WebP, max 5MB)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/food-menu/{{menuId}}/feedback",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "food-menu",
+                "{{menuId}}",
+                "feedback"
+              ]
+            },
+            "description": "### POST /api/v1/food-menu/:id/feedback\nCanonical RESTful endpoint for residents to submit meal feedback (rating 1-5, optional comments max 300 chars, optional image file) for menu item ID.\n\n**Supported Alias Paths**:\n- POST /api/v1/food-menu/1/feedback (Standard REST sub-resource URL)\n- POST /api/v1/food-menu/feedback/1 (Supported alias with menu ID at end)\n- POST /api/v1/food-menu/feedback (Supported alias with menu_id in form-data or JSON body)\n\n**Server Auto-population**:\n- menu_id: Populated directly from URL param / body\n- meal_type, \branch_id, pg_id: Derived automatically from \food_menus item\n- \feedback_date: Current server timestamp\n- **Deduplication**: If this resident already reviewed this menu item, updates existing record automatically."
+          },
+          "response": []
+        },
+        {
+          "name": "Resident / Admin - Get Feedback For Menu Item",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/food-menu/{{menuId}}/feedback",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "food-menu",
+                "{{menuId}}",
+                "feedback"
+              ]
+            },
+            "description": "### GET /api/v1/food-menu/:id/feedback\nGet feedback for a specific food menu item.\n- **Resident**: Retrieves their own submitted feedback for this menu item (or null).\n- **Admin / Super Admin**: Retrieves feedback statistics (average rating, count) and all resident reviews for this menu item.\n\n**Supported Alias**:\n- GET /api/v1/food-menu/feedback/1"
+          },
+          "response": []
+        },
+        {
+          "name": "Resident - View My Feedback History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/food-menu/feedback/my?start_date=2026-11-01&end_date=2026-11-07&page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "food-menu",
+                "feedback",
+                "my"
+              ],
+              "query": [
+                {
+                  "key": "start_date",
+                  "value": "2026-11-01"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-11-07"
+                },
+                {
+                  "key": "meal_type",
+                  "value": "all"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "### GET /api/v1/food-menu/feedback/my\nPrivate (Resident).\nList resident own meal ratings and comments history."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - View Branch Food Feedback Logs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/food-menu/feedback?branch_id={{branchId}}&start_date=2026-11-01&end_date=2026-11-07&meal_type=all&page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "food-menu",
+                "feedback"
+              ],
+              "query": [
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-11-01"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-11-07"
+                },
+                {
+                  "key": "meal_type",
+                  "value": "all"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "### GET /api/v1/food-menu/feedback\nPrivate (Admin / Super Admin).\nView resident feedback ratings, comments, and uploaded photos for their branch."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - View Food Feedback Ratings Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/food-menu/feedback/summary?branch_id={{branchId}}&start_date=2026-11-01&end_date=2026-11-07",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "food-menu",
+                "feedback",
+                "summary"
+              ],
+              "query": [
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-11-01"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-11-07"
+                }
+              ]
+            },
+            "description": "### GET /api/v1/food-menu/feedback/summary\nPrivate (Admin / Super Admin).\nView aggregate ratings statistics: overall average rating, total reviews, meal-wise breakdown, and star rating percentages."
+          },
+          "response": []
         }
       ]
     }
