@@ -1488,7 +1488,7 @@
                 {
                   "key": "status",
                   "value": "",
-                  "description": "[OPTIONAL] vacant | occupied | maintenance | out_of_service",
+                  "description": "[OPTIONAL] Filter rooms by status: \"available\" (fetches rooms with free beds that are not in maintenance/out of service), \"vacant\", \"occupied\", \"maintenance\", \"out_of_service\".",
                   "disabled": true
                 },
                 {
@@ -1517,7 +1517,7 @@
                 }
               ]
             },
-            "description": "### List Rooms\n\nRetrieves paginated room listings with comprehensive filters.\n\n---\n#### Query Parameters:\n- `branch_id` [OPTIONAL] Filter rooms by Branch ID.\n- `building_id` [OPTIONAL] Filter rooms by Building ID.\n- `floor_id` [OPTIONAL] Filter rooms by Floor ID.\n- `room_type` [OPTIONAL] Filter by type (e.g. \"Single\", \"Double Sharing\").\n- `status` [OPTIONAL] Filter by status (`vacant` | `occupied` | `maintenance` | `out_of_service`).\n- `search` [OPTIONAL] Search room number or building name.\n- `page` [OPTIONAL] Page number (Default: 1).\n- `limit` [OPTIONAL] Limit per page (Default: 10).\n- `pg_id` [OPTIONAL] PG facility ID."
+            "description": "### List Rooms\n\nRetrieves paginated room listings with comprehensive filters including room availability.\n\n---\n#### Query Parameters:\n- `status` [OPTIONAL] Filter by status:\n  - **`available`**: Returns all rooms with free bed capacity (`available_beds > 0`) that are ready for resident allocation or room shift.\n  - **`vacant`**: Fully unoccupied rooms.\n  - **`occupied`**: Fully occupied rooms.\n  - **`maintenance`**: Under maintenance.\n  - **`out_of_service`**: Out of service.\n- `room_type` [OPTIONAL] Filter by room type (e.g. \"single\", \"double\", \"Double Sharing\", \"triple\").\n- `branch_id` [OPTIONAL] Filter rooms by Branch ID. Auto-scoped to resident's branch when called with Resident token.\n- `building_id` [OPTIONAL] Filter rooms by Building ID.\n- `floor_id` [OPTIONAL] Filter rooms by Floor ID.\n- `search` [OPTIONAL] Search room number, building name, or resident occupant name.\n- `page` [OPTIONAL] Page number (Default: 1).\n- `limit` [OPTIONAL] Limit per page (Default: 10).\n- `pg_id` [OPTIONAL] PG facility ID.\n\n---\n#### Returned Fields (Per Room):\n- `capacity`: Total bed count.\n- `current_occupants`: Current number of active residents.\n- `available_beds`: Remaining free beds.\n- `is_available`: Boolean flag (`true` if room has free beds and is active).\n- `sharing_label`: Formatted sharing badge (e.g. \"Double Sharing\").\n- `display_label`: Formatted dropdown text (e.g. \"Room A-201 (Single Sharing) - 1 beds available\").\n- `image_url`: Full URL to room photo."
           }
         },
         {
@@ -5207,6 +5207,259 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "15 Room Shift Requests (Room Module)",
+      "item": [
+        {
+          "name": "Admin - Get Room Shift KPI Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/rooms/shifts/stats?branch_id={{branchId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rooms",
+                "shifts",
+                "stats"
+              ],
+              "query": [
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "description": "[OPTIONAL] Branch ID filter or \"all\"."
+                }
+              ]
+            },
+            "description": "### Admin - Get Room Shift KPI Statistics (Image 2 Top Cards)\n\nRetrieves high-level statistical counts displayed on the Room Shift dashboard cards:\n- `total_requests`\n- `approved`\n- `pending`\n- `rejected`\n\n#### Permissions:\n- Admin / Super Admin only."
+          }
+        },
+        {
+          "name": "Resident / Admin - Create Room Shift Request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var res = pm.response.json();",
+                  "    if (res.data && res.data.id) {",
+                  "        pm.collectionVariables.set(\"roomShiftId\", res.data.id);",
+                  "        pm.environment.set(\"roomShiftId\", res.data.id);",
+                  "        console.log(\"Saved roomShiftId:\", res.data.id);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resident_id\": 3,\n  \"reason\": \"Better view\",\n  \"preferred_room_type\": \"Double Sharing\",\n  \"requested_room_id\": 2,\n  \"expected_move_date\": \"2026-11-15\",\n  \"additional_notes\": \"Looking for a quiet room on the second floor facing the garden\",\n  \"status\": \"pending\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/rooms/shifts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rooms",
+                "shifts"
+              ]
+            },
+            "description": "### Resident / Admin - Create Room Shift Request (Unified API)\n\nA single unified endpoint to submit and register room shift requests. Powers both:\n1. **Resident Mobile App (\"Request Room Shift\")**: Image 1 screen where residents request room shifts.\n2. **Admin Web Portal (\"Add New Room Shift Request\")**: Image 3 screen where admins directly register room shift requests on behalf of a resident.\n\n---\n\n#### Request Details:\n- **Method**: `POST`\n- **URL**: `{{baseUrl}}/api/v1/rooms/shifts`\n- **Authentication**: Bearer Access Token (`Resident`, `Admin`, or `Super Admin`)\n- **Content-Type**: `application/json`\n\n---\n\n#### JSON Payload Fields Reference:\n\n| Field Name | Type | Requirement | Default | Description / UI Mapping |\n| :--- | :---: | :---: | :---: | :--- |\n| **`reason`** | String | **REQUIRED (All Roles)** | - | Shift reason (Min: 2, Max: 150 chars). Selected from dropdown or typed. |\n| **`resident_id`** | Integer | **REQUIRED for Admin**<br>*(Omit for Resident)* | - | The ID of the resident shifting rooms. When called with a **Resident token**, this is automatically inferred from the active stay and is ignored if provided. |\n| **`preferred_room_type`** | String | **REQUIRED for Resident**<br>*(Optional for Admin)* | `\"Double Sharing\"` | Selected room sharing type pill: `\"Double Sharing\"`, `\"Triple Sharing\"`, `\"Four Sharing\"`, `\"Single Sharing\"`. |\n| **`expected_move_date`** | String (Date) | **REQUIRED for Resident**<br>*(Optional for Admin)* | - | Expected moving date in `YYYY-MM-DD` format (e.g., `\"2026-11-15\"`). Selected via mobile date picker. |\n| **`requested_room_id`** | Integer | Optional | `null` | Target room ID selected from the available rooms dropdown (`GET /api/v1/rooms?status=available`). Can also be passed as `preferred_room_id`. |\n| **`additional_notes`** | String | Optional | `null` | Additional notes or preferences (Max: 500 characters). Can also be passed as `notes`. |\n| **`status`** | String | Optional (Admin only) | `\"pending\"` | Initial status of the request: `\"pending\"`, `\"approved\"`, or `\"rejected\"`. Residents can only create with `\"pending\"`. |\n\n---\n\n#### Usage Scenarios:\n\n##### 1. Resident Mobile Flow (Image 1):\n```json\n{\n  \"preferred_room_type\": \"Double Sharing\",\n  \"requested_room_id\": 2,\n  \"reason\": \"Better view\",\n  \"expected_move_date\": \"2026-11-15\",\n  \"additional_notes\": \"Looking for a quiet room on the second floor facing the garden\"\n}\n```\n*Note: `resident_id`, `current_room_id`, `pg_id`, `branch_id`, and `stay_id` are automatically locked to the resident's active stay in the backend.*\n\n##### 2. Admin Web Portal Flow (Image 3):\n```json\n{\n  \"resident_id\": 3,\n  \"requested_room_id\": 2,\n  \"reason\": \"Better view\",\n  \"status\": \"pending\",\n  \"expected_move_date\": \"2026-11-15\",\n  \"additional_notes\": \"Admin initiated room transfer\"\n}\n```\n\n---\n\n#### Business Rules & Validation:\n1. **Same Room Guard**: Cannot request shifting to the resident's current active room (returns `400 Bad Request`).\n2. **Duplicate Pending Guard**: Residents can only have one active `pending` room shift request at a time (returns `409 Conflict`).\n3. **Branch Boundary Guard**: The target room must belong to the same PG branch as the resident's current stay."
+          }
+        },
+        {
+          "name": "Resident / Admin - List Room Shift Requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/rooms/shifts?branch_id={{branchId}}&status=all&search=&page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rooms",
+                "shifts"
+              ],
+              "query": [
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "description": "[OPTIONAL for Admin, IGNORED for Resident] Branch ID filter."
+                },
+                {
+                  "key": "status",
+                  "value": "all",
+                  "description": "[OPTIONAL] Enum: all, pending, approved, rejected."
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "[OPTIONAL] Search by resident name, current room no, requested room no, or reason."
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "[OPTIONAL] Page number (default: 1)."
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "[OPTIONAL] Page size limit (default: 10)."
+                }
+              ]
+            },
+            "description": "### List Room Shift Requests (Image 2 Web Table)\n\nDisplays paginated table of room shift requests:\n- **For Admin**: Returns requests across all PG branches or filtered by `branch_id`.\n- **For Resident**: Scoped strictly to their own submitted room shifts.\n\n#### Permissions:\n- Resident / Admin / Super Admin."
+          }
+        },
+        {
+          "name": "Resident / Admin - Get Room Shift Request Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/rooms/shifts/{{shiftId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rooms",
+                "shifts",
+                "{{shiftId}}"
+              ]
+            },
+            "description": "### Get Room Shift Request Details by ID\n\nRetrieves full metadata of a specific room shift record, including resident info, current room, requested room, reason, timeline, review status, and admin notes.\n\n#### Path Parameters:\n- `id` **[REQUIRED]**: Room shift request ID.\n\n#### Permissions:\n- Request owner (Resident) or Admin."
+          }
+        },
+        {
+          "name": "Admin - Update Room Shift Status (Approve / Reject)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\",\n  \"assigned_room_id\": 1,\n  \"admin_notes\": \"Approved by Branch Manager. Key issued.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/rooms/shifts/{{shiftId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rooms",
+                "shifts",
+                "{{shiftId}}",
+                "status"
+              ]
+            },
+            "description": "### Admin - Approve or Reject Room Shift Request\n\nProcesses a pending room shift request:\n- **On Approval (`status = 'approved'`)**:\n  - Automatically updates the resident's active stay (`resident_pg_stays.room_id`).\n  - Vacates old room and increments new room occupancy.\n  - Syncs branch real-time room statistics.\n  - Logs reviewer ID and approval timestamp.\n- **On Rejection (`status = 'rejected'`)**:\n  - Sets status to rejected and stores `admin_notes` without changing room allocation.\n\n#### Path Parameters:\n- `id` **[REQUIRED]**: Room shift request ID.\n\n#### Request Body (JSON):\n- `status` **[REQUIRED]**: `approved` or `rejected`.\n- `assigned_room_id` **[OPTIONAL]**: Override or confirm target room ID for approval.\n- `admin_notes` **[OPTIONAL]**: Admin comments or instructions (max 1000 characters).\n\n#### Permissions:\n- Admin / Super Admin only."
+          }
+        },
+        {
+          "name": "Resident / Admin - Cancel or Delete Room Shift Request",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/rooms/shifts/{{shiftId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rooms",
+                "shifts",
+                "{{shiftId}}"
+              ]
+            },
+            "description": "### Cancel or Delete Room Shift Request\n\nSoft-deletes a room shift request.\n- Residents can cancel their own pending requests.\n- Admins can delete requests at any time.\n\n#### Path Parameters:\n- `id` **[REQUIRED]**: Room shift request ID.\n\n#### Permissions:\n- Request owner (Resident) or Admin."
+          }
+        }
+      ],
+      "description": "### 15 Room Shift Requests (Integrated Under Room Module)\n\nManages resident room shift requests (Screen 1 Mobile screen) and admin review, approval, table management, and atomic room transfers (Screen 2 & Screen 3 Admin Portal) directly under the Room Module (/api/v1/rooms/shifts)."
     }
   ]
 }

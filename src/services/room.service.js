@@ -1,6 +1,6 @@
 import db from '../config/db.js';
 import { AppError } from '../utils/apiResponse.js';
-import { HTTP_STATUS } from '../constants/index.js';
+import { HTTP_STATUS, ROLES } from '../constants/index.js';
 import { buildFileUrl } from '../utils/url.js';
 import { syncBranchStats, decrementBranchRoomsOnDelete } from './branch.service.js';
 
@@ -11,11 +11,34 @@ import { syncBranchStats, decrementBranchRoomsOnDelete } from './branch.service.
  */
 const formatRoom = (room) => {
   if (!room) return null;
+  const capacity = Number(room.capacity) || 1;
+  const occupants = Number(room.current_occupants) || 0;
+  const availableBeds = Math.max(0, capacity - occupants);
+
+  const sharingLabel = room.room_type
+    ? room.room_type
+        .split('_')
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ') + (room.room_type.toLowerCase().includes('sharing') ? '' : ' Sharing')
+    : 'Standard';
+
   return {
     ...room,
+    capacity,
+    current_occupants: occupants,
+    available_beds: availableBeds,
+    is_available: availableBeds > 0 && room.status !== 'maintenance' && room.status !== 'out_of_service',
+    sharing_label: sharingLabel,
+    display_label: `Room ${room.room_no} (${sharingLabel}) - ${availableBeds} beds available`,
     image_url: buildFileUrl('rooms', room.image),
   };
 };
+
+/**
+ * ============================================================================
+ * CORE ROOM MANAGEMENT SERVICE
+ * ============================================================================
+ */
 
 /**
  * Create a new room in a PG facility (branch).
@@ -162,94 +185,88 @@ export const findAll = async (options = {}) => {
         qb.where('rooms.pg_id', pg_id);
       }
       if (branch_id) {
-        qb.where('rooms.branch_id', Number(branch_id));
+        qb.where('rooms.branch_id', branch_id);
       }
       if (status) {
-        qb.where('rooms.status', status);
+        const normStatus = status.toLowerCase();
+        if (normStatus === 'available') {
+          qb.whereNotIn('rooms.status', ['maintenance', 'out_of_service'])
+            .where((availQb) => {
+              availQb.where('rooms.status', 'vacant')
+                .orWhereRaw('(SELECT COUNT(id) FROM resident_pg_stays WHERE resident_pg_stays.room_id = rooms.id AND resident_pg_stays.status = ? AND resident_pg_stays.deleted_at IS NULL) < rooms.capacity', ['active']);
+            });
+        } else {
+          qb.where('rooms.status', normStatus);
+        }
       }
       if (room_type) {
-        qb.where('rooms.room_type', String(room_type).toLowerCase());
+        const normType = room_type.toLowerCase().replace(/\s+sharing/i, '').trim();
+        qb.where((typeQb) => {
+          typeQb.where('rooms.room_type', 'like', `%${normType}%`)
+            .orWhere('rooms.room_type', room_type.toLowerCase());
+        });
       }
       if (building_id) {
-        qb.where('rooms.building_id', Number(building_id));
+        qb.where('rooms.building_id', building_id);
       }
       if (floor_id) {
-        qb.where('rooms.floor_id', Number(floor_id));
+        qb.where('rooms.floor_id', floor_id);
       }
       if (search) {
-        qb.where((search_qb) => {
-          search_qb
-            .where('rooms.room_no', 'like', `%${search}%`)
-            .orWhere('occupant.name', 'like', `%${search}%`)
-            .orWhere('buildings.name', 'like', `%${search}%`)
-            .orWhere('branches.name', 'like', `%${search}%`)
-            .orWhere('pgs.name', 'like', `%${search}%`);
+        const search_term = `%${search}%`;
+        qb.where((search_builder) => {
+          search_builder
+            .where('rooms.room_no', 'like', search_term)
+            .orWhere('buildings.name', 'like', search_term)
+            .orWhere('occupant.name', 'like', search_term);
         });
       }
     });
 
-  // Count total records
-  const count_result = await base_query.clone().count('rooms.id as total').first();
-  const total = count_result ? parseInt(count_result.total, 10) : 0;
+  const [{ total }] = await base_query.clone().countDistinct('rooms.id as total');
 
-  // Fetch paginated rows
-  const raw_rooms = await base_query
+  const rows = await base_query
     .clone()
     .select(
-      'rooms.id',
-      'rooms.pg_id',
-      'rooms.branch_id',
-      db.raw('COALESCE(branches.name, pgs.name) as branch_name'),
-      'branches.name as branch_title',
-      'rooms.building_id',
+      'rooms.*',
+      'pgs.name as pg_name',
+      'pgs.owner_id',
+      'branches.name as branch_name',
       'buildings.name as building_name',
-      'rooms.floor_id',
-      'floors.floor_number as floor',
       'floors.name as floor_name',
-      'rooms.room_no',
-      'rooms.room_type',
-      'rooms.capacity',
-      'rooms.size',
-      'rooms.image',
-      'rooms.status',
-      'occupant.name as current_occupant_name',
-      'rooms.created_at',
-      'rooms.updated_at',
-      'rooms.deleted_at'
+      'floors.floor_number',
+      db.raw('COUNT(resident_pg_stays.id) as current_occupants'),
+      db.raw('GROUP_CONCAT(occupant.name SEPARATOR ", ") as current_occupant_name')
     )
-    .orderBy('buildings.name', 'asc')
-    .orderBy('floors.floor_number', 'asc')
-    .orderBy('rooms.room_no', 'asc')
+    .groupBy('rooms.id')
+    .orderBy('rooms.created_at', 'desc')
     .limit(per_page)
     .offset(offset);
 
-  const rooms = raw_rooms.map((r) => formatRoom(r));
+  const rooms = rows.map(formatRoom);
 
   return {
     rooms,
     pagination: {
-      total,
       page: current_page,
       limit: per_page,
-      total_pages: Math.ceil(total / per_page) || 1,
+      total_items: total || 0,
+      total_pages: Math.ceil((total || 0) / per_page),
     },
   };
 };
 
 /**
- * Find single room by ID with dynamic current occupant and image URL.
- * @param {number|string} id - Room primary key
- * @returns {Promise<Object|null>} Room details
+ * Retrieve room details by ID.
+ * @param {number|string} id - Room ID
+ * @returns {Promise<Object>} Formatted room record
  */
 export const findById = async (id) => {
-  const raw_room = await db('rooms')
+  const room = await db('rooms')
     .where('rooms.id', id)
     .whereNull('rooms.deleted_at')
     .join('pgs', (join) => {
       join.on('rooms.pg_id', '=', 'pgs.id').andOnNull('pgs.deleted_at');
-    })
-    .join('users as owner', (join) => {
-      join.on('pgs.owner_id', '=', 'owner.id').andOnNull('owner.deleted_at');
     })
     .leftJoin('branches', (join) => {
       join.on('rooms.branch_id', '=', 'branches.id').andOnNull('branches.deleted_at');
@@ -270,39 +287,27 @@ export const findById = async (id) => {
       join.on('resident_pg_stays.resident_id', '=', 'occupant.id').andOnNull('occupant.deleted_at');
     })
     .select(
-      'rooms.id',
-      'rooms.pg_id',
-      'rooms.branch_id',
-      db.raw('COALESCE(branches.name, pgs.name) as branch_name'),
-      'branches.name as branch_title',
+      'rooms.*',
+      'pgs.name as pg_name',
       'pgs.owner_id',
-      'owner.name as owner_name',
-      'rooms.room_no',
-      'rooms.room_type',
-      'rooms.building_id',
+      'branches.name as branch_name',
       'buildings.name as building_name',
-      'rooms.floor_id',
-      'floors.floor_number as floor',
       'floors.name as floor_name',
-      'rooms.capacity',
-      'rooms.size',
-      'rooms.image',
-      'rooms.status',
-      'occupant.name as current_occupant_name',
-      'rooms.created_at',
-      'rooms.updated_at',
-      'rooms.deleted_at'
+      'floors.floor_number',
+      db.raw('COUNT(resident_pg_stays.id) as current_occupants'),
+      db.raw('GROUP_CONCAT(occupant.name SEPARATOR ", ") as current_occupant_name')
     )
+    .groupBy('rooms.id')
     .first();
 
-  return formatRoom(raw_room);
+  return formatRoom(room);
 };
 
 /**
- * Update an existing room.
+ * Update room details.
  * @param {number|string} id - Room ID
- * @param {Object} data - Updated fields
- * @returns {Promise<Object>} Updated room
+ * @param {Object} data - Update payload
+ * @returns {Promise<Object>} Formatted updated room
  */
 export const update = async (id, data) => {
   const room = await findById(id);
@@ -310,73 +315,91 @@ export const update = async (id, data) => {
     throw new AppError('Room not found', HTTP_STATUS.NOT_FOUND);
   }
 
-  // Check unique room_no if room_no or pg_id is being changed
-  if (data.room_no && data.room_no !== room.room_no) {
-    const target_pg_id = data.pg_id || room.pg_id;
-    const existing = await db('rooms')
-      .where({ pg_id: target_pg_id, room_no: data.room_no })
-      .whereNull('deleted_at')
-      .whereNot({ id })
-      .first();
+  const {
+    room_no,
+    room_type,
+    building_id: input_building_id,
+    floor_id: input_floor_id,
+    capacity,
+    size,
+    image,
+    status,
+    branch_id: input_branch_id,
+  } = data;
 
-    if (existing) {
+  const targetBuildingId = input_building_id !== undefined ? Number(input_building_id) : room.building_id;
+  const targetFloorId = input_floor_id !== undefined ? Number(input_floor_id) : room.floor_id;
+
+  // Validate building if changed
+  if (input_building_id !== undefined) {
+    const building = await db('buildings')
+      .where({ id: targetBuildingId, pg_id: room.pg_id })
+      .whereNull('deleted_at')
+      .first();
+    if (!building) {
+      throw new AppError('Selected building does not exist in this PG facility', HTTP_STATUS.NOT_FOUND);
+    }
+  }
+
+  // Validate floor if changed
+  if (input_floor_id !== undefined || input_building_id !== undefined) {
+    const floor = await db('floors')
+      .where({ id: targetFloorId, building_id: targetBuildingId })
+      .whereNull('deleted_at')
+      .first();
+    if (!floor) {
+      throw new AppError('Selected floor does not exist in this building', HTTP_STATUS.NOT_FOUND);
+    }
+  }
+
+  const branch_id = input_branch_id !== undefined ? Number(input_branch_id) : room.branch_id;
+
+  // Check unique room_no in branch if changed
+  if (room_no && (room_no !== room.room_no || branch_id !== room.branch_id)) {
+    const filter = branch_id ? { branch_id, room_no } : { pg_id: room.pg_id, room_no };
+    const duplicate = await db('rooms')
+      .where(filter)
+      .whereNot('id', id)
+      .whereNull('deleted_at')
+      .first();
+    if (duplicate) {
       throw new AppError(
-        `Room '${data.room_no}' already exists in this PG branch`,
+        `Room '${room_no}' already exists in this branch`,
         HTTP_STATUS.CONFLICT
       );
     }
   }
 
-  const update_payload = {
-    ...(data.pg_id !== undefined && { pg_id: data.pg_id }),
-    ...(data.branch_id !== undefined && { branch_id: Number(data.branch_id) }),
-    ...(data.room_no !== undefined && { room_no: data.room_no }),
-    ...(data.room_type !== undefined && { room_type: String(data.room_type).toLowerCase() }),
-    ...(data.capacity !== undefined && { capacity: Number(data.capacity) }),
-    ...(data.size !== undefined && { size: data.size }),
-    ...(data.image !== undefined && { image: data.image }),
-    ...(data.status !== undefined && { status: data.status }),
-    updated_at: db.fn.now(),
-  };
+  const update_data = {};
+  if (room_no !== undefined) update_data.room_no = room_no;
+  if (room_type !== undefined) update_data.room_type = String(room_type).toLowerCase();
+  if (input_building_id !== undefined) update_data.building_id = targetBuildingId;
+  if (input_floor_id !== undefined) update_data.floor_id = targetFloorId;
+  if (input_branch_id !== undefined) update_data.branch_id = branch_id;
+  if (capacity !== undefined) update_data.capacity = Number(capacity);
+  if (size !== undefined) update_data.size = size;
+  if (image !== undefined) update_data.image = image;
+  if (status !== undefined) update_data.status = status;
 
-  // Handle building_id update
-  if (data.building_id !== undefined) {
-    const bId = Number(data.building_id);
-    const targetPg = data.pg_id || room.pg_id;
-    const b = await db('buildings').where({ id: bId, pg_id: targetPg }).whereNull('deleted_at').first();
-    if (!b) {
-      throw new AppError('Building not found in this PG facility', HTTP_STATUS.NOT_FOUND);
-    }
-    update_payload.building_id = b.id;
+  if (Object.keys(update_data).length > 0) {
+    update_data.updated_at = db.fn.now();
+    await db('rooms').where({ id }).update(update_data);
   }
-
-  // Handle floor_id update
-  if (data.floor_id !== undefined) {
-    const fId = Number(data.floor_id);
-    const targetBuildingId = update_payload.building_id || room.building_id;
-    const f = await db('floors').where({ id: fId, building_id: targetBuildingId }).whereNull('deleted_at').first();
-    if (!f) {
-      throw new AppError('Floor not found in this building', HTTP_STATUS.NOT_FOUND);
-    }
-    update_payload.floor_id = f.id;
-  }
-
-  await db('rooms').where({ id }).whereNull('deleted_at').update(update_payload);
 
   if (room.branch_id) {
     await syncBranchStats(room.branch_id);
   }
-  if (update_payload.branch_id && update_payload.branch_id !== room.branch_id) {
-    await syncBranchStats(update_payload.branch_id);
+  if (branch_id && branch_id !== room.branch_id) {
+    await syncBranchStats(branch_id);
   }
 
   return findById(id);
 };
 
 /**
- * Delete a room by ID (Soft Delete).
+ * Soft delete a room.
  * @param {number|string} id - Room ID
- * @returns {Promise<boolean>}
+ * @returns {Promise<boolean>} Success indicator
  */
 export const remove = async (id) => {
   const room = await findById(id);
@@ -386,12 +409,11 @@ export const remove = async (id) => {
 
   if (room.status === 'occupied') {
     throw new AppError(
-      'Cannot delete an occupied room. Please vacate or relocate resident first.',
+      'Cannot delete room. Room is currently occupied by residents.',
       HTTP_STATUS.BAD_REQUEST
     );
   }
 
-  // Check if room has active resident stays
   const active_stay = await db('resident_pg_stays')
     .where({ room_id: id, status: 'active' })
     .whereNull('deleted_at')
@@ -543,7 +565,515 @@ export const getBuildingsAndFloors = async (options = {}) => {
   });
 };
 
+/**
+ * ============================================================================
+ * ROOM SHIFT REQUEST MANAGEMENT (Integrated Under Room Module)
+ * ============================================================================
+ */
+
+/**
+ * Helper: Resolve PG for admin (1 Admin = 1 PG)
+ */
+const resolveAdminPg = async (user) => {
+  if (user.role === ROLES.SUPER_ADMIN) {
+    const pg = await db('pgs').whereNull('deleted_at').orderBy('id', 'asc').first();
+    if (!pg) throw new AppError('No PG property found', HTTP_STATUS.NOT_FOUND);
+    return pg;
+  }
+
+  const pg = await db('pgs').where({ owner_id: user.id }).whereNull('deleted_at').first();
+  if (!pg) {
+    throw new AppError('No active PG property found under your account', HTTP_STATUS.FORBIDDEN);
+  }
+  return pg;
+};
+
+/**
+ * Helper: Formatter for Room Shift record
+ */
+const formatRoomShift = (row) => {
+  if (!row) return null;
+
+  return {
+    id: Number(row.id),
+    pg_id: Number(row.pg_id),
+    branch_id: Number(row.branch_id),
+    branch_name: row.branch_name || null,
+    stay_id: row.stay_id ? Number(row.stay_id) : null,
+    resident: {
+      id: Number(row.resident_id),
+      name: row.resident_name,
+      email: row.resident_email,
+      phone: row.resident_phone,
+      profile_photo: row.resident_photo || null,
+      photo_url: buildFileUrl('users', row.resident_photo),
+    },
+    current_room: {
+      id: Number(row.current_room_id),
+      room_no: row.current_room_no,
+      room_type: row.current_room_type,
+      building_name: row.current_building_name || null,
+      floor_number: row.current_floor_number !== null ? Number(row.current_floor_number) : null,
+    },
+    requested_room: row.requested_room_id
+      ? {
+          id: Number(row.requested_room_id),
+          room_no: row.requested_room_no,
+          room_type: row.requested_room_type,
+          building_name: row.requested_building_name || null,
+          floor_number: row.requested_floor_number !== null ? Number(row.requested_floor_number) : null,
+        }
+      : null,
+    preferred_room_type: row.preferred_room_type || null,
+    reason: row.reason,
+    additional_notes: row.additional_notes || null,
+    notes: row.additional_notes || null,
+    expected_move_date: row.expected_move_date ? String(row.expected_move_date).split('T')[0] : null,
+    status: row.status,
+    reviewed_by: row.reviewed_by ? Number(row.reviewed_by) : null,
+    reviewer_name: row.reviewer_name || null,
+    admin_notes: row.admin_notes || null,
+    reviewed_at: row.reviewed_at,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+};
+
+/**
+ * Base SQL query builder for Room Shift Requests with standard joins
+ */
+const baseShiftQuery = () => {
+  return db('room_shift_requests')
+    .whereNull('room_shift_requests.deleted_at')
+    .join('users as resident', 'room_shift_requests.resident_id', 'resident.id')
+    .join('branches', 'room_shift_requests.branch_id', 'branches.id')
+    .join('rooms as current_room', 'room_shift_requests.current_room_id', 'current_room.id')
+    .leftJoin('buildings as current_bld', 'current_room.building_id', 'current_bld.id')
+    .leftJoin('floors as current_flr', 'current_room.floor_id', 'current_flr.id')
+    .leftJoin('rooms as requested_room', 'room_shift_requests.requested_room_id', 'requested_room.id')
+    .leftJoin('buildings as req_bld', 'requested_room.building_id', 'req_bld.id')
+    .leftJoin('floors as req_flr', 'requested_room.floor_id', 'req_flr.id')
+    .leftJoin('users as reviewer', 'room_shift_requests.reviewed_by', 'reviewer.id')
+    .select(
+      'room_shift_requests.*',
+      'branches.name as branch_name',
+      'resident.name as resident_name',
+      'resident.email as resident_email',
+      'resident.phone as resident_phone',
+      'resident.profile_photo as resident_photo',
+      'current_room.room_no as current_room_no',
+      'current_room.room_type as current_room_type',
+      'current_bld.name as current_building_name',
+      'current_flr.floor_number as current_floor_number',
+      'requested_room.room_no as requested_room_no',
+      'requested_room.room_type as requested_room_type',
+      'req_bld.name as requested_building_name',
+      'req_flr.floor_number as requested_floor_number',
+      'reviewer.name as reviewer_name'
+    );
+};
+
+/**
+ * Submit / Create Room Shift Request (Image 1 Mobile & Image 3 Web Form)
+ * @param {Object} data - Request payload
+ * @param {Object} user - Logged in user
+ * @returns {Promise<Object>} Created room shift request
+ */
+export const createShift = async (data, user) => {
+  let pgId;
+  let branchId;
+  let residentId;
+  let currentRoomId;
+  let stayId;
+  let initialStatus = 'pending';
+
+  if (user.role === ROLES.RESIDENT) {
+    residentId = user.id;
+
+    const activeStay = await db('resident_pg_stays')
+      .where({ resident_id: residentId, status: 'active' })
+      .whereNull('deleted_at')
+      .first();
+
+    if (!activeStay) {
+      throw new AppError('Cannot submit room shift request without an active PG stay', HTTP_STATUS.BAD_REQUEST);
+    }
+
+    pgId = activeStay.pg_id;
+    branchId = activeStay.branch_id;
+    currentRoomId = activeStay.room_id;
+    stayId = activeStay.id;
+
+    const requestedRoomId = data.requested_room_id
+      ? Number(data.requested_room_id)
+      : data.preferred_room_id
+      ? Number(data.preferred_room_id)
+      : null;
+
+    if (requestedRoomId && requestedRoomId === currentRoomId) {
+      throw new AppError('Requested room cannot be the same as the resident current room', HTTP_STATUS.BAD_REQUEST);
+    }
+
+    const pendingRequest = await db('room_shift_requests')
+      .where({ resident_id: residentId, status: 'pending' })
+      .whereNull('deleted_at')
+      .first();
+
+    if (pendingRequest) {
+      throw new AppError(
+        'You already have a pending room shift request. Please wait for administration to review it.',
+        HTTP_STATUS.CONFLICT
+      );
+    }
+  } else {
+    // Admin Direct Creation Flow (Image 3)
+    residentId = Number(data.resident_id);
+
+    const resident = await db('users')
+      .where({ id: residentId, role: ROLES.RESIDENT })
+      .whereNull('deleted_at')
+      .first();
+
+    if (!resident) {
+      throw new AppError('Resident not found', HTTP_STATUS.NOT_FOUND);
+    }
+
+    const activeStay = await db('resident_pg_stays')
+      .where({ resident_id: residentId, status: 'active' })
+      .whereNull('deleted_at')
+      .orderBy('id', 'desc')
+      .first();
+
+    if (!activeStay) {
+      throw new AppError('Selected resident does not have an active stay record in any branch', HTTP_STATUS.BAD_REQUEST);
+    }
+
+    pgId = activeStay.pg_id;
+    branchId = activeStay.branch_id;
+    currentRoomId = activeStay.room_id;
+    stayId = activeStay.id;
+
+    if (data.status && ['pending', 'approved', 'rejected'].includes(data.status.toLowerCase())) {
+      initialStatus = data.status.toLowerCase();
+    }
+  }
+
+  const requestedRoomId = data.requested_room_id
+    ? Number(data.requested_room_id)
+    : data.preferred_room_id
+    ? Number(data.preferred_room_id)
+    : null;
+
+  if (requestedRoomId && requestedRoomId === currentRoomId) {
+    throw new AppError('Requested room cannot be the same as the resident current room', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  if (requestedRoomId) {
+    const requestedRoom = await db('rooms')
+      .where({ id: requestedRoomId, branch_id: branchId })
+      .whereNull('deleted_at')
+      .first();
+
+    if (!requestedRoom) {
+      throw new AppError('Requested room not found in the resident branch', HTTP_STATUS.NOT_FOUND);
+    }
+  }
+
+  const preferredRoomType = data.preferred_room_type || 'Double Sharing';
+  const reason = data.reason;
+  const additionalNotes = data.additional_notes || data.notes || null;
+  const expectedMoveDate = data.expected_move_date || null;
+
+  const [id] = await db('room_shift_requests').insert({
+    pg_id: pgId,
+    branch_id: branchId,
+    stay_id: stayId,
+    resident_id: residentId,
+    current_room_id: currentRoomId,
+    requested_room_id: requestedRoomId,
+    preferred_room_type: preferredRoomType,
+    reason,
+    additional_notes: additionalNotes,
+    expected_move_date: expectedMoveDate,
+    status: initialStatus,
+    reviewed_by: user.role !== ROLES.RESIDENT ? user.id : null,
+    reviewed_at: initialStatus !== 'pending' ? db.fn.now() : null,
+  });
+
+  return await findShiftById(id, user);
+};
+
+/**
+ * List Room Shift Requests with Filters & Pagination (Image 2 Web Table)
+ * @param {Object} user - Logged in user
+ * @param {Object} query - Query parameters
+ * @returns {Promise<{requests: Array<Object>, pagination: Object}>}
+ */
+export const findAllShifts = async (user, query = {}) => {
+  const page = Math.max(1, parseInt(query.page, 10) || 1);
+  const limit = Math.max(1, parseInt(query.limit, 10) || 10);
+  const offset = (page - 1) * limit;
+
+  const base = baseShiftQuery();
+
+  if (user.role === ROLES.RESIDENT) {
+    base.where('room_shift_requests.resident_id', user.id);
+  } else {
+    const adminPg = await resolveAdminPg(user);
+    base.where('room_shift_requests.pg_id', adminPg.id);
+
+    if (query.branch_id && query.branch_id !== 'all') {
+      base.where('room_shift_requests.branch_id', Number(query.branch_id));
+    }
+  }
+
+  if (query.status && query.status !== 'all') {
+    base.where('room_shift_requests.status', query.status.toLowerCase());
+  }
+
+  if (query.search) {
+    const term = `%${query.search.trim()}%`;
+    base.where(function () {
+      this.where('resident.name', 'like', term)
+        .orWhere('current_room.room_no', 'like', term)
+        .orWhere('requested_room.room_no', 'like', term)
+        .orWhere('room_shift_requests.reason', 'like', term);
+    });
+  }
+
+  const [{ total }] = await base.clone().clearSelect().count('room_shift_requests.id as total');
+
+  const rows = await base
+    .clone()
+    .orderBy('room_shift_requests.id', 'desc')
+    .limit(limit)
+    .offset(offset);
+
+  return {
+    requests: rows.map(formatRoomShift),
+    pagination: {
+      page,
+      limit,
+      total_items: Number(total) || 0,
+      total_pages: Math.ceil((Number(total) || 0) / limit),
+    },
+  };
+};
+
+/**
+ * Get Room Shift Request Details by ID
+ * @param {number} id - Request ID
+ * @param {Object} user - Logged in user
+ * @returns {Promise<Object>} Request details
+ */
+export const findShiftById = async (id, user) => {
+  const row = await baseShiftQuery()
+    .where('room_shift_requests.id', id)
+    .first();
+
+  if (!row) {
+    throw new AppError('Room shift request not found', HTTP_STATUS.NOT_FOUND);
+  }
+
+  if (user.role === ROLES.RESIDENT && row.resident_id !== user.id) {
+    throw new AppError('Access denied to this room shift request', HTTP_STATUS.FORBIDDEN);
+  }
+
+  if (user.role === ROLES.ADMIN) {
+    const adminPg = await resolveAdminPg(user);
+    if (row.pg_id !== adminPg.id) {
+      throw new AppError('Access denied to this property room shift request', HTTP_STATUS.FORBIDDEN);
+    }
+  }
+
+  return formatRoomShift(row);
+};
+
+/**
+ * Get Room Shift KPI Statistics (Image 2 Top Cards: Total Requests, Approved, Pending, Rejected)
+ * @param {Object} user - Logged in user
+ * @param {Object} query - Query parameters (branch_id)
+ * @returns {Promise<Object>} KPI statistics
+ */
+export const getShiftStats = async (user, query = {}) => {
+  const adminPg = await resolveAdminPg(user);
+  let branchId = query.branch_id && query.branch_id !== 'all' ? Number(query.branch_id) : null;
+
+  const qb = db('room_shift_requests')
+    .where('room_shift_requests.pg_id', adminPg.id)
+    .whereNull('room_shift_requests.deleted_at');
+
+  if (branchId) {
+    qb.where('room_shift_requests.branch_id', branchId);
+  }
+
+  const [row] = await qb.select(
+    db.raw('COUNT(room_shift_requests.id) as total_requests'),
+    db.raw("SUM(CASE WHEN room_shift_requests.status = 'approved' THEN 1 ELSE 0 END) as approved"),
+    db.raw("SUM(CASE WHEN room_shift_requests.status = 'pending' THEN 1 ELSE 0 END) as pending"),
+    db.raw("SUM(CASE WHEN room_shift_requests.status = 'rejected' THEN 1 ELSE 0 END) as rejected")
+  );
+
+  return {
+    pg_id: adminPg.id,
+    branch_id: branchId,
+    total_requests: Number(row?.total_requests || 0),
+    total: Number(row?.total_requests || 0),
+    approved: Number(row?.approved || 0),
+    pending: Number(row?.pending || 0),
+    rejected: Number(row?.rejected || 0),
+  };
+};
+
+/**
+ * Helper: Execute room transfer and sync occupancy atomically
+ */
+const executeRoomTransfer = async (requestId, targetRoomId, stay, user, adminNotes = null) => {
+  const oldRoomId = stay.room_id;
+
+  await db.transaction(async (trx) => {
+    // 1. Verify target room exists in branch
+    const targetRoom = await trx('rooms')
+      .where({ id: targetRoomId, branch_id: stay.branch_id })
+      .whereNull('deleted_at')
+      .first();
+
+    if (!targetRoom) {
+      throw new AppError('Target room not found in the assigned branch', HTTP_STATUS.NOT_FOUND);
+    }
+
+    // 2. Transfer stay to new room
+    await trx('resident_pg_stays')
+      .where({ id: stay.id })
+      .update({
+        room_id: targetRoomId,
+        notes: stay.notes ? `${stay.notes} | Shifted from Room ${oldRoomId} to ${targetRoomId}` : `Shifted from Room ${oldRoomId} to ${targetRoomId}`,
+        updated_at: db.fn.now(),
+      });
+
+    // 3. Update old room status if now vacant
+    const oldRemaining = await trx('resident_pg_stays')
+      .where({ room_id: oldRoomId, status: 'active' })
+      .whereNull('deleted_at')
+      .first();
+
+    if (!oldRemaining) {
+      await trx('rooms').where({ id: oldRoomId }).update({ status: 'vacant', updated_at: db.fn.now() });
+    }
+
+    // 4. Update target room status
+    const [{ count: targetActive }] = await trx('resident_pg_stays')
+      .where({ room_id: targetRoomId, status: 'active' })
+      .whereNull('deleted_at')
+      .count('id as count');
+
+    const targetCapacity = Number(targetRoom.capacity) || 1;
+    const newStatus = Number(targetActive) >= targetCapacity ? 'occupied' : 'vacant';
+
+    await trx('rooms').where({ id: targetRoomId }).update({
+      status: newStatus,
+      updated_at: db.fn.now(),
+    });
+
+    // 5. Update room shift record
+    await trx('room_shift_requests')
+      .where({ id: requestId })
+      .update({
+        requested_room_id: targetRoomId,
+        status: 'approved',
+        admin_notes: adminNotes,
+        reviewed_by: user.id,
+        reviewed_at: db.fn.now(),
+        updated_at: db.fn.now(),
+      });
+
+    // 6. Sync branch stats
+    await syncBranchStats(stay.branch_id, trx);
+  });
+};
+
+/**
+ * Update Room Shift Status (Admin Approve / Reject)
+ * @param {number} id - Shift request ID
+ * @param {Object} data - Update payload
+ * @param {Object} user - Logged in admin
+ * @returns {Promise<Object>} Updated room shift request
+ */
+export const updateShiftStatus = async (id, data, user) => {
+  const request = await findShiftById(id, user);
+
+  if (request.status !== 'pending') {
+    throw new AppError(`Room shift request has already been ${request.status}`, HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const newStatus = data.status.toLowerCase();
+  const adminNotes = data.admin_notes || null;
+  const targetRoomId = data.assigned_room_id ? Number(data.assigned_room_id) : (request.requested_room?.id || null);
+
+  if (newStatus === 'approved') {
+    if (!targetRoomId) {
+      throw new AppError('Target room must be specified to approve room shift', HTTP_STATUS.BAD_REQUEST);
+    }
+
+    let stay = null;
+    if (request.stay_id) {
+      stay = await db('resident_pg_stays')
+        .where({ id: request.stay_id, status: 'active' })
+        .whereNull('deleted_at')
+        .first();
+    }
+    if (!stay) {
+      stay = await db('resident_pg_stays')
+        .where({ resident_id: request.resident.id, status: 'active' })
+        .whereNull('deleted_at')
+        .orderBy('id', 'desc')
+        .first();
+    }
+
+    if (!stay) {
+      throw new AppError('Active stay record for resident not found or already completed', HTTP_STATUS.BAD_REQUEST);
+    }
+
+    await executeRoomTransfer(id, targetRoomId, stay, user, adminNotes);
+  } else {
+    // Rejection
+    await db('room_shift_requests')
+      .where({ id })
+      .update({
+        status: 'rejected',
+        admin_notes: adminNotes,
+        reviewed_by: user.id,
+        reviewed_at: db.fn.now(),
+        updated_at: db.fn.now(),
+      });
+  }
+
+  return await findShiftById(id, user);
+};
+
+/**
+ * Delete / Cancel Room Shift Request
+ * @param {number} id - Shift request ID
+ * @param {Object} user - Logged in user
+ * @returns {Promise<boolean>} Success indicator
+ */
+export const deleteShift = async (id, user) => {
+  const request = await findShiftById(id, user);
+
+  if (user.role === ROLES.RESIDENT && request.status !== 'pending') {
+    throw new AppError('Cannot cancel a room shift request that is already processed', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  await db('room_shift_requests').where({ id }).update({
+    deleted_at: db.fn.now(),
+    updated_at: db.fn.now(),
+  });
+
+  return true;
+};
+
 export default {
+  // Core Room methods
   create,
   findAll,
   findById,
@@ -551,4 +1081,12 @@ export default {
   remove,
   getStats,
   getBuildingsAndFloors,
+
+  // Room Shift methods
+  createShift,
+  findAllShifts,
+  findShiftById,
+  getShiftStats,
+  updateShiftStatus,
+  deleteShift,
 };

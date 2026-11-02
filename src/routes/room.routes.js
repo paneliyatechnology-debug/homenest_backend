@@ -4,6 +4,11 @@ import {
   createRoomValidator,
   updateRoomValidator,
   roomIdParamValidator,
+  createRoomShiftValidator,
+  updateRoomShiftStatusValidator,
+  listRoomShiftsQueryValidator,
+  roomShiftStatsQueryValidator,
+  roomShiftIdParamValidator,
 } from '../validators/room.validator.js';
 import validate from '../middlewares/validate.middleware.js';
 import { authenticate, authorize } from '../middlewares/auth.middleware.js';
@@ -14,6 +19,82 @@ const router = Router();
 
 // All room management routes require authentication
 router.use(authenticate);
+
+// ============================================================================
+// ROOM SHIFT REQUEST ROUTES (Under Room Module)
+// ============================================================================
+
+/**
+ * @route   GET /api/v1/rooms/shifts/stats
+ * @desc    Get KPI statistics for Room Shifts dashboard cards (Total, Approved, Pending, Rejected) (Image 2)
+ * @access  Private (Admin / Super Admin)
+ */
+router.get(
+  '/shifts/stats',
+  authorize(ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  validate(roomShiftStatsQueryValidator),
+  roomController.getRoomShiftStats
+);
+
+/**
+ * @route   POST /api/v1/rooms/shifts
+ * @desc    Submit a room shift request (Resident Mobile Form & Admin Web Form)
+ * @access  Private (Resident / Admin / Super Admin)
+ */
+router.post(
+  '/shifts',
+  validate(createRoomShiftValidator),
+  roomController.createRoomShift
+);
+
+/**
+ * @route   GET /api/v1/rooms/shifts
+ * @desc    List room shift requests with filters and pagination (Image 2 Web Table)
+ * @access  Private (Resident / Admin / Super Admin)
+ */
+router.get(
+  '/shifts',
+  validate(listRoomShiftsQueryValidator),
+  roomController.getAllRoomShifts
+);
+
+/**
+ * @route   GET /api/v1/rooms/shifts/:id
+ * @desc    Get room shift request details by ID
+ * @access  Private (Resident / Admin / Super Admin)
+ */
+router.get(
+  '/shifts/:id',
+  validate(roomShiftIdParamValidator),
+  roomController.getRoomShiftById
+);
+
+/**
+ * @route   PATCH /api/v1/rooms/shifts/:id/status
+ * @desc    Update status of room shift request (Admin Approve / Reject)
+ * @access  Private (Admin / Super Admin)
+ */
+router.patch(
+  '/shifts/:id/status',
+  authorize(ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  validate(updateRoomShiftStatusValidator),
+  roomController.updateRoomShiftStatus
+);
+
+/**
+ * @route   DELETE /api/v1/rooms/shifts/:id
+ * @desc    Delete or cancel a room shift request
+ * @access  Private (Resident / Admin / Super Admin)
+ */
+router.delete(
+  '/shifts/:id',
+  validate(roomShiftIdParamValidator),
+  roomController.deleteRoomShift
+);
+
+// ============================================================================
+// CORE ROOM MANAGEMENT ROUTES
+// ============================================================================
 
 /**
  * @route   GET /api/v1/rooms/stats

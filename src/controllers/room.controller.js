@@ -3,7 +3,13 @@ import { success, successAction, AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS, ROLES } from '../constants/index.js';
 
 /**
- * Controller for managing Room Inventory, Allocations, and Floor Plans.
+ * Controller for managing Room Inventory, Allocations, and Room Shift Requests.
+ */
+
+/**
+ * ============================================================================
+ * CORE ROOM MANAGEMENT CONTROLLERS
+ * ============================================================================
  */
 
 /**
@@ -48,8 +54,14 @@ export const getAllRooms = async (req, res, next) => {
       limit,
     } = req.query;
 
-    const pg_id = req.query.pg_id ? Number(req.query.pg_id) : (req.pg_id || undefined);
-    const branch_id = req.query.branch_id ? Number(req.query.branch_id) : undefined;
+    let pg_id = req.query.pg_id ? Number(req.query.pg_id) : (req.pg_id || undefined);
+    let branch_id = req.query.branch_id ? Number(req.query.branch_id) : undefined;
+
+    // If resident is requesting rooms, auto-scope to their active branch
+    if (req.user.role === ROLES.RESIDENT) {
+      branch_id = req.user.room_info?.branch_id || req.branch_id || req.user.branch_id || undefined;
+      pg_id = req.user.pg_id || req.pg_id || undefined;
+    }
 
     const { rooms, pagination } = await roomService.findAll({
       owner_id,
@@ -181,7 +193,95 @@ export const getRoomBuildings = async (req, res, next) => {
   }
 };
 
+/**
+ * ============================================================================
+ * ROOM SHIFT REQUEST CONTROLLERS (Integrated Under Room Module)
+ * ============================================================================
+ */
+
+/**
+ * Create a new room shift request (Resident Mobile & Admin Web Form)
+ */
+export const createRoomShift = async (req, res, next) => {
+  try {
+    const result = await roomService.createShift(req.body, req.user);
+    return success(res, 'Room shift request submitted successfully', result, HTTP_STATUS.CREATED);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * List room shift requests with filters and pagination (Image 2 Web Table)
+ */
+export const getAllRoomShifts = async (req, res, next) => {
+  try {
+    const result = await roomService.findAllShifts(req.user, req.query);
+    return success(
+      res,
+      'Room shift requests retrieved successfully',
+      result.requests,
+      HTTP_STATUS.OK,
+      result.pagination
+    );
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Get room shift KPI statistics (Image 2 Top Cards: Total, Approved, Pending, Rejected)
+ */
+export const getRoomShiftStats = async (req, res, next) => {
+  try {
+    const stats = await roomService.getShiftStats(req.user, req.query);
+    return success(res, 'Room shift statistics retrieved successfully', stats);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Get room shift request details by ID
+ */
+export const getRoomShiftById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const data = await roomService.findShiftById(Number(id), req.user);
+    return success(res, 'Room shift request details retrieved successfully', data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Update room shift request status (Admin Approve / Reject)
+ */
+export const updateRoomShiftStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await roomService.updateShiftStatus(Number(id), req.body, req.user);
+    return success(res, `Room shift request ${result.status} successfully`, result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Delete / Cancel room shift request
+ */
+export const deleteRoomShift = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    await roomService.deleteShift(Number(id), req.user);
+    return successAction(res, 'Room shift request deleted successfully', Number(id));
+  } catch (err) {
+    next(err);
+  }
+};
+
 export default {
+  // Core Room
   createRoom,
   getAllRooms,
   getRoomById,
@@ -189,4 +289,12 @@ export default {
   deleteRoom,
   getRoomStats,
   getRoomBuildings,
+
+  // Room Shift
+  createRoomShift,
+  getAllRoomShifts,
+  getRoomShiftStats,
+  getRoomShiftById,
+  updateRoomShiftStatus,
+  deleteRoomShift,
 };
