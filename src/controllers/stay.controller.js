@@ -104,7 +104,7 @@ export const getCheckoutReview = async (req, res, next) => {
 export const createCheckoutRequest = async (req, res, next) => {
   try {
     const data = await stayService.createCheckoutRequest(req.user, req.body);
-    return success(res, 'Checkout request submitted successfully', data, HTTP_STATUS.CREATED);
+    return successAction(res, 'Checkout request submitted successfully', data.id, HTTP_STATUS.CREATED);
   } catch (err) {
     next(err);
   }
@@ -177,7 +177,7 @@ export const getCheckoutRequestById = async (req, res, next) => {
 export const updateCheckoutStatus = async (req, res, next) => {
   try {
     const data = await stayService.updateCheckoutStatus(req.params.id, req.user, req.body);
-    return success(res, 'Checkout request status updated successfully', data);
+    return successAction(res, 'Checkout request status updated successfully', data.id, HTTP_STATUS.OK);
   } catch (err) {
     next(err);
   }
@@ -189,7 +189,7 @@ export const updateCheckoutStatus = async (req, res, next) => {
 export const deleteCheckoutRequest = async (req, res, next) => {
   try {
     const data = await stayService.deleteCheckoutRequest(req.params.id, req.user);
-    return success(res, 'Checkout request cancelled successfully', data);
+    return successAction(res, 'Checkout request cancelled successfully', parseInt(req.params.id, 10), HTTP_STATUS.OK);
   } catch (err) {
     next(err);
   }

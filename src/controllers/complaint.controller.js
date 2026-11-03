@@ -1,5 +1,5 @@
 import complaintService from '../services/complaint.service.js';
-import { success } from '../utils/apiResponse.js';
+import { success, successAction } from '../utils/apiResponse.js';
 import { HTTP_STATUS } from '../constants/index.js';
 
 /**
@@ -25,7 +25,7 @@ export const createComplaint = async (req, res, next) => {
   try {
     const files = req.filesList || [];
     const result = await complaintService.createComplaint(req.body, files, req.user);
-    return success(res, 'Complaint registered successfully', result, HTTP_STATUS.CREATED);
+    return successAction(res, 'Complaint registered successfully', result.id, HTTP_STATUS.CREATED);
   } catch (err) {
     next(err);
   }
@@ -75,7 +75,7 @@ export const assignComplaint = async (req, res, next) => {
   try {
     const { id } = req.params;
     const result = await complaintService.assignComplaint(Number(id), req.body, req.user);
-    return success(res, result.message, result);
+    return successAction(res, result.message, result.id, HTTP_STATUS.OK);
   } catch (err) {
     next(err);
   }
@@ -88,7 +88,7 @@ export const updateStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
     const result = await complaintService.updateStatus(Number(id), req.body, req.user);
-    return success(res, result.message, result);
+    return successAction(res, result.message, result.id, HTTP_STATUS.OK);
   } catch (err) {
     next(err);
   }
@@ -102,7 +102,7 @@ export const addUpdate = async (req, res, next) => {
     const { id } = req.params;
     const files = req.filesList || [];
     const result = await complaintService.addUpdate(Number(id), req.body, files, req.user);
-    return success(res, result.message, result);
+    return successAction(res, result.message, result.id, HTTP_STATUS.OK);
   } catch (err) {
     next(err);
   }
@@ -115,7 +115,7 @@ export const submitFeedback = async (req, res, next) => {
   try {
     const { id } = req.params;
     const result = await complaintService.submitFeedback(Number(id), req.body, req.user);
-    return success(res, result.message, result, HTTP_STATUS.CREATED);
+    return successAction(res, result.message, result.id, HTTP_STATUS.CREATED);
   } catch (err) {
     next(err);
   }

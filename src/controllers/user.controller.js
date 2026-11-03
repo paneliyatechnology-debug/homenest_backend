@@ -180,7 +180,7 @@ export const getStaffDirectory = getStaff;
 export const createStaff = async (req, res, next) => {
   try {
     const result = await userService.createStaff(req.body, req.file, req.user);
-    return success(res, 'Staff member added successfully', result, HTTP_STATUS.CREATED);
+    return successAction(res, 'Staff member added successfully', result.id, HTTP_STATUS.CREATED);
   } catch (err) {
     next(err);
   }
@@ -206,7 +206,7 @@ export const updateStaff = async (req, res, next) => {
   try {
     const { id } = req.params;
     const updated = await userService.updateStaff(Number(id), req.body, req.file, req.user);
-    return success(res, 'Staff member updated successfully', updated);
+    return successAction(res, 'Staff member updated successfully', updated.id, HTTP_STATUS.OK);
   } catch (err) {
     next(err);
   }
@@ -219,7 +219,7 @@ export const updateStaffStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
     const result = await userService.updateStaffStatus(Number(id), req.body.status, req.user);
-    return success(res, result.message, result);
+    return successAction(res, result.message, Number(id), HTTP_STATUS.OK);
   } catch (err) {
     next(err);
   }
@@ -232,7 +232,7 @@ export const deleteStaff = async (req, res, next) => {
   try {
     const { id } = req.params;
     const result = await userService.deleteStaff(Number(id), req.user);
-    return success(res, result.message, result);
+    return successAction(res, result.message, Number(id), HTTP_STATUS.OK);
   } catch (err) {
     next(err);
   }

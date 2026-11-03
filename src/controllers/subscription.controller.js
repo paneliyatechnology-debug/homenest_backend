@@ -113,7 +113,7 @@ export const updateSubscription = async (req, res, next) => {
     const pg_id = req.pg_id || undefined;
 
     const plan = await subscriptionService.update(req.params.id, req.body, { pg_id, owner_id });
-    return success(res, 'Subscription plan updated successfully', plan);
+    return successAction(res, 'Subscription plan updated successfully', plan.id, HTTP_STATUS.OK);
   } catch (err) {
     next(err);
   }
@@ -132,7 +132,7 @@ export const updateSubscriptionStatus = async (req, res, next) => {
     const plan = await subscriptionService.updateStatus(req.params.id, explicitIsActive, { pg_id, owner_id });
 
     const statusLabel = plan.is_active === 1 ? 'activated' : 'paused';
-    return success(res, `Subscription plan ${statusLabel} successfully`, plan);
+    return successAction(res, `Subscription plan ${statusLabel} successfully`, plan.id, HTTP_STATUS.OK);
   } catch (err) {
     next(err);
   }
@@ -148,7 +148,7 @@ export const deleteSubscription = async (req, res, next) => {
     const pg_id = req.pg_id || undefined;
 
     await subscriptionService.remove(req.params.id, { pg_id, owner_id });
-    return successMessage(res, 'Subscription plan deleted successfully');
+    return successAction(res, 'Subscription plan deleted successfully', parseInt(req.params.id, 10), HTTP_STATUS.OK);
   } catch (err) {
     next(err);
   }

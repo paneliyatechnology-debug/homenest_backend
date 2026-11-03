@@ -205,7 +205,7 @@ export const getRoomBuildings = async (req, res, next) => {
 export const createRoomShift = async (req, res, next) => {
   try {
     const result = await roomService.createShift(req.body, req.user);
-    return success(res, 'Room shift request submitted successfully', result, HTTP_STATUS.CREATED);
+    return successAction(res, 'Room shift request submitted successfully', result.id, HTTP_STATUS.CREATED);
   } catch (err) {
     next(err);
   }
@@ -261,7 +261,7 @@ export const updateRoomShiftStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
     const result = await roomService.updateShiftStatus(Number(id), req.body, req.user);
-    return success(res, `Room shift request ${result.status} successfully`, result);
+    return successAction(res, `Room shift request ${result.status} successfully`, result.id, HTTP_STATUS.OK);
   } catch (err) {
     next(err);
   }

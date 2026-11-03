@@ -1,5 +1,6 @@
 import laundryService from '../services/laundry.service.js';
-import { success } from '../utils/apiResponse.js';
+import { success, successAction } from '../utils/apiResponse.js';
+import { HTTP_STATUS } from '../constants/index.js';
 
 /**
  * Controller: Get laundry pricing catalog and pickup slot (Branch-wise or All Branches)
@@ -19,7 +20,7 @@ export const getLaundryCatalog = async (req, res, next) => {
 export const updateLaundryCatalog = async (req, res, next) => {
   try {
     const data = await laundryService.updateLaundryCatalog(req.user, req.body);
-    return success(res, 'Laundry catalog updated successfully', data);
+    return successAction(res, 'Laundry catalog updated successfully', data.branch_id || data.pg_id, HTTP_STATUS.OK);
   } catch (err) {
     next(err);
   }
@@ -31,7 +32,7 @@ export const updateLaundryCatalog = async (req, res, next) => {
 export const createLaundryRequest = async (req, res, next) => {
   try {
     const data = await laundryService.create(req.user, req.body);
-    return success(res, 'Laundry request submitted successfully', data, 201);
+    return successAction(res, 'Laundry request submitted successfully', data.id, HTTP_STATUS.CREATED);
   } catch (err) {
     next(err);
   }
@@ -79,7 +80,7 @@ export const getLaundryStats = async (req, res, next) => {
 export const updateLaundryStatus = async (req, res, next) => {
   try {
     const data = await laundryService.updateStatus(req.params.id, req.user, req.body);
-    return success(res, 'Laundry request status updated successfully', data);
+    return successAction(res, 'Laundry request status updated successfully', data.id, HTTP_STATUS.OK);
   } catch (err) {
     next(err);
   }
@@ -91,7 +92,7 @@ export const updateLaundryStatus = async (req, res, next) => {
 export const assignStaff = async (req, res, next) => {
   try {
     const data = await laundryService.assignStaff(req.params.id, req.user, req.body.assigned_to);
-    return success(res, 'Staff member assigned successfully', data);
+    return successAction(res, 'Staff member assigned successfully', data.id, HTTP_STATUS.OK);
   } catch (err) {
     next(err);
   }
@@ -102,8 +103,8 @@ export const assignStaff = async (req, res, next) => {
  */
 export const deleteLaundryRequest = async (req, res, next) => {
   try {
-    const data = await laundryService.remove(req.params.id, req.user);
-    return success(res, 'Laundry request cancelled successfully', data);
+    await laundryService.remove(req.params.id, req.user);
+    return successAction(res, 'Laundry request cancelled successfully', parseInt(req.params.id, 10), HTTP_STATUS.OK);
   } catch (err) {
     next(err);
   }
@@ -128,7 +129,8 @@ export const getResidentLaundryBilling = async (req, res, next) => {
 export const createLaundryPaymentEntries = async (req, res, next) => {
   try {
     const data = await laundryService.createLaundryPaymentEntries(req.user, req.body);
-    return success(res, 'Laundry payment entry created successfully', data, 201);
+    const paymentId = data.payments?.[0]?.id || null;
+    return successAction(res, 'Laundry payment entry created successfully', paymentId, HTTP_STATUS.CREATED);
   } catch (err) {
     next(err);
   }

@@ -149,7 +149,7 @@ export const processPayment = async (req, res, next) => {
   try {
     const { id } = req.params;
     const updated = await paymentService.processPayment(id, req.body);
-    return success(res, 'Payment processed successfully', updated);
+    return successAction(res, 'Payment processed successfully', updated.id, HTTP_STATUS.OK);
   } catch (err) {
     next(err);
   }
