@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "pg-backend-api-v1",
-    "name": "HouseNest PG & Hostel Management API (Standardized)",
-    "description": "# HouseNest PG & Hostel Management API - Standardized Production Collection\n\nComprehensive API documentation and test suite for the **HouseNest** PG & Hostel Management platform.\n\n## Quick Start & Usage\n1. Import this collection into Postman (**File → Import**).\n3. Run **02 Authentication → Login** (defaults to `admin@example.com` / `Admin@123`).\n4. Collection scripts automatically capture `accessToken`, `refreshToken`, `userId`, and `pgId` into environment variables.\n5. All protected requests automatically inherit `{{accessToken}}` as Bearer token.\n\n## Architecture & Standards\n- **Base URL**: `{{baseUrl}}/api/v1`\n- **Response Contract**:\n  - Queries (GET): `{ success: true, message: \"...\", data: {...}, meta?: {...} }`\n  - Mutations (POST/PUT/PATCH/DELETE): `{ success: true, message: \"...\", id: <number> }`\n  - Messages (Logout, Reset): `{ success: true, message: \"...\" }`\n  - Validation Errors (422): `{ success: false, message: \"Validation failed\", errors: [ { field: \"...\", message: \"...\", value: \"...\" } ] }`\n- **Dates**: Standardized format `DD-MM-YYYY HH:mm`.\n- **File Uploads**: Supports `multipart/form-data` and standard JSON payloads.\n",
+    "name": "HomeNest API",
+    "description": "# HomeNest API\n\nProduction API collection for the **HomeNest** backend.\n\n## Quick Start\n1. Import this collection into Postman (**File → Import**).\n2. Run **02 Authentication → Login** (default credentials: `admin@example.com` / `Admin@123`).\n3. The test script automatically stores `accessToken`, `refreshToken`, `userId`, and `pgId` in collection variables.\n4. All protected requests automatically inherit `{{accessToken}}`.\n\n## Standards\n- **Base URL**: `{{baseUrl}}/api/v1`\n- **Dates**: `DD-MM-YYYY HH:mm`\n",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -179,7 +179,7 @@
       "description": "Heartbeat and health check endpoints for server uptime and system diagnostics.",
       "item": [
         {
-          "name": "Welcome Route",
+          "name": "Welcome",
           "request": {
             "method": "GET",
             "header": [
@@ -241,7 +241,7 @@
       "description": "Authentication, registration, JWT session management, OTP, and password recovery workflows.",
       "item": [
         {
-          "name": "Register PG Owner & Facility",
+          "name": "Register PG Owner",
           "event": [
             {
               "listen": "test",
@@ -913,7 +913,7 @@
       "description": "Multi-branch operations, facility locations, branch statistics, and capacity tracking.",
       "item": [
         {
-          "name": "Branch Statistics (KPI Cards)",
+          "name": "Branch Stats",
           "request": {
             "method": "GET",
             "header": [],
@@ -941,7 +941,7 @@
           "response": []
         },
         {
-          "name": "List Branches (Paginated with Filters)",
+          "name": "List Branches",
           "request": {
             "method": "GET",
             "header": [],
@@ -1080,7 +1080,7 @@
           "response": []
         },
         {
-          "name": "Get Branch Details by ID",
+          "name": "Get Branch",
           "request": {
             "method": "GET",
             "header": [],
@@ -1288,7 +1288,7 @@
           "response": []
         },
         {
-          "name": "Get Building by ID",
+          "name": "Get Building",
           "request": {
             "method": "GET",
             "header": [
@@ -1493,7 +1493,7 @@
           "response": []
         },
         {
-          "name": "Get Floor by ID",
+          "name": "Get Floor",
           "request": {
             "method": "GET",
             "header": [
@@ -1589,7 +1589,7 @@
       "description": "Room inventory, bed allocations, room types, pricing, photos, and live occupancy statistics.",
       "item": [
         {
-          "name": "Room Statistics",
+          "name": "Room Stats",
           "request": {
             "method": "GET",
             "header": [
@@ -1624,7 +1624,7 @@
           "response": []
         },
         {
-          "name": "Get Buildings and Floors",
+          "name": "Get Buildings & Floors",
           "request": {
             "method": "GET",
             "header": [
@@ -1843,7 +1843,7 @@
           "response": []
         },
         {
-          "name": "Get Room by ID",
+          "name": "Get Room",
           "request": {
             "method": "GET",
             "header": [
@@ -1990,7 +1990,7 @@
       "description": "Resident room relocation, room transfer requests, admin approval, and automated reallocation.",
       "item": [
         {
-          "name": "Admin - Get Room Shift KPI Statistics",
+          "name": "Shift Stats",
           "request": {
             "method": "GET",
             "header": [
@@ -2028,7 +2028,7 @@
           "response": []
         },
         {
-          "name": "Resident / Admin - Create Room Shift Request",
+          "name": "Create Shift Request",
           "event": [
             {
               "listen": "test",
@@ -2084,7 +2084,7 @@
           "response": []
         },
         {
-          "name": "Resident / Admin - List Room Shift Requests",
+          "name": "List Shift Requests",
           "request": {
             "method": "GET",
             "header": [
@@ -2141,7 +2141,7 @@
           "response": []
         },
         {
-          "name": "Resident / Admin - Get Room Shift Request Details",
+          "name": "Get Shift Request",
           "request": {
             "method": "GET",
             "header": [
@@ -2172,7 +2172,7 @@
           "response": []
         },
         {
-          "name": "Admin - Update Room Shift Status (Approve / Reject)",
+          "name": "Update Shift Status",
           "request": {
             "method": "PATCH",
             "header": [
@@ -2212,7 +2212,7 @@
           "response": []
         },
         {
-          "name": "Resident / Admin - Cancel or Delete Room Shift Request",
+          "name": "Cancel Shift Request",
           "request": {
             "method": "DELETE",
             "header": [
@@ -2655,7 +2655,7 @@
           "response": []
         },
         {
-          "name": "Get User by ID",
+          "name": "Get User",
           "request": {
             "method": "GET",
             "header": [
@@ -2897,7 +2897,7 @@
       "description": "Operational staff management, branch assignments, duty roles, and staff KPI statistics.",
       "item": [
         {
-          "name": "Admin - Get Staff Dashboard KPI Statistics",
+          "name": "Staff Stats",
           "request": {
             "method": "GET",
             "header": [],
@@ -2926,7 +2926,7 @@
           "response": []
         },
         {
-          "name": "Resident / Admin - List Staff Members & Directory",
+          "name": "List Staff",
           "request": {
             "method": "GET",
             "header": [],
@@ -2979,7 +2979,7 @@
           "response": []
         },
         {
-          "name": "Admin - Add New Staff Member (Multi-Branch)",
+          "name": "Add Staff",
           "event": [
             {
               "listen": "test",
@@ -3063,7 +3063,7 @@
           "response": []
         },
         {
-          "name": "Admin - Get Staff Member Details by ID",
+          "name": "Get Staff",
           "request": {
             "method": "GET",
             "header": [],
@@ -3085,7 +3085,7 @@
           "response": []
         },
         {
-          "name": "Admin - Update Staff Member Details",
+          "name": "Update Staff",
           "request": {
             "method": "PUT",
             "header": [],
@@ -3148,7 +3148,7 @@
           "response": []
         },
         {
-          "name": "Admin - Quick Update Staff Status",
+          "name": "Update Staff Status",
           "request": {
             "method": "PATCH",
             "header": [
@@ -3180,7 +3180,7 @@
           "response": []
         },
         {
-          "name": "Admin - Delete Staff Member",
+          "name": "Delete Staff",
           "request": {
             "method": "DELETE",
             "header": [],
@@ -3265,7 +3265,7 @@
           "response": []
         },
         {
-          "name": "Get Stay by ID",
+          "name": "Get Stay",
           "request": {
             "method": "GET",
             "header": [
@@ -3340,7 +3340,7 @@
       "description": "Resident departure clearance, NOC verification, security deposit refund approvals, and PDF export.",
       "item": [
         {
-          "name": "Resident / Admin - Get Checkout Review & NOC Preview",
+          "name": "Checkout Review",
           "request": {
             "method": "GET",
             "header": [
@@ -3398,7 +3398,7 @@
           "response": []
         },
         {
-          "name": "Resident / Admin - Submit Checkout Departure Request",
+          "name": "Submit Checkout",
           "request": {
             "method": "POST",
             "header": [
@@ -3447,7 +3447,7 @@
           "response": []
         },
         {
-          "name": "Admin - List Checkout & Refund Approval Requests",
+          "name": "List Checkouts",
           "request": {
             "method": "GET",
             "header": [
@@ -3513,7 +3513,7 @@
           "response": []
         },
         {
-          "name": "Admin - Export Checkout & Refund Approvals (Excel or PDF)",
+          "name": "Export Checkouts",
           "request": {
             "method": "GET",
             "header": [
@@ -3585,7 +3585,7 @@
           "response": []
         },
         {
-          "name": "Resident / Admin - Get Checkout Request Details",
+          "name": "Get Checkout",
           "request": {
             "method": "GET",
             "header": [
@@ -3620,7 +3620,7 @@
           "response": []
         },
         {
-          "name": "Admin - Update Checkout Status, Checklist & Refund Approval",
+          "name": "Update Checkout Status",
           "request": {
             "method": "PATCH",
             "header": [
@@ -3671,7 +3671,7 @@
           "response": []
         },
         {
-          "name": "Resident / Admin - Cancel or Delete Checkout Request",
+          "name": "Cancel Checkout",
           "request": {
             "method": "DELETE",
             "header": [
@@ -3712,7 +3712,7 @@
       "description": "Tenancy agreements, lease contracts, digital signing statuses, and agreement statistics.",
       "item": [
         {
-          "name": "Agreement Statistics",
+          "name": "Agreement Stats",
           "request": {
             "method": "GET",
             "header": [
@@ -3879,7 +3879,7 @@
           "response": []
         },
         {
-          "name": "Get Agreement by ID",
+          "name": "Get Agreement",
           "request": {
             "method": "GET",
             "header": [
@@ -3980,7 +3980,7 @@
       "description": "Rent invoices, billing demands, NPCI UPI dynamic QR generation, online payment records, and reports.",
       "item": [
         {
-          "name": "Payment Statistics (Unified KPIs)",
+          "name": "Payment Stats",
           "request": {
             "method": "GET",
             "header": [],
@@ -4021,7 +4021,7 @@
           "response": []
         },
         {
-          "name": "List Payments (Filters & Pagination)",
+          "name": "List Payments",
           "request": {
             "method": "GET",
             "header": [
@@ -4129,7 +4129,7 @@
           "response": []
         },
         {
-          "name": "Resident Mobile Payment Overview",
+          "name": "Payment Overview",
           "request": {
             "method": "GET",
             "header": [
@@ -4171,7 +4171,7 @@
           "response": []
         },
         {
-          "name": "Create Payment Demand / Invoice",
+          "name": "Create Payment",
           "request": {
             "method": "POST",
             "header": [
@@ -4222,7 +4222,7 @@
           ]
         },
         {
-          "name": "Get Payment by ID",
+          "name": "Get Payment",
           "request": {
             "method": "GET",
             "header": [
@@ -4249,7 +4249,7 @@
           "response": []
         },
         {
-          "name": "Update Payment Demand / Invoice",
+          "name": "Update Payment",
           "request": {
             "method": "PUT",
             "header": [
@@ -4285,7 +4285,7 @@
           "response": []
         },
         {
-          "name": "Delete Payment Demand / Invoice (Soft Delete)",
+          "name": "Delete Payment",
           "request": {
             "method": "DELETE",
             "header": [
@@ -4312,7 +4312,7 @@
           "response": []
         },
         {
-          "name": "Initiate UPI QR Checkout",
+          "name": "Initiate UPI Payment",
           "request": {
             "method": "POST",
             "header": [
@@ -4340,7 +4340,7 @@
           "response": []
         },
         {
-          "name": "Complete / Record Payment",
+          "name": "Record Payment",
           "request": {
             "method": "POST",
             "header": [
@@ -4377,7 +4377,7 @@
           "response": []
         },
         {
-          "name": "Export Payments Report (Excel / PDF)",
+          "name": "Export Payments",
           "request": {
             "method": "GET",
             "header": [
@@ -4482,7 +4482,7 @@
       "description": "Laundry service catalog pricing, resident laundry requests, weight tracking, staff assignment, and dues billing.",
       "item": [
         {
-          "name": "Resident / Admin - Get Laundry Catalog & Pricing",
+          "name": "Get Laundry Catalog",
           "request": {
             "method": "GET",
             "header": [
@@ -4519,7 +4519,7 @@
           "response": []
         },
         {
-          "name": "Admin - Configure Laundry Pricing (Branch-Wise or All Branches)",
+          "name": "Update Laundry Catalog",
           "request": {
             "method": "PUT",
             "header": [
@@ -4562,7 +4562,7 @@
           "response": []
         },
         {
-          "name": "Admin - Get Laundry KPI Statistics",
+          "name": "Laundry Stats",
           "request": {
             "method": "GET",
             "header": [
@@ -4604,7 +4604,7 @@
           "response": []
         },
         {
-          "name": "Resident / Admin - Get User-Wise Laundry & Payment Summary",
+          "name": "Resident Laundry Summary",
           "request": {
             "method": "GET",
             "header": [
@@ -4636,7 +4636,7 @@
           "response": []
         },
         {
-          "name": "Admin - Get Users List with Laundry & Payment Details",
+          "name": "List Laundry Residents",
           "request": {
             "method": "GET",
             "header": [
@@ -4707,7 +4707,7 @@
           "response": []
         },
         {
-          "name": "Admin - Create Laundry Payment Entry (Single or Bulk Residents)",
+          "name": "Create Laundry Payment",
           "request": {
             "method": "POST",
             "header": [
@@ -4750,7 +4750,7 @@
           "response": []
         },
         {
-          "name": "Resident / Admin - Create Laundry Request",
+          "name": "Create Laundry Order",
           "request": {
             "method": "POST",
             "header": [
@@ -4792,7 +4792,7 @@
           "response": []
         },
         {
-          "name": "Resident / Admin - List Laundry Requests",
+          "name": "List Laundry Orders",
           "request": {
             "method": "GET",
             "header": [
@@ -4858,7 +4858,7 @@
           "response": []
         },
         {
-          "name": "Resident / Admin - Get Laundry Request Details",
+          "name": "Get Laundry Order",
           "request": {
             "method": "GET",
             "header": [
@@ -4888,7 +4888,7 @@
           "response": []
         },
         {
-          "name": "Admin / Staff - Update Laundry Request Status",
+          "name": "Update Laundry Status",
           "request": {
             "method": "PATCH",
             "header": [
@@ -4932,7 +4932,7 @@
           "response": []
         },
         {
-          "name": "Admin - Assign Staff to Laundry Request",
+          "name": "Assign Laundry Staff",
           "request": {
             "method": "PATCH",
             "header": [
@@ -4976,7 +4976,7 @@
           "response": []
         },
         {
-          "name": "Resident / Admin - Cancel or Delete Laundry Request",
+          "name": "Cancel Laundry Order",
           "request": {
             "method": "DELETE",
             "header": [
@@ -5012,7 +5012,7 @@
       "description": "Daily meal plans (Breakfast, Lunch, Dinner), dish inclusions, resident star ratings, and meal feedback.",
       "item": [
         {
-          "name": "Resident / Admin - Get Food Menu by Date Range",
+          "name": "Get Menu by Date",
           "request": {
             "method": "GET",
             "header": [],
@@ -5074,7 +5074,7 @@
           "response": []
         },
         {
-          "name": "Admin - Create Food Menu Item (Date-wise)",
+          "name": "Create Menu Item",
           "request": {
             "method": "POST",
             "header": [],
@@ -5182,7 +5182,7 @@
           ]
         },
         {
-          "name": "Admin - Get Food Menu Item By ID",
+          "name": "Get Menu Item",
           "request": {
             "method": "GET",
             "header": [],
@@ -5203,7 +5203,7 @@
           "response": []
         },
         {
-          "name": "Admin - Update Food Menu Item",
+          "name": "Update Menu Item",
           "request": {
             "method": "PUT",
             "header": [],
@@ -5283,7 +5283,7 @@
           "response": []
         },
         {
-          "name": "Admin - Delete Food Menu Item",
+          "name": "Delete Menu Item",
           "request": {
             "method": "DELETE",
             "header": [],
@@ -5304,7 +5304,7 @@
           "response": []
         },
         {
-          "name": "Resident - Submit or Update Meal Feedback",
+          "name": "Submit Meal Feedback",
           "request": {
             "method": "POST",
             "header": [],
@@ -5350,7 +5350,7 @@
           "response": []
         },
         {
-          "name": "Resident / Admin - Get Feedback For Menu Item",
+          "name": "Get Menu Feedback",
           "request": {
             "method": "GET",
             "header": [],
@@ -5372,7 +5372,7 @@
           "response": []
         },
         {
-          "name": "Resident - View My Feedback History",
+          "name": "My Feedback History",
           "request": {
             "method": "GET",
             "header": [],
@@ -5421,7 +5421,7 @@
           "response": []
         },
         {
-          "name": "Admin - View Branch Food Feedback Logs",
+          "name": "List Food Feedback",
           "request": {
             "method": "GET",
             "header": [],
@@ -5474,7 +5474,7 @@
           "response": []
         },
         {
-          "name": "Admin - View Food Feedback Ratings Summary",
+          "name": "Food Feedback Summary",
           "request": {
             "method": "GET",
             "header": [],
@@ -5519,7 +5519,7 @@
       "description": "Issue ticketing, 10 complaint categories, WiFi & room maintenance, staff assignment, resolution, and rating.",
       "item": [
         {
-          "name": "Resident / Admin - Get Predefined Complaint Categories",
+          "name": "Complaint Categories",
           "request": {
             "method": "GET",
             "header": [],
@@ -5540,7 +5540,7 @@
           "response": []
         },
         {
-          "name": "Admin - Get Complaint Dashboard KPIs & Stats",
+          "name": "Complaint Stats",
           "request": {
             "method": "GET",
             "header": [],
@@ -5568,7 +5568,7 @@
           "response": []
         },
         {
-          "name": "Resident / Admin - List Complaints",
+          "name": "List Complaints",
           "request": {
             "method": "GET",
             "header": [],
@@ -5625,7 +5625,7 @@
           "response": []
         },
         {
-          "name": "Resident - Create Complaint (Report Issue)",
+          "name": "Create Complaint",
           "event": [
             {
               "listen": "test",
@@ -5719,7 +5719,7 @@
           "response": []
         },
         {
-          "name": "Resident / Admin - Get Complaint Details by ID",
+          "name": "Get Complaint",
           "request": {
             "method": "GET",
             "header": [],
@@ -5740,7 +5740,7 @@
           "response": []
         },
         {
-          "name": "Admin - Assign Complaint & Set Due Date",
+          "name": "Assign Complaint",
           "request": {
             "method": "PATCH",
             "header": [
@@ -5771,7 +5771,7 @@
           "response": []
         },
         {
-          "name": "Admin - Update Complaint Status",
+          "name": "Update Complaint Status",
           "request": {
             "method": "PATCH",
             "header": [
@@ -5802,7 +5802,7 @@
           "response": []
         },
         {
-          "name": "Resident / Admin - Add Message or Note to Timeline",
+          "name": "Add Complaint Note",
           "request": {
             "method": "POST",
             "header": [],
@@ -5841,7 +5841,7 @@
           "response": []
         },
         {
-          "name": "Resident - Submit Feedback for Resolved Complaint",
+          "name": "Submit Complaint Feedback",
           "request": {
             "method": "POST",
             "header": [
@@ -5878,7 +5878,7 @@
       "description": "Visitor pass generation, QR code scanning, security gate check-in/out logs, and visitor analytics.",
       "item": [
         {
-          "name": "Visitor Statistics (Dashboard KPIs)",
+          "name": "Visitor Stats",
           "request": {
             "method": "GET",
             "header": [],
@@ -5907,7 +5907,7 @@
           "response": []
         },
         {
-          "name": "List Visitors (Shared Admin & Resident)",
+          "name": "List Visitors",
           "request": {
             "method": "GET",
             "header": [],
@@ -5984,7 +5984,7 @@
           "response": []
         },
         {
-          "name": "Create Visitor Pass / Request",
+          "name": "Create Visitor Pass",
           "request": {
             "method": "POST",
             "header": [],
@@ -6103,7 +6103,7 @@
           ]
         },
         {
-          "name": "Get Visitor Details by ID",
+          "name": "Get Visitor Pass",
           "request": {
             "method": "GET",
             "header": [],
@@ -6124,7 +6124,7 @@
           "response": []
         },
         {
-          "name": "Get Visitor Movement Logs (All Entries & Exits)",
+          "name": "Visitor Movement Logs",
           "request": {
             "method": "GET",
             "header": [],
@@ -6146,7 +6146,7 @@
           "response": []
         },
         {
-          "name": "Gate Activity Logs (Real-time Gate Monitoring)",
+          "name": "Gate Activity Logs",
           "request": {
             "method": "GET",
             "header": [],
@@ -6300,7 +6300,7 @@
           "response": []
         },
         {
-          "name": "Update Visitor Status (Admin Approval / Rejection)",
+          "name": "Update Visitor Status",
           "request": {
             "method": "PATCH",
             "header": [
@@ -6331,7 +6331,7 @@
           "response": []
         },
         {
-          "name": "Scan Visitor QR Code (Gate Entry & Exit)",
+          "name": "Scan Visitor QR",
           "request": {
             "method": "POST",
             "header": [
