@@ -4,6 +4,7 @@ import { AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS, ROLES } from '../constants/index.js';
 import { buildFileUrl } from '../utils/url.js';
 import { deleteCommunityImageFile } from '../middlewares/upload.middleware.js';
+import socketService, { SOCKET_EVENTS } from './socket.service.js';
 
 /**
  * Service managing Community Module:
@@ -304,6 +305,13 @@ class CommunityService {
     };
 
     const [id] = await db('community_posts').insert(postPayload);
+
+    // Real-time: Notify all community members in the PG of new post
+    try {
+      const fullPost = await this.getPostById(id, user);
+      socketService.emitToPg(pgId, SOCKET_EVENTS.COMMUNITY_POST_NEW, fullPost);
+    } catch (e) {}
+
     return { id };
   };
 
@@ -436,6 +444,28 @@ class CommunityService {
       isLiked = true;
     }
 
+    // Real-time: Broadcast like update to PG and post thread
+    socketService.emitToPg(post.pg_id, SOCKET_EVENTS.COMMUNITY_POST_LIKED, {
+      post_id: postId,
+      likes_count: newLikesCount,
+      is_liked: isLiked,
+      user_id: user.id,
+    });
+    socketService.emitToPost(postId, SOCKET_EVENTS.COMMUNITY_POST_LIKED, {
+      post_id: postId,
+      likes_count: newLikesCount,
+      is_liked: isLiked,
+      user_id: user.id,
+    });
+
+    if (isLiked && post.user_id !== user.id) {
+      socketService.emitToUser(post.user_id, SOCKET_EVENTS.NOTIFICATION_NEW, {
+        title: 'New Like on your post',
+        message: `${user.name || 'A resident'} liked your post.`,
+        post_id: postId,
+      });
+    }
+
     return {
       id: postId,
       is_liked: isLiked,
@@ -542,6 +572,74 @@ class CommunityService {
     await db('community_posts')
       .where({ id: postId })
       .increment('comments_count', 1);
+
+    // Real-time: Broadcast new comment to PG and post thread
+    socketService.emitToPg(post.pg_id, SOCKET_EVENTS.COMMUNITY_COMMENT_NEW, {
+      post_id: postId,
+      comment: {
+        id: commentId,
+        content: body.content.trim(),
+        author: {
+          id: user.id,
+          name: user.name,
+        },
+        created_at: moment().toISOString(),
+      },
+    });
+    socketService.emitToPost(postId, SOCKET_EVENTS.COMMUNITY_COMMENT_NEW, {
+      post_id: postId,
+      comment: {
+        id: commentId,
+        content: body.content.trim(),
+        author: {
+          id: user.id,
+          name: user.name,
+        },
+        created_at: moment().toISOString(),
+      },
+    });
+
+    if (post.user_id !== user.id) {
+      socketService.emitToUser(post.user_id, SOCKET_EVENTS.NOTIFICATION_NEW, {
+        title: 'New Comment on your post',
+        message: `${user.name || 'A resident'} commented on your post: "${body.content.trim().slice(0, 40)}..."`,
+        post_id: postId,
+      });
+    }
+
+    // Real-time: Broadcast new comment to PG and post thread
+    socketService.emitToPg(post.pg_id, SOCKET_EVENTS.COMMUNITY_COMMENT_NEW, {
+      post_id: postId,
+      comment: {
+        id: commentId,
+        content: body.content.trim(),
+        author: {
+          id: user.id,
+          name: user.name,
+        },
+        created_at: moment().toISOString(),
+      },
+    });
+    socketService.emitToPost(postId, SOCKET_EVENTS.COMMUNITY_COMMENT_NEW, {
+      post_id: postId,
+      comment: {
+        id: commentId,
+        content: body.content.trim(),
+        author: {
+          id: user.id,
+          name: user.name,
+        },
+        created_at: moment().toISOString(),
+      },
+    });
+
+    if (post.user_id !== user.id) {
+      socketService.emitToUser(post.user_id, SOCKET_EVENTS.NOTIFICATION_NEW, {
+        title: 'New Comment on your post',
+        message: `${user.name || 'A resident'} commented on your post: "${body.content.trim().slice(0, 40)}..."`,
+        post_id: postId,
+      });
+    }
 
     return { id: commentId };
   };
@@ -715,7 +813,7 @@ class CommunityService {
       created_by: user.id,
       title: body.title.trim(),
       category: body.category.trim(),
-      event_date: new Date(body.event_date),
+      event_date: moment(body.event_date).toDate(),
       location: body.location ? body.location.trim() : 'Common room',
       image: file ? file.filename : null,
       status: (body.status || 'upcoming').toLowerCase().trim(),
@@ -753,7 +851,7 @@ class CommunityService {
 
     if (body.title !== undefined) updatePayload.title = body.title.trim();
     if (body.category !== undefined) updatePayload.category = body.category.trim();
-    if (body.event_date !== undefined) updatePayload.event_date = new Date(body.event_date);
+    if (body.event_date !== undefined) updatePayload.event_date = moment(body.event_date).toDate();
     if (body.location !== undefined) updatePayload.location = body.location.trim();
     if (body.status !== undefined) updatePayload.status = body.status.toLowerCase().trim();
     if (body.description !== undefined) updatePayload.description = body.description ? body.description.trim() : null;

@@ -1,8 +1,10 @@
+import moment from 'moment';
 import db from '../config/db.js';
 import { AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS, ROLES } from '../constants/index.js';
 import { buildFileUrl } from '../utils/url.js';
 import { syncBranchStats, decrementBranchRoomsOnDelete } from './branch.service.js';
+import socketService, { SOCKET_EVENTS } from './socket.service.js';
 
 /**
  * Helper to attach full image URL to room object
@@ -17,9 +19,9 @@ const formatRoom = (room) => {
 
   const sharingLabel = room.room_type
     ? room.room_type
-        .split('_')
-        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(' ') + (room.room_type.toLowerCase().includes('sharing') ? '' : ' Sharing')
+      .split('_')
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ') + (room.room_type.toLowerCase().includes('sharing') ? '' : ' Sharing')
     : 'Standard';
 
   return {
@@ -617,12 +619,12 @@ const formatRoomShift = (row) => {
     },
     requested_room: row.requested_room_id
       ? {
-          id: Number(row.requested_room_id),
-          room_no: row.requested_room_no,
-          room_type: row.requested_room_type,
-          building_name: row.requested_building_name || null,
-          floor_number: row.requested_floor_number !== null ? Number(row.requested_floor_number) : null,
-        }
+        id: Number(row.requested_room_id),
+        room_no: row.requested_room_no,
+        room_type: row.requested_room_type,
+        building_name: row.requested_building_name || null,
+        floor_number: row.requested_floor_number !== null ? Number(row.requested_floor_number) : null,
+      }
       : null,
     preferred_room_type: row.preferred_room_type || null,
     reason: row.reason,
@@ -709,8 +711,8 @@ export const createShift = async (data, user) => {
     const requestedRoomId = data.requested_room_id
       ? Number(data.requested_room_id)
       : data.preferred_room_id
-      ? Number(data.preferred_room_id)
-      : null;
+        ? Number(data.preferred_room_id)
+        : null;
 
     if (requestedRoomId && requestedRoomId === currentRoomId) {
       throw new AppError('Requested room cannot be the same as the resident current room', HTTP_STATUS.BAD_REQUEST);
@@ -763,8 +765,8 @@ export const createShift = async (data, user) => {
   const requestedRoomId = data.requested_room_id
     ? Number(data.requested_room_id)
     : data.preferred_room_id
-    ? Number(data.preferred_room_id)
-    : null;
+      ? Number(data.preferred_room_id)
+      : null;
 
   if (requestedRoomId && requestedRoomId === currentRoomId) {
     throw new AppError('Requested room cannot be the same as the resident current room', HTTP_STATUS.BAD_REQUEST);
@@ -802,7 +804,27 @@ export const createShift = async (data, user) => {
     reviewed_at: initialStatus !== 'pending' ? db.fn.now() : null,
   });
 
-  return await findShiftById(id, user);
+  // Real-time: Notify PG admins of new room shift request
+  socketService.emitToPgAdmins(pgId, SOCKET_EVENTS.ROOM_SHIFT_NEW, {
+    id,
+    resident_id: residentId,
+    current_room_id: currentRoomId,
+    requested_room_id: requestedRoomId,
+    reason,
+    created_at: moment().toISOString(),
+  });
+
+  const updatedShift = await findShiftById(id, user);
+
+  // Real-time: Notify resident that shift request status was updated
+  socketService.emitToUser(request.resident.id, SOCKET_EVENTS.ROOM_SHIFT_STATUS_UPDATED, {
+    id,
+    status: status.toLowerCase(),
+    admin_notes: adminNotes,
+    reviewed_at: moment().toISOString(),
+  });
+
+  return updatedShift;
 };
 
 /**
@@ -1053,7 +1075,17 @@ export const updateShiftStatus = async (id, data, user) => {
       });
   }
 
-  return await findShiftById(id, user);
+  const updatedShift = await findShiftById(id, user);
+
+  // Real-time: Notify resident that shift request status was updated
+  socketService.emitToUser(request.resident.id, SOCKET_EVENTS.ROOM_SHIFT_STATUS_UPDATED, {
+    id,
+    status: status.toLowerCase(),
+    admin_notes: adminNotes,
+    reviewed_at: moment().toISOString(),
+  });
+
+  return updatedShift;
 };
 
 /**

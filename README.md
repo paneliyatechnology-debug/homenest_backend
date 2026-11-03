@@ -44,6 +44,23 @@ A production-grade RESTful API backend engineered for the **HouseNest** PG & Hos
 - Supports `multipart/form-data` and JSON payloads; file uploads are **strictly optional**.
 - Only the unique file basename is stored in the database; GET endpoints dynamically construct accessible URLs (`profile_photo_url`, `image_url`).
 
+### 7. Real-Time WebSocket Architecture (Socket.IO)
+Production-grade real-time bidirectional event bus powered by **Socket.IO**:
+- **JWT Handshake Authentication**: Secure token verification via `socket.handshake.auth.token` or `Authorization: Bearer <token>`.
+- **Automatic Scoped Rooms**: Connected sockets automatically join scoped channels:
+  - `user:${userId}` — Private personal notifications (visitor arrivals, complaint status updates, approval results).
+  - `pg:${pgId}` — Property-wide broadcasts (notice alerts, community feed updates, event announcements).
+  - `branch:${branchId}` — Branch-specific communications.
+  - `role:${role}` — Role-tailored administrative and operational updates.
+  - `post:${postId}` — Real-time community post threads (live comments and likes).
+- **Core Real-Time Flows**:
+  - `complaint:new` & `complaint:status_updated` — Live ticket filing and status progressions.
+  - `notice:new` — Instant broadcasts to resident notification center.
+  - `visitor:entry` & `visitor:status_updated` — Gate scan check-in/out alerts to host residents.
+  - `community:post_new`, `community:post_liked`, `community:comment_new` — Live social interaction.
+  - `room_shift:new` & `room_shift:status_updated` — Shift request submission and decision updates.
+  - `checkout:new` & `checkout:status_updated` — Departure request and approval alerts.
+
 ---
 
 ## 🗄️ Database Relational Schema

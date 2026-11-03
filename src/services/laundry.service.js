@@ -1,3 +1,4 @@
+import moment from 'moment';
 import db from '../config/db.js';
 import { AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS, ROLES, STAFF_ROLES } from '../constants/index.js';
@@ -50,10 +51,8 @@ export const generateRequestDetail = (items) => {
  */
 export const formatPickupSchedule = (pickupDate, pickupTime) => {
   if (!pickupDate) return '-';
-  const d = new Date(pickupDate);
-  const formattedDate = !isNaN(d.getTime())
-    ? d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-    : pickupDate;
+  const m = moment(pickupDate);
+  const formattedDate = m.isValid() ? m.format('DD MMM YYYY') : pickupDate;
 
   if (pickupTime) {
     return `${formattedDate}, ${pickupTime}`;

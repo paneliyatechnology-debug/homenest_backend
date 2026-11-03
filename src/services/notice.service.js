@@ -4,6 +4,7 @@ import { AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS, ROLES } from '../constants/index.js';
 import { buildFileUrl } from '../utils/url.js';
 import { deleteNoticeAttachmentFile } from '../middlewares/upload.middleware.js';
+import socketService, { SOCKET_EVENTS } from './socket.service.js';
 
 /**
  * Notice & Communication Management Service
@@ -462,7 +463,7 @@ class NoticeService {
 
     if (sendNow || requestedStatus === 'sent') {
       status = 'sent';
-      sentAt = new Date();
+      sentAt = moment().toDate();
       scheduledAt = null;
     } else if (requestedStatus === 'scheduled') {
       status = 'scheduled';
@@ -508,6 +509,21 @@ class NoticeService {
       created_at: db.fn.now(),
       updated_at: db.fn.now(),
     });
+
+    if (status === 'sent') {
+      this.emitNoticeRealTime({
+        id,
+        pg_id: context.pg_id,
+        branch_id: targetBranchId,
+        target_resident_id: targetResidentId,
+        audience_type: audienceType,
+        title: data.title.trim(),
+        category: data.category ? data.category.trim() : 'General',
+        priority: (data.priority || 'medium').toLowerCase(),
+        content: data.content.trim(),
+        sent_at: sentAt,
+      });
+    }
 
     return { id };
   };
@@ -621,7 +637,44 @@ class NoticeService {
       updated_at: db.fn.now(),
     });
 
+    this.emitNoticeRealTime({
+      id: existing.id,
+      pg_id: existing.pg_id,
+      branch_id: existing.branch_id,
+      target_resident_id: existing.target_resident_id,
+      audience_type: existing.audience_type,
+      title: existing.title,
+      category: existing.category,
+      priority: existing.priority,
+      content: existing.content,
+      sent_at: moment().toISOString(),
+    });
+
     return { id: Number(id) };
+  };
+
+  /**
+   * Helper: Emit real-time notice socket event based on audience targeting
+   * @param {Object} notice
+   */
+  emitNoticeRealTime = (notice) => {
+    const payload = {
+      id: notice.id,
+      title: notice.title,
+      category: notice.category,
+      priority: notice.priority,
+      content: notice.content,
+      sent_at: notice.sent_at || moment().toISOString(),
+      audience_type: notice.audience_type,
+    };
+
+    if (notice.audience_type === 'resident' && notice.target_resident_id) {
+      socketService.emitToUser(notice.target_resident_id, SOCKET_EVENTS.NOTICE_NEW, payload);
+    } else if (notice.audience_type === 'branch' && notice.branch_id) {
+      socketService.emitToBranch(notice.branch_id, SOCKET_EVENTS.NOTICE_NEW, payload);
+    } else {
+      socketService.emitToPg(notice.pg_id, SOCKET_EVENTS.NOTICE_NEW, payload);
+    }
   };
 
   /**

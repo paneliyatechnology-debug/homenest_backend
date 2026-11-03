@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import moment from 'moment';
 import { enqueueEmail } from '../queues/email.queue.js';
 import config from '../config/index.js';
 
@@ -72,7 +73,7 @@ class EmailService {
                 <tr>
                   <td style="background-color: #f8fafc; padding: 20px 40px; text-align: center; border-top: 1px solid #f1f5f9;">
                     <p style="font-size: 12px; color: #94a3b8; margin: 0;">
-                      &copy; ${new Date().getFullYear()} ${fromName}. All rights reserved.
+                      &copy; ${moment().format('YYYY')} ${fromName}. All rights reserved.
                     </p>
                   </td>
                 </tr>
@@ -255,7 +256,7 @@ class EmailService {
                       This is an automated notification from <strong>${fromName}</strong>.
                     </p>
                     <p style="font-size: 12px; color: #94a3b8; margin: 0;">
-                      &copy; ${new Date().getFullYear()} ${fromName}. All rights reserved.
+                      &copy; ${moment().format('YYYY')} ${fromName}. All rights reserved.
                     </p>
                   </td>
                 </tr>
@@ -494,7 +495,7 @@ The ${fromName} Team
                 <tr>
                   <td style="background-color: #f8fafc; padding: 20px 36px; text-align: center; border-top: 1px solid #f1f5f9;">
                     <p style="font-size: 11px; color: #94a3b8; margin: 0;">
-                      &copy; ${new Date().getFullYear()} ${fromName}. Official Visitor Access Management System.
+                      &copy; ${moment().format('YYYY')} ${fromName}. Official Visitor Access Management System.
                     </p>
                   </td>
                 </tr>

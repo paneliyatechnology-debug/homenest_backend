@@ -2,38 +2,36 @@ import fs from 'fs';
 import path from 'path';
 import ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
+import moment from 'moment';
 import db from '../config/db.js';
 import { AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS, ROLES, STAFF_ROLES } from '../constants/index.js';
 import { syncBranchStats } from './branch.service.js';
 import { buildFileUrl } from '../utils/url.js';
+import socketService, { SOCKET_EVENTS } from './socket.service.js';
 
 /**
- * Format timestamp for departure stepper timeline: "05 March 2026 | 10:30 AM"
+ * Format timestamp for departure stepper timeline: "05 March 2026 | 10:30 AM" using moment
  *
  * @param {string|Date} dateVal - Input date/timestamp
  * @returns {string|null} Formatted date and time string
  */
 const formatTimelineTimestamp = (dateVal) => {
   if (!dateVal) return null;
-  const d = new Date(dateVal);
-  if (isNaN(d.getTime())) return String(dateVal);
-  const day = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-  const time = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-  return `${day} | ${time}`;
+  const m = moment(dateVal);
+  return m.isValid() ? m.format('DD MMMM YYYY | hh:mm A') : String(dateVal);
 };
 
 /**
- * Format date for tabular reports and review screens: "31 Dec 2026"
+ * Format date for tabular reports and review screens: "31 Dec 2026" using moment
  *
  * @param {string|Date} dateVal - Input date value
  * @returns {string|null} Short formatted date string
  */
 const formatDisplayDate = (dateVal) => {
   if (!dateVal) return null;
-  const d = new Date(dateVal);
-  if (isNaN(d.getTime())) return String(dateVal);
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  const m = moment(dateVal);
+  return m.isValid() ? m.format('DD MMM YYYY') : String(dateVal);
 };
 
 /**
@@ -176,7 +174,7 @@ class StayService {
       throw new AppError(`Stay is already marked as ${stay.status}`, HTTP_STATUS.BAD_REQUEST);
     }
 
-    const effective_check_out = check_out_date || new Date().toISOString().split('T')[0];
+    const effective_check_out = check_out_date || moment().format('YYYY-MM-DD');
 
     const updated_notes = notes
       ? (stay.notes ? `${stay.notes} | ${notes}` : notes)
@@ -581,6 +579,26 @@ class StayService {
       refund_processed: false,
       created_at: db.fn.now(),
       updated_at: db.fn.now(),
+    });
+
+    // Real-time: Notify PG admins of new checkout request
+    socketService.emitToPgAdmins(stay.pg_id, SOCKET_EVENTS.CHECKOUT_NEW, {
+      id: insertId,
+      resident_id: targetResidentId,
+      room_id: stay.room_id,
+      departure_date: data.departure_date,
+      reason: data.reason.trim(),
+      created_at: moment().toISOString(),
+    });
+
+    // Real-time: Notify PG admins of new checkout request
+    socketService.emitToPgAdmins(stay.pg_id, SOCKET_EVENTS.CHECKOUT_NEW, {
+      id: insertId,
+      resident_id: targetResidentId,
+      room_id: stay.room_id,
+      departure_date: data.departure_date,
+      reason: data.reason.trim(),
+      created_at: new Date().toISOString(),
     });
 
     return await this.findCheckoutRequestById(insertId, user);
@@ -1002,7 +1020,7 @@ class StayService {
 
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'HomeNest PG Management';
-    workbook.created = new Date();
+    workbook.created = moment().toDate();
 
     const worksheet = workbook.addWorksheet('Checkout Approvals', {
       views: [{ state: 'frozen', xSplit: 0, ySplit: 7, showGridLines: true }],
@@ -1027,7 +1045,7 @@ class StayService {
     } else if (options.end_date) {
       periodInfo = ` | Until: ${formatDisplayDate(options.end_date)}`;
     }
-    subCell.value = `Facility: ${options.pg_name || 'HomeNest PG'} | Status: ${(options.status || 'All').toUpperCase()}${periodInfo} | Generated: ${new Date().toLocaleDateString('en-GB')} ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+    subCell.value = `Facility: ${options.pg_name || 'HomeNest PG'} | Status: ${(options.status || 'All').toUpperCase()}${periodInfo} | Generated: ${moment().format('DD/MM/YYYY HH:mm')}`;
     subCell.font = { name: 'Segoe UI', size: 10, italic: true, color: { argb: 'FF64748B' } };
     subCell.alignment = { vertical: 'middle' };
     worksheet.getRow(2).height = 20;
@@ -1341,7 +1359,7 @@ class StayService {
         doc.roundedRect(metaBoxX, metaBoxY, metaBoxW, metaBoxH, 4).fillAndStroke('#F8FAFC', borderSubtle);
 
         doc.fillColor(textMuted).font(fontRegular).fontSize(6.5).text('GENERATED ON:', metaBoxX + 8, metaBoxY + 6, { lineBreak: false });
-        const nowFormatted = `${new Date().toLocaleDateString('en-GB')} ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+        const nowFormatted = moment().format('DD/MM/YYYY HH:mm');
         doc.fillColor(textTitle).font(fontMedium).fontSize(7).text(nowFormatted, metaBoxX + 85, metaBoxY + 5.5, { lineBreak: false });
 
         let periodScope = '';
@@ -1722,6 +1740,22 @@ class StayService {
           await syncBranchStats(existing.branch_id, trx);
         }
       }
+    });
+
+    // Real-time: Notify resident that checkout request status was updated
+    socketService.emitToUser(existing.resident_id, SOCKET_EVENTS.CHECKOUT_STATUS_UPDATED, {
+      id,
+      status: data.status,
+      admin_notes: data.admin_notes || null,
+      updated_at: moment().toISOString(),
+    });
+
+    // Real-time: Notify resident that checkout request status was updated
+    socketService.emitToUser(existing.resident_id, SOCKET_EVENTS.CHECKOUT_STATUS_UPDATED, {
+      id,
+      status: data.status,
+      admin_notes: data.admin_notes || null,
+      updated_at: new Date().toISOString(),
     });
 
     return await this.findCheckoutRequestById(id, user);

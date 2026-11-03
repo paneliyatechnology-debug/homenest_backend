@@ -2,6 +2,7 @@ import fs from 'fs';
 import ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
 import path from 'path';
+import moment from 'moment';
 import db from '../config/db.js';
 import { AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS } from '../constants/index.js';
@@ -70,27 +71,9 @@ class PaymentService {
    */
   static formatIST = (date, withTime = true) => {
     if (!date) return '-';
-    const d = new Date(date);
-    if (isNaN(d.getTime())) return String(date);
-
-    const formatter = new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Asia/Kolkata',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: withTime ? '2-digit' : undefined,
-      minute: withTime ? '2-digit' : undefined,
-      hour12: false,
-    });
-
-    const parts = formatter.formatToParts(d);
-    const map = {};
-    parts.forEach((p) => { map[p.type] = p.value; });
-
-    if (withTime && map.hour && map.minute) {
-      return `${map.day}/${map.month}/${map.year} ${map.hour}:${map.minute}`;
-    }
-    return `${map.day}/${map.month}/${map.year}`;
+    const m = moment(date);
+    if (!m.isValid()) return String(date);
+    return withTime ? m.format('DD/MM/YYYY HH:mm') : m.format('DD/MM/YYYY');
   };
 
   static formatReportDate = (date) => PaymentService.formatIST(date, true);
@@ -396,8 +379,8 @@ class PaymentService {
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'HomeNest PG Management';
     workbook.lastModifiedBy = 'HomeNest System';
-    workbook.created = new Date();
-    workbook.modified = new Date();
+    workbook.created = moment().toDate();
+    workbook.modified = moment().toDate();
 
     const worksheet = workbook.addWorksheet('Payments Ledger', {
       views: [{ state: 'frozen', xSplit: 0, ySplit: 8, showGridLines: true }],
@@ -502,7 +485,7 @@ class PaymentService {
         : options.end_date
           ? `Until ${PaymentService.formatIST(options.end_date, false)}`
           : 'All Recorded Dates';
-    metaRowCell.value = `Statement Period: ${dateRangeStr}  •  Report Generated (IST): ${PaymentService.formatIST(new Date(), true)}  •  Source: HomeNest Core`;
+    metaRowCell.value = `Statement Period: ${dateRangeStr}  •  Report Generated (IST): ${PaymentService.formatIST(moment(), true)}  •  Source: HomeNest Core`;
     metaRowCell.font = { name: 'Segoe UI', size: 8.5, italic: true, color: { argb: 'FF64748B' } };
     metaRowCell.alignment = { vertical: 'middle', horizontal: 'left' };
 
@@ -812,7 +795,7 @@ class PaymentService {
         doc.roundedRect(metaBoxX, metaBoxY, metaBoxW, metaBoxH, 4).fillAndStroke('#F8FAFC', borderSubtle);
 
         doc.fillColor(textMuted).font(fontRegular).fontSize(6.5).text('GENERATED ON (IST):', metaBoxX + 8, metaBoxY + 6, { lineBreak: false });
-        doc.fillColor(textTitle).font(fontMedium).fontSize(7).text(PaymentService.formatIST(new Date(), true) + ' IST', metaBoxX + 90, metaBoxY + 5.5, { lineBreak: false });
+        doc.fillColor(textTitle).font(fontMedium).fontSize(7).text(PaymentService.formatIST(moment(), true) + ' IST', metaBoxX + 90, metaBoxY + 5.5, { lineBreak: false });
 
         doc.fillColor(textMuted).font(fontRegular).fontSize(6.5).text('STATEMENT SCOPE:', metaBoxX + 8, metaBoxY + 18, { lineBreak: false });
         const scopeText = options.resident_id
@@ -1204,7 +1187,7 @@ class PaymentService {
         due_amount: b_due,
         due_date: b.due_date || null,
         due_date_text: b.due_date
-          ? `Due on ${new Date(b.due_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}`
+          ? `Due on ${moment(b.due_date).format('DD MMMM YYYY')}`
           : null,
         billing_period_start: b.billing_period_start || null,
         billing_period_end: b.billing_period_end || null,
@@ -1276,7 +1259,7 @@ class PaymentService {
         status: overall_status,
         due_date,
         due_date_text: due_date
-          ? `Due on ${new Date(due_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}`
+          ? `Due on ${moment(due_date).format('DD MMMM YYYY')}`
           : 'No pending dues',
         notes: primary_bill?.notes || (pending_bills.length > 0 ? 'Payment dues pending. Please clear on time.' : 'No pending dues.'),
         entries,
@@ -1384,7 +1367,7 @@ class PaymentService {
     }
 
     const transaction_id = payload.transaction_id || `TXN${Date.now()}${Math.floor(100 + Math.random() * 900)}`;
-    const receipt_no = payment.receipt_no || `RCPT-${new Date().getFullYear()}-${String(payment.id).padStart(4, '0')}`;
+    const receipt_no = payment.receipt_no || `RCPT-${moment().format('YYYY')}-${String(payment.id).padStart(4, '0')}`;
     const paid_amount = payload.paid_amount !== undefined ? Number(payload.paid_amount) : Number(payment.amount);
     const payment_method = payload.payment_method || 'upi';
     const payment_method_details = payload.payment_method_details || (payment_method === 'upi' ? 'UPI GPay' : payment_method);

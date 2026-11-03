@@ -1,6 +1,8 @@
+import http from 'http';
 import app from './app.js';
 import config from './config/index.js';
 import db, { checkDbConnection } from './config/db.js';
+import socketService from './services/socket.service.js';
 
 const PORT = config.port;
 
@@ -10,11 +12,16 @@ const startServer = async () => {
   // Test database connection
   await checkDbConnection();
 
-  server = app.listen(PORT, () => {
+  // Create HTTP server and attach Socket.IO
+  server = http.createServer(app);
+  socketService.init(server);
+
+  server.listen(PORT, () => {
     console.log(`==================================================`);
     console.log(`🚀 Server is running in [${config.env}] mode`);
     console.log(`🔗 Local URL: http://localhost:${PORT}`);
     console.log(`🏥 Health Check: http://localhost:${PORT}/api/v1/health`);
+    console.log(`🔌 WebSocket: Real-time Socket.IO initialized`);
     console.log(`==================================================`);
   });
 };

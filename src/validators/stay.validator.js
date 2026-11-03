@@ -1,4 +1,5 @@
 import { body, param, query } from 'express-validator';
+import moment from 'moment';
 
 /**
  * Validator for checking out / vacating a resident stay (Admin Direct Vacate)
@@ -109,7 +110,7 @@ export const listCheckoutRequestsQueryValidator = [
     .isISO8601()
     .withMessage('End date must be in YYYY-MM-DD format')
     .custom((endDate, { req }) => {
-      if (req.query?.start_date && new Date(endDate) < new Date(req.query.start_date)) {
+      if (req.query?.start_date && moment(endDate).isBefore(moment(req.query.start_date))) {
         throw new Error('End date cannot be earlier than start date');
       }
       return true;
@@ -180,7 +181,7 @@ export const exportCheckoutQueryValidator = [
     .isISO8601()
     .withMessage('End date must be in YYYY-MM-DD format')
     .custom((endDate, { req }) => {
-      if (req.query?.start_date && new Date(endDate) < new Date(req.query.start_date)) {
+      if (req.query?.start_date && moment(endDate).isBefore(moment(req.query.start_date))) {
         throw new Error('End date cannot be earlier than start date');
       }
       return true;

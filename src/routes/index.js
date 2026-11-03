@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import moment from 'moment';
 import authRoutes from './auth.routes.js';
 import userRoutes from './user.routes.js';
 import stayRoutes from './stay.routes.js';
@@ -28,7 +29,7 @@ router.get('/health', (req, res) => {
   return success(res, 'System is healthy', {
     status: 'ok',
     uptime: process.uptime(),
-    timestamp: new Date().toISOString(),
+    timestamp: moment().toISOString(),
   });
 });
 

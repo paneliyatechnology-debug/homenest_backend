@@ -45,7 +45,7 @@ class DashboardService {
    * @returns {string} Salutation string
    */
   getSalutation = () => {
-    const hour = new Date().getHours();
+    const hour = moment().hour();
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
@@ -299,7 +299,7 @@ class DashboardService {
     });
 
     // Sort combined activities by latest timestamp
-    activityItems.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    activityItems.sort((a, b) => moment(b.created_at).valueOf() - moment(a.created_at).valueOf());
 
     return {
       role: 'admin',
@@ -474,7 +474,7 @@ class DashboardService {
       .orderBy('sort_order', 'asc');
 
     // Pick meal corresponding to time of day
-    const currentHour = new Date().getHours();
+    const currentHour = moment().hour();
     let currentMealType = 'breakfast';
     if (currentHour >= 11 && currentHour < 16) {
       currentMealType = 'lunch';

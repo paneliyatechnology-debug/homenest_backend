@@ -1,4 +1,5 @@
 import { body, param } from 'express-validator';
+import moment from 'moment';
 import db from '../config/db.js';
 
 const ALLOWED_STATUSES = ['signed', 'pending', 'draft', 'expired'];
@@ -93,7 +94,7 @@ export const createAgreementValidator = [
     .isISO8601()
     .withMessage('End date must be a valid date in YYYY-MM-DD format')
     .custom((end_date, { req }) => {
-      if (req.body?.start_date && new Date(end_date) < new Date(req.body.start_date)) {
+      if (req.body?.start_date && moment(end_date).isBefore(moment(req.body.start_date))) {
         throw new Error('End date cannot be earlier than start date');
       }
       return true;

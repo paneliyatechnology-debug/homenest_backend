@@ -1,52 +1,46 @@
 import fs from 'fs';
 import path from 'path';
 import QRCode from 'qrcode';
+import moment from 'moment';
 import db from '../config/db.js';
 import { AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS, ROLES } from '../constants/index.js';
 import { buildFileUrl } from '../utils/url.js';
 import emailService from './email.service.js';
 import { deleteVisitorPhotoFile } from '../middlewares/upload.middleware.js';
+import socketService, { SOCKET_EVENTS } from './socket.service.js';
 
 class VisitorService {
   /**
-   * Helper: Format current IST time string (e.g. "10:24 AM")
+   * Helper: Format current time string (e.g. "10:24 AM") using moment
    */
   static formatCurrentTimeIST = () => {
-    return new Date().toLocaleTimeString('en-US', {
-      timeZone: 'Asia/Kolkata',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    });
+    return moment().format('hh:mm A');
   };
 
   /**
-   * Helper: Format date to YYYY-MM-DD
-   */
-  /**
-   * Helper: Format current IST date (YYYY-MM-DD)
+   * Helper: Format current date (YYYY-MM-DD) using moment
    */
   static getCurrentDateIST = () => {
-    return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
-  };
-
-  static formatDateStr = (dateInput) => {
-    if (!dateInput) return null;
-    if (typeof dateInput === 'string') {
-      const match = dateInput.trim().match(/^(\d{4}-\d{2}-\d{2})/);
-      if (match) return match[1];
-    }
-    const d = new Date(dateInput);
-    if (isNaN(d.getTime())) return null;
-    return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+    return moment().format('YYYY-MM-DD');
   };
 
   /**
-   * Helper: Generate unique visitor pass code
+   * Helper: Format any date to standard 'YYYY-MM-DD' string using moment
+   * @param {Date|string} dateInput
+   * @returns {string|null}
+   */
+  static formatDateStr = (dateInput) => {
+    if (!dateInput) return null;
+    const m = moment(dateInput);
+    return m.isValid() ? m.format('YYYY-MM-DD') : null;
+  };
+
+  /**
+   * Helper: Generate unique visitor pass code e.g. "VP-20261103-A1B2C3" using moment
    */
   static generatePassCode = () => {
-    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const today = moment().format('YYYYMMDD');
     const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
     return `VP-${today}-${rand}`;
   };
@@ -746,6 +740,38 @@ class VisitorService {
       }
     }
 
+    // Real-time: Notify resident and property admins of visitor pass status change
+    socketService.emitToUser(existing.resident_id, SOCKET_EVENTS.VISITOR_STATUS_UPDATED, {
+      id,
+      visitor_name: existing.visitor_name,
+      status,
+      pass_code,
+      updated_at: moment().toISOString(),
+    });
+    socketService.emitToPgAdmins(existing.pg_id, SOCKET_EVENTS.VISITOR_STATUS_UPDATED, {
+      id,
+      visitor_name: existing.visitor_name,
+      status,
+      pass_code,
+      updated_at: moment().toISOString(),
+    });
+
+    // Real-time: Notify resident and property admins of visitor pass status change
+    socketService.emitToUser(existing.resident_id, SOCKET_EVENTS.VISITOR_STATUS_UPDATED, {
+      id,
+      visitor_name: existing.visitor_name,
+      status,
+      pass_code,
+      updated_at: moment().toISOString(),
+    });
+    socketService.emitToPgAdmins(existing.pg_id, SOCKET_EVENTS.VISITOR_STATUS_UPDATED, {
+      id,
+      visitor_name: existing.visitor_name,
+      status,
+      pass_code,
+      updated_at: moment().toISOString(),
+    });
+
     return await this.findById(id);
   };
 
@@ -854,6 +880,17 @@ class VisitorService {
       });
 
       const updated = await this.findById(existing.id);
+
+      // Real-time: Notify resident that visitor exited
+      socketService.emitToUser(existing.resident_id, SOCKET_EVENTS.VISITOR_ENTRY, {
+        visitor_id: existing.id,
+        visitor_name: existing.visitor_name,
+        action: 'EXIT',
+        direction: 'OUT',
+        gate_name: options?.gate_name || 'Main Gate',
+        log_time: currentTime,
+      });
+
       return {
         action: 'EXIT',
         direction: 'OUT',
@@ -891,6 +928,17 @@ class VisitorService {
       });
 
       const updated = await this.findById(existing.id);
+
+      // Real-time: Notify resident that visitor checked in at the gate
+      socketService.emitToUser(existing.resident_id, SOCKET_EVENTS.VISITOR_ENTRY, {
+        visitor_id: existing.id,
+        visitor_name: existing.visitor_name,
+        action: 'ENTRY',
+        direction: 'IN',
+        gate_name: options?.gate_name || 'Main Gate',
+        log_time: currentTime,
+      });
+
       return {
         action: 'ENTRY',
         direction: 'IN',
@@ -970,7 +1018,7 @@ class VisitorService {
         }
       });
 
-    const todayDate = new Date().toISOString().split('T')[0];
+    const todayDate = moment().format('YYYY-MM-DD');
 
     const [row] = await base_query.select(
       db.raw('COUNT(visitors.id) as total_visitors'),

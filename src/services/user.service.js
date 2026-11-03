@@ -26,20 +26,15 @@ const safeJsonParse = (val, fallback = []) => {
 };
 
 /**
- * Helper to compute age from birth date
+ * Helper to compute age from birth date using moment
  * @param {string|Date} dob
  * @returns {number|null}
  */
 const calculateAge = (dob) => {
   if (!dob) return null;
-  const birthDate = new Date(dob);
-  if (isNaN(birthDate.getTime())) return null;
-  const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const m = today.getMonth() - birthDate.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-    age--;
-  }
+  const m = moment(dob);
+  if (!m.isValid()) return null;
+  const age = moment().diff(m, 'years');
   return age >= 0 ? age : null;
 };
 
@@ -562,7 +557,7 @@ class UserService {
       : generateSecurePassword(10);
 
     const hashed_password = await hashPassword(plain_password);
-    const effective_check_in = check_in_date || new Date().toISOString().split('T')[0];
+    const effective_check_in = check_in_date || moment().format('YYYY-MM-DD');
 
     // If resident and room allocation is requested, validate upfront
     let target_room = null;
@@ -618,16 +613,15 @@ class UserService {
           .increment('subscribers_count', 1);
 
         const subStartDate = effective_check_in;
-        const startMoment = new Date(subStartDate);
-        let endMoment = new Date(subStartDate);
+        let subEndMoment = moment(subStartDate);
         if (chosen_plan.plan_type === 'quarterly') {
-          endMoment.setMonth(endMoment.getMonth() + 3);
+          subEndMoment = subEndMoment.add(3, 'months');
         } else if (chosen_plan.plan_type === 'yearly') {
-          endMoment.setFullYear(endMoment.getFullYear() + 1);
+          subEndMoment = subEndMoment.add(1, 'year');
         } else {
-          endMoment.setMonth(endMoment.getMonth() + 1);
+          subEndMoment = subEndMoment.add(1, 'month');
         }
-        const subEndDate = endMoment.toISOString().split('T')[0];
+        const subEndDate = subEndMoment.format('YYYY-MM-DD');
 
         await trx('resident_subscriptions').insert({
           resident_id: user_id,
@@ -702,16 +696,15 @@ class UserService {
         allocatedMaintVal = maint_val;
 
         if (total_due > 0) {
-          const checkInObj = new Date(effective_check_in);
-          const year = checkInObj.getFullYear();
-          const monthIndex = checkInObj.getMonth();
-          const monthName = checkInObj.toLocaleString('en-US', { month: 'long' });
+          const checkInMoment = moment(effective_check_in);
+          const year = checkInMoment.format('YYYY');
+          const monthName = checkInMoment.format('MMMM');
 
-          const billingStart = new Date(Date.UTC(year, monthIndex, 1)).toISOString().split('T')[0];
-          const billingEnd = new Date(Date.UTC(year, monthIndex + 1, 0)).toISOString().split('T')[0];
+          const billingStart = checkInMoment.clone().startOf('month').format('YYYY-MM-DD');
+          const billingEnd = checkInMoment.clone().endOf('month').format('YYYY-MM-DD');
 
-          const dueDay = Math.min(25, new Date(year, monthIndex + 1, 0).getDate());
-          const defaultDueDate = new Date(Date.UTC(year, monthIndex, dueDay)).toISOString().split('T')[0];
+          const daysInMonth = checkInMoment.daysInMonth();
+          const defaultDueDate = checkInMoment.clone().date(Math.min(25, daysInMonth)).format('YYYY-MM-DD');
           const due_date = effective_check_in > defaultDueDate ? effective_check_in : defaultDueDate;
 
           const titleParts = [];
@@ -1087,7 +1080,7 @@ class UserService {
           bed_number: update_data.bed_number || 'Bed-1',
           monthly_rent: parseFloat(update_data.monthly_rent) || 0.0,
           security_deposit: parseFloat(update_data.security_deposit) || 0.0,
-          check_in_date: update_data.check_in_date || new Date().toISOString().split('T')[0],
+          check_in_date: update_data.check_in_date || moment().format('YYYY-MM-DD'),
           check_out_date: update_data.check_out_date || null,
           status: 'active',
           notes: 'Allocated via Admin User Update',

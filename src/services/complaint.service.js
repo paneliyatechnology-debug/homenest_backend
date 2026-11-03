@@ -3,6 +3,7 @@ import db from '../config/db.js';
 import { AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS, ROLES } from '../constants/index.js';
 import { buildFileUrl } from '../utils/url.js';
+import socketService, { SOCKET_EVENTS } from './socket.service.js';
 
 class ComplaintService {
   /**
@@ -307,6 +308,30 @@ class ComplaintService {
       });
 
       return newId;
+    });
+
+    // Real-time: Notify property admins of new complaint request
+    socketService.emitToPgAdmins(targetPgId, SOCKET_EVENTS.COMPLAINT_NEW, {
+      id: complaintId,
+      complaint_number: complaintNumber,
+      title: data.title ? data.title.trim() : `${category.name} Issue`,
+      priority,
+      status: 'OPEN',
+      room_id: targetRoomId,
+      resident_id: residentId,
+      created_at: moment().toISOString(),
+    });
+
+    // Real-time: Notify property admins of new complaint request
+    socketService.emitToPgAdmins(targetPgId, SOCKET_EVENTS.COMPLAINT_NEW, {
+      id: complaintId,
+      complaint_number: complaintNumber,
+      title: data.title ? data.title.trim() : `${category.name} Issue`,
+      priority,
+      status: 'OPEN',
+      room_id: targetRoomId,
+      resident_id: residentId,
+      created_at: moment().toISOString(),
     });
 
     return {
@@ -769,6 +794,21 @@ class ComplaintService {
       }
     });
 
+    // Real-time: Notify resident and assigned staff
+    socketService.emitToUser(complaint.resident_id, SOCKET_EVENTS.COMPLAINT_ACTIVITY, {
+      id,
+      complaint_number: complaint.complaint_number,
+      type: 'ASSIGNED',
+      assigned_to: staffUser.name,
+      due_date: dueDate,
+    });
+    socketService.emitToUser(staffUser.id, SOCKET_EVENTS.COMPLAINT_NEW, {
+      id,
+      complaint_number: complaint.complaint_number,
+      title: complaint.title,
+      due_date: dueDate,
+    });
+
     return {
       id,
       assigned_to: staffUser.name,
@@ -829,6 +869,40 @@ class ComplaintService {
         new_value: newStatus,
         performed_by: user.id,
       });
+    });
+
+    // Real-time: Notify resident and property admins of status change
+    socketService.emitToUser(complaint.resident_id, SOCKET_EVENTS.COMPLAINT_STATUS_UPDATED, {
+      id,
+      complaint_number: complaint.complaint_number,
+      old_status: oldStatus,
+      status: newStatus,
+      resolution_notes: resolutionNotes,
+      updated_at: moment().toISOString(),
+    });
+    socketService.emitToPgAdmins(complaint.pg_id, SOCKET_EVENTS.COMPLAINT_STATUS_UPDATED, {
+      id,
+      complaint_number: complaint.complaint_number,
+      old_status: oldStatus,
+      status: newStatus,
+      updated_at: moment().toISOString(),
+    });
+
+    // Real-time: Notify resident and property admins of status change
+    socketService.emitToUser(complaint.resident_id, SOCKET_EVENTS.COMPLAINT_STATUS_UPDATED, {
+      id,
+      complaint_number: complaint.complaint_number,
+      old_status: oldStatus,
+      status: newStatus,
+      resolution_notes: resolutionNotes,
+      updated_at: moment().toISOString(),
+    });
+    socketService.emitToPgAdmins(complaint.pg_id, SOCKET_EVENTS.COMPLAINT_STATUS_UPDATED, {
+      id,
+      complaint_number: complaint.complaint_number,
+      old_status: oldStatus,
+      status: newStatus,
+      updated_at: moment().toISOString(),
     });
 
     return {
