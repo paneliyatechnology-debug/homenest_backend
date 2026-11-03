@@ -39,7 +39,15 @@ export const formatDate = (val, key = '') => {
 
     // If key indicates a date column and string is a date representation
     if (DATE_KEY_REGEX.test(lowerKey)) {
-      if (DATE_ONLY_REGEX.test(val) || moment(val).isValid()) {
+      // If already formatted in DD-MM-YYYY format or human display format (e.g. "31 Dec 2026")
+      if (/^\d{2}-\d{2}-\d{4}/.test(val) || /^\d{1,2}\s+[A-Za-z]{3}\s+\d{4}/i.test(val)) {
+        return val;
+      }
+      if (DATE_ONLY_REGEX.test(val)) {
+        const m = moment(val, 'YYYY-MM-DD');
+        return m.isValid() ? m.format(DATE_TIME_FORMAT) : val;
+      }
+      if (moment(val, moment.ISO_8601, true).isValid()) {
         const m = moment(val);
         return m.isValid() ? m.format(DATE_TIME_FORMAT) : val;
       }

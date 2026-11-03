@@ -3544,11 +3544,13 @@
                 },
                 {
                   "key": "page",
-                  "value": "1"
+                  "value": "1",
+                  "description": "Page number for paginated results."
                 },
                 {
                   "key": "limit",
-                  "value": "20"
+                  "value": "20",
+                  "description": "Number of records per page."
                 }
               ]
             },
@@ -4455,23 +4457,28 @@
               "query": [
                 {
                   "key": "start_date",
-                  "value": "2026-11-01"
+                  "value": "2026-11-01",
+                  "description": "Filter records starting from this date (YYYY-MM-DD)."
                 },
                 {
                   "key": "end_date",
-                  "value": "2026-11-07"
+                  "value": "2026-11-07",
+                  "description": "Filter records up to this date (YYYY-MM-DD)."
                 },
                 {
                   "key": "meal_type",
-                  "value": "all"
+                  "value": "all",
+                  "description": "Filter records by meal type: breakfast, lunch, snacks, or dinner."
                 },
                 {
                   "key": "page",
-                  "value": "1"
+                  "value": "1",
+                  "description": "Page number for paginated results."
                 },
                 {
                   "key": "limit",
-                  "value": "20"
+                  "value": "20",
+                  "description": "Number of records per page."
                 }
               ]
             },
@@ -4498,27 +4505,33 @@
               "query": [
                 {
                   "key": "branch_id",
-                  "value": "{{branchId}}"
+                  "value": "{{branchId}}",
+                  "description": "Filter records by branch ID."
                 },
                 {
                   "key": "start_date",
-                  "value": "2026-11-01"
+                  "value": "2026-11-01",
+                  "description": "Filter records starting from this date (YYYY-MM-DD)."
                 },
                 {
                   "key": "end_date",
-                  "value": "2026-11-07"
+                  "value": "2026-11-07",
+                  "description": "Filter records up to this date (YYYY-MM-DD)."
                 },
                 {
                   "key": "meal_type",
-                  "value": "all"
+                  "value": "all",
+                  "description": "Filter records by meal type: breakfast, lunch, snacks, or dinner."
                 },
                 {
                   "key": "page",
-                  "value": "1"
+                  "value": "1",
+                  "description": "Page number for paginated results."
                 },
                 {
                   "key": "limit",
-                  "value": "20"
+                  "value": "20",
+                  "description": "Number of records per page."
                 }
               ]
             },
@@ -4546,15 +4559,18 @@
               "query": [
                 {
                   "key": "branch_id",
-                  "value": "{{branchId}}"
+                  "value": "{{branchId}}",
+                  "description": "Filter records by branch ID."
                 },
                 {
                   "key": "start_date",
-                  "value": "2026-11-01"
+                  "value": "2026-11-01",
+                  "description": "Filter records starting from this date (YYYY-MM-DD)."
                 },
                 {
                   "key": "end_date",
-                  "value": "2026-11-07"
+                  "value": "2026-11-07",
+                  "description": "Filter records up to this date (YYYY-MM-DD)."
                 }
               ]
             },
@@ -6012,7 +6028,380 @@
           },
           "response": []
         }
-      ]
+      ],
+      "description": "Comprehensive laundry management APIs for residents and staff including request creation, catalog pricing, status tracking, itemized billing, and history."
+    },
+    {
+      "name": "17 Checkout & Refund Approvals (Stay Module)",
+      "item": [
+        {
+          "name": "Resident / Admin - Get Checkout Review & NOC Preview",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text",
+                "description": "Expected response format"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text",
+                "description": "Content format"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text",
+                "description": "Resident or Admin Bearer token"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/stays/checkouts/review?departure_date=2026-03-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "stays",
+                "checkouts",
+                "review"
+              ],
+              "query": [
+                {
+                  "key": "departure_date",
+                  "value": "2026-03-31",
+                  "description": "Planned departure date (YYYY-MM-DD) to calculate preview of pending dues and estimated refund."
+                },
+                {
+                  "key": "resident_id",
+                  "value": "",
+                  "description": "Optional resident ID for admins to view a specific resident checkout preview."
+                },
+                {
+                  "key": "stay_id",
+                  "value": "",
+                  "description": "Optional stay ID for admins to preview a specific stay checkout calculation."
+                }
+              ]
+            },
+            "description": "Get resident checkout review, room details, live pending dues calculation, security deposit breakdown, and NOC clearance preview."
+          },
+          "response": []
+        },
+        {
+          "name": "Resident / Admin - Submit Checkout Departure Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text",
+                "description": "Expected response format"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text",
+                "description": "Content format"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text",
+                "description": "Resident or Admin Bearer token"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"departure_date\": \"2026-03-31\",\n  \"reason\": \"Job Relocation\",\n  \"additional_notes\": \"Moving to a new city for office project\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/stays/checkouts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "stays",
+                "checkouts"
+              ]
+            },
+            "description": "Submit a new checkout departure request with planned departure date, reason, and optional notes. Captures snapshots of dues and deposit (Image 1 Screen 1 & Screen 2)."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - List Checkout & Refund Approval Requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text",
+                "description": "Expected response format"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text",
+                "description": "Admin or Staff Bearer token"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/stays/checkouts?branch_id={{branchId}}&status=all&search=&start_date=&end_date=&date_by=departure_date",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "stays",
+                "checkouts"
+              ],
+              "query": [
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "description": "Filter checkout requests by branch ID (optional for Super Admin)."
+                },
+                {
+                  "key": "status",
+                  "value": "all",
+                  "description": "Filter requests by status tab: all, pending, under_review, in_progress, approved, rejected, or completed."
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Search by resident name, phone number, room number, building name, floor name, or checkout reason."
+                },
+                {
+                  "key": "start_date",
+                  "value": "",
+                  "description": "Filter checkout records starting from this date (YYYY-MM-DD). Defaults to departure date."
+                },
+                {
+                  "key": "end_date",
+                  "value": "",
+                  "description": "Filter checkout records up to this date (YYYY-MM-DD). Defaults to departure date."
+                },
+                {
+                  "key": "date_by",
+                  "value": "departure_date",
+                  "description": "Field to filter dates by: departure_date (default) or created_at."
+                }
+              ]
+            },
+            "description": "Fetch all resident checkout and refund approval requests across branches with status tabs, search filter, dues, deposit, and refund summary."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Export Checkout & Refund Approvals (Excel or PDF)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text",
+                "description": "Expected response format"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text",
+                "description": "Admin or Staff Bearer token"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/stays/checkouts/export?branch_id={{branchId}}&status=all&format=excel&search=&start_date=&end_date=&date_by=departure_date",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "stays",
+                "checkouts",
+                "export"
+              ],
+              "query": [
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "description": "Filter records to export by branch ID (optional for Super Admin)."
+                },
+                {
+                  "key": "status",
+                  "value": "all",
+                  "description": "Filter records to export by status: all, pending, under_review, in_progress, approved, rejected, completed."
+                },
+                {
+                  "key": "format",
+                  "value": "excel",
+                  "description": "Report export format: either excel (or xlsx) or pdf."
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Search export records by resident name, room number, building, floor, or reason."
+                },
+                {
+                  "key": "start_date",
+                  "value": "",
+                  "description": "Filter export records starting from this date (YYYY-MM-DD)."
+                },
+                {
+                  "key": "end_date",
+                  "value": "",
+                  "description": "Filter export records up to this date (YYYY-MM-DD)."
+                },
+                {
+                  "key": "date_by",
+                  "value": "departure_date",
+                  "description": "Field to filter dates by: departure_date (default) or created_at."
+                }
+              ]
+            },
+            "description": "Export checkout departure and refund approvals report as Excel (.xlsx) or PDF (.pdf) with filters, search, and date range."
+          },
+          "response": []
+        },
+        {
+          "name": "Resident / Admin - Get Checkout Request Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text",
+                "description": "Expected response format"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text",
+                "description": "Resident or Admin Bearer token"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/stays/checkouts/{{checkoutRequestId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "stays",
+                "checkouts",
+                "{{checkoutRequestId}}"
+              ]
+            },
+            "description": "Get comprehensive details of a checkout request by ID including resident profile, stay/room assignment, itemized dues breakdown, clearance checklist, and 5-step timeline."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Update Checkout Status, Checklist & Refund Approval",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text",
+                "description": "Expected response format"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text",
+                "description": "Content format"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text",
+                "description": "Admin or Branch Manager Bearer token"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\",\n  \"clearance_room_inspected\": true,\n  \"clearance_key_returned\": true,\n  \"noc_issued\": true,\n  \"refund_amount\": 4200,\n  \"refund_processed\": true,\n  \"admin_notes\": \"Room inspected, key returned, NOC issued and refund approved\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/stays/checkouts/{{checkoutRequestId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "stays",
+                "checkouts",
+                "{{checkoutRequestId}}",
+                "status"
+              ]
+            },
+            "description": "Update checkout status, room inspection, key return, NOC issuance, and final approved refund amount. Approving/completing automatically finalizes stay and marks room vacant (Image 2 & Stepper)."
+          },
+          "response": []
+        },
+        {
+          "name": "Resident / Admin - Cancel or Delete Checkout Request",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text",
+                "description": "Expected response format"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text",
+                "description": "Resident or Admin Bearer token"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/stays/checkouts/{{checkoutRequestId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "stays",
+                "checkouts",
+                "{{checkoutRequestId}}"
+              ]
+            },
+            "description": "Cancel a pending checkout request (by Resident) or soft-delete it (by Admin)."
+          },
+          "response": []
+        }
+      ],
+      "description": "End-to-end checkout and refund approval workflow APIs including departure request submission, clearance checklist, NOC review, approval status tracking, and Excel/PDF export generation."
     }
   ]
 }
