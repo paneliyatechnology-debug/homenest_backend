@@ -137,6 +137,30 @@
       "key": "staff_id",
       "value": "1",
       "type": "string"
+    },
+    {
+      "key": "serviceRequestId",
+      "value": "1",
+      "type": "string",
+      "description": "Sample service or laundry request ID for API testing"
+    },
+    {
+      "key": "shiftId",
+      "value": "1",
+      "type": "string",
+      "description": "Sample room shift request ID for API testing"
+    },
+    {
+      "key": "laundryId",
+      "value": "1",
+      "type": "string",
+      "description": "Sample laundry request ID for API testing"
+    },
+    {
+      "key": "residentId",
+      "value": "3",
+      "type": "string",
+      "description": "Sample resident user ID for API testing"
     }
   ],
   "auth": {
@@ -5460,6 +5484,535 @@
         }
       ],
       "description": "### 15 Room Shift Requests (Integrated Under Room Module)\n\nManages resident room shift requests (Screen 1 Mobile screen) and admin review, approval, table management, and atomic room transfers (Screen 2 & Screen 3 Admin Portal) directly under the Room Module (/api/v1/rooms/shifts)."
+    },
+    {
+      "name": "16 Laundry Management",
+      "item": [
+        {
+          "name": "Resident / Admin - Get Laundry Catalog & Pricing",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/laundry/catalog?branch_id={{branchId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "laundry",
+                "catalog"
+              ],
+              "query": [
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "description": "Optional Branch ID filter. If omitted by resident, their branch pricing is auto-resolved. If omitted by admin, PG default pricing is returned."
+                }
+              ]
+            },
+            "description": "### Resident / Admin - Get Laundry Catalog & Pricing (Image 1 Screen)\n\nRetrieves the official laundry catalog items, unit rates, supported service types, and pickup slot window.\n- **Branch-Specific Pricing**: If custom prices were configured for this branch, they are returned (`scope: \"branch_specific\"`).\n- **All-Branches Default Pricing**: If no branch override exists, the PG-level default pricing is returned (`scope: \"all_branches_default\"`).\n- **Resident Resolution**: When called by a resident, their active branch is auto-detected.\n\n---\n\n#### Request Details:\n- **Method**: `GET`\n- **URL**: `{{baseUrl}}/api/v1/laundry/catalog`\n- **Authentication**: Bearer Access Token (`Resident`, `Admin`, `Super Admin`)\n\n---\n\n#### Response Codes:\n- `200 OK`: Catalog and pricing retrieved successfully.\n- `401 Unauthorized`: Missing or invalid bearer token."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Configure Laundry Pricing (Branch-Wise or All Branches)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"branch_id\": 1,\n  \"apply_to_all_branches\": false,\n  \"pickup_time_slot\": \"09:00 AM - 11:00 AM (Mon - Sat)\",\n  \"items\": [\n    {\n      \"name\": \"Shirt\",\n      \"rate\": 25\n    },\n    {\n      \"name\": \"T-Shirt\",\n      \"rate\": 20\n    },\n    {\n      \"name\": \"Jeans\",\n      \"rate\": 35\n    },\n    {\n      \"name\": \"Towel\",\n      \"rate\": 45\n    },\n    {\n      \"name\": \"Other\",\n      \"rate\": 25\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/laundry/catalog",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "laundry",
+                "catalog"
+              ]
+            },
+            "description": "### Admin - Configure Laundry Pricing (Branch-Wise or All Branches)\n\nAllows Admins to update laundry item pricing either for a specific branch OR across all branches under their PG.\n\n---\n\n#### Request Details:\n- **Method**: `PUT`\n- **URL**: `{{baseUrl}}/api/v1/laundry/catalog`\n- **Authentication**: Bearer Access Token (`Admin` or `Super Admin`)\n- **Content-Type**: `application/json`\n\n---\n\n#### JSON Payload Fields:\n\n| Field Name | Type | Requirement | Default | Description |\n| :--- | :---: | :---: | :---: | :--- |\n| **`branch_id`** | Integer | Optional | `null` | Target Branch ID to apply custom pricing to. Omit or set null to update for ALL branches. |\n| **`apply_to_all_branches`** | Boolean | Optional | `false` | Set to `true` to enforce this pricing across all branches under the PG and reset individual branch overrides. |\n| **`pickup_time_slot`** | String | Optional | `\"09:00 AM - 11:00 AM (Mon - Sat)\"` | Daily/Weekly pickup schedule window banner. |\n| **`service_types`** | Array<String> | Optional | `[\"Wash & Fold\", \"Dry Cleaning\"]` | Supported service categories. |\n| **`items`** | Array<Object> | **REQUIRED** | - | Array of items: `[{ \"name\": \"Shirt\", \"rate\": 25 }]`. |\n\n---\n\n#### Scenarios:\n1. **Branch-Specific Pricing**: Pass `branch_id: 1` and `apply_to_all_branches: false`.\n2. **Unified Pricing (All Branches)**: Pass `apply_to_all_branches: true` or omit `branch_id`.\n\n---\n\n#### Response Codes:\n- `200 OK`: Pricing updated successfully.\n- `403 Forbidden`: Caller is not authorized for the specified branch.\n- `422 Unprocessable Entity`: Validation error on item rates."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Get Laundry KPI Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/laundry/stats?branch_id={{branchId}}&type=all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "laundry",
+                "stats"
+              ],
+              "query": [
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "description": "Filter statistics by specific PG Branch ID (pass numeric ID or \"all\" to view across all authorized branches)"
+                },
+                {
+                  "key": "type",
+                  "value": "all",
+                  "description": "Filter statistics by request type: \"all\", \"Laundry\", \"Room Cleaning\", \"Maintenance\", or \"Other\""
+                }
+              ]
+            },
+            "description": "### Admin - Get Laundry KPI Statistics (Image 3 Dashboard Cards)\n\nRetrieves real-time counts for the top 4 cards: **Total Requests**, **In Progress**, **Pending**, and **Completed**."
+          },
+          "response": []
+        },
+        {
+          "name": "Resident / Admin - Get User-Wise Laundry & Payment Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/laundry/residents/{{residentId}}/billing",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "laundry",
+                "residents",
+                "{{residentId}}",
+                "billing"
+              ]
+            },
+            "description": "### Resident / Admin - Get User-Wise Laundry & Payment Summary\n\nRetrieves comprehensive laundry billing status for a resident.\n\n---\n\n#### Request Details:\n- **Method**: `GET`\n- **URL**: `{{baseUrl}}/api/v1/laundry/residents/{{residentId}}/billing`\n  *(Residents can also call `{{baseUrl}}/api/v1/laundry/resident-billing` for their own account)*\n- **Authentication**: Bearer Access Token (`Resident`, `Admin`, `Super Admin`)\n\n---\n\n#### Response Data Structure:\n1. **`resident`**: Resident info (Name, Phone, Email, Room No, Branch).\n2. **`summary`**:\n   - **`total_orders`**: Total laundry orders placed.\n   - **`total_amount_incurred`**: Lifetime laundry amount across all requests.\n   - **`unbilled_orders_count`**: Requests not yet converted into a payment invoice.\n   - **`unbilled_amount`**: Amount ready to be billed by admin.\n   - **`billed_amount`**: Amount converted into payment invoices.\n   - **`total_paid`**: Total laundry dues paid so far.\n   - **`total_due`**: Current outstanding unpaid laundry bills.\n3. **`laundry_requests`**: Detailed list of all laundry orders (with `is_billed`, `payment_id`, `items`, `status`).\n4. **`payment_entries`**: Invoices generated in `payments` table with receipt no, transaction ID, paid/pending status, and due date.\n\n---\n\n#### Response Codes:\n- `200 OK`: Summary retrieved successfully.\n- `403 Forbidden`: Resident attempting to access another user's billing."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Get Users List with Laundry & Payment Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text",
+                "description": "Expected response format"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text",
+                "description": "Admin or Staff Bearer token"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/laundry/users?branch_id={{branchId}}&search=&laundry_status=all&sort_by=unbilled_amount&order=desc&page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "laundry",
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "description": "Optional branch ID filter (or omit/all for all branches under PG)"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Search resident by name, phone number, email, or room number"
+                },
+                {
+                  "key": "laundry_status",
+                  "value": "all",
+                  "description": "Filter by laundry status: all, has_orders, has_unbilled, has_due, active_orders"
+                },
+                {
+                  "key": "sort_by",
+                  "value": "unbilled_amount",
+                  "description": "Sort field: unbilled_amount, total_orders, total_due, name, room_no, created_at"
+                },
+                {
+                  "key": "order",
+                  "value": "desc",
+                  "description": "Sort direction: asc or desc"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number for pagination (defaults to 1)"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Number of records per page (1 to 100, defaults to 10)"
+                }
+              ]
+            },
+            "description": "Fetch paginated list of residents/users with their aggregated laundry activity, order counts, unbilled charges, payment balance, and snapshot of their most recent laundry order. Includes top-level KPI overview metrics."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Create Laundry Payment Entry (Single or Bulk Residents)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Laundry Charges - November 2026\",\n  \"due_date\": \"2026-11-20\",\n  \"notes\": \"Monthly laundry billing\",\n  \"entries\": [\n    {\n      \"resident_id\": 3,\n      \"amount\": 120,\n      \"laundry_request_ids\": [\n        1,\n        2\n      ]\n    },\n    {\n      \"resident_id\": 4,\n      \"amount\": 155\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/laundry/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "laundry",
+                "payments"
+              ]
+            },
+            "description": "### Admin - Create Laundry Payment Entry (Single or Bulk Residents)\n\nCreates official payment invoice entries in the `payments` table for laundry charges. Residents can then view these dues and pay them through standard checkout (`POST /api/v1/payments/:id/pay`).\n\n---\n\n#### Request Details:\n- **Method**: `POST`\n- **URL**: `{{baseUrl}}/api/v1/laundry/payments`\n- **Authentication**: Bearer Access Token (`Admin` or `Super Admin`)\n- **Content-Type**: `application/json`\n\n---\n\n#### Supported Modes:\n\n##### 1. Multiple Residents (Bulk Billing):\n```json\n{\n  \"title\": \"Laundry Charges - November 2026\",\n  \"due_date\": \"2026-11-20\",\n  \"entries\": [\n    { \"resident_id\": 3, \"amount\": 120.00, \"laundry_request_ids\": [1, 2] },\n    { \"resident_id\": 4, \"amount\": 155.00 }\n  ]\n}\n```\n\n##### 2. Single Resident Billing:\n```json\n{\n  \"resident_id\": 3,\n  \"amount\": 120.00,\n  \"due_date\": \"2026-11-20\",\n  \"title\": \"Laundry Charges - November 2026\"\n}\n```\n*(Note: If `amount` is omitted or null, the system automatically sums all unbilled completed laundry orders for that resident!)*\n\n---\n\n#### What happens on generation:\n1. Adds row(s) to `payments` table with `payment_type = \"laundry\"`, `status = \"pending\"`, and links stay & branch.\n2. Marks associated `laundry_requests` as `is_billed = true` and sets `payment_id`.\n3. Resident sees the dues on their payment overview screen and can pay immediately.\n\n---\n\n#### Response Codes:\n- `201 Created`: Invoices generated successfully.\n- `400 Bad Request`: Amount is 0 and resident has no unbilled orders.\n- `404 Not Found`: Resident not found."
+          },
+          "response": []
+        },
+        {
+          "name": "Resident / Admin - Create Laundry Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resident_id\": 3,\n  \"request_type\": \"Laundry\",\n  \"service_subtype\": \"Wash & Fold\",\n  \"pickup_date\": \"2026-12-31\",\n  \"pickup_time\": \"09:00 AM - 11:00 AM\",\n  \"items\": [\n    {\n      \"name\": \"Shirt\",\n      \"quantity\": 2,\n      \"rate\": 20\n    },\n    {\n      \"name\": \"T-Shirt\",\n      \"quantity\": 3,\n      \"rate\": 15\n    },\n    {\n      \"name\": \"Jeans\",\n      \"quantity\": 1,\n      \"rate\": 30\n    },\n    {\n      \"name\": \"Towel\",\n      \"quantity\": 1,\n      \"rate\": 40\n    },\n    {\n      \"name\": \"Other\",\n      \"quantity\": 0,\n      \"rate\": 20\n    }\n  ],\n  \"special_instructions\": \"Gentle wash, do not iron, etc.\",\n  \"assigned_to\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/laundry",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "laundry"
+              ]
+            },
+            "description": "### Resident / Admin - Create Laundry Request (Unified API)\n\nA single unified endpoint to submit and create laundry requests.\n- **`status`**: Automatically set to `\"pending\"` by default.\n- **`branch_id`**: Automatically retrieved from the resident's active stay."
+          },
+          "response": []
+        },
+        {
+          "name": "Resident / Admin - List Laundry Requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/laundry?branch_id={{branchId}}&tab=all&status=all&type=all&search=&page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "laundry"
+              ],
+              "query": [
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "description": "Filter by PG Branch ID (pass numeric ID or \"all\" to view across all branches)"
+                },
+                {
+                  "key": "tab",
+                  "value": "all",
+                  "description": "Filter tab selection: \"all\" (All Requests), \"service\" (Service Requests), \"laundry\" (Laundry Requests), \"current\" (Active), \"history\" (Past)"
+                },
+                {
+                  "key": "status",
+                  "value": "all",
+                  "description": "Filter by request status: \"all\", \"pending\", \"in_progress\", \"completed\", \"cancelled\""
+                },
+                {
+                  "key": "type",
+                  "value": "all",
+                  "description": "Filter by request type: \"all\", \"Laundry\", \"Room Cleaning\", \"Maintenance\", \"Other\""
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Search string matching resident name, room number, or request code (e.g. \"CL-1024\")"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number for pagination (starts at 1)"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Maximum number of items per page (default: 10, max: 100)"
+                }
+              ]
+            },
+            "description": "### Resident / Admin - List Laundry Requests (Image 1 Mobile & Image 3 Web Table)\n\nReturns a paginated list of laundry requests."
+          },
+          "response": []
+        },
+        {
+          "name": "Resident / Admin - Get Laundry Request Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/laundry/{{laundryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "laundry",
+                "{{laundryId}}"
+              ]
+            },
+            "description": "### Resident / Admin - Get Laundry Request Details\n\nRetrieves complete information for a specific laundry request by its primary key ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin / Staff - Update Laundry Request Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"completed\",\n  \"admin_notes\": \"Laundry washed, folded, and returned to resident room.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/laundry/{{laundryId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "laundry",
+                "{{laundryId}}",
+                "status"
+              ]
+            },
+            "description": "### Admin / Staff - Update Laundry Request Status\n\nUpdates the operational workflow status of a laundry request (`pending` ➜ `in_progress` ➜ `completed`)."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Assign Staff to Laundry Request",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"assigned_to\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/laundry/{{laundryId}}/assign",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "laundry",
+                "{{laundryId}}",
+                "assign"
+              ]
+            },
+            "description": "### Admin - Assign Staff to Laundry Request\n\nAssigns or reassigns an internal staff member to take ownership of this laundry request."
+          },
+          "response": []
+        },
+        {
+          "name": "Resident / Admin - Cancel or Delete Laundry Request",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/laundry/{{laundryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "laundry",
+                "{{laundryId}}"
+              ]
+            },
+            "description": "### Resident / Admin - Cancel or Delete Laundry Request\n\nCancels or soft-deletes a laundry request."
+          },
+          "response": []
+        }
+      ]
     }
   ]
 }

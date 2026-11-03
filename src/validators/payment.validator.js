@@ -1,7 +1,7 @@
 import { body, param, query } from 'express-validator';
 import db from '../config/db.js';
 
-const ALLOWED_TYPES = ['rent', 'maintenance', 'security_deposit', 'electricity', 'other'];
+const ALLOWED_TYPES = ['rent', 'maintenance', 'security_deposit', 'electricity', 'other', 'laundry'];
 const ALLOWED_METHODS = ['upi', 'card', 'net_banking', 'wallet', 'bank_transfer', 'cash'];
 const ALLOWED_STATUSES = ['paid', 'pending', 'overdue', 'refunded', 'failed'];
 const ALLOWED_FILTER_STATUSES = ['all', 'pending', 'paid', 'completed', 'overdue', 'refunded', 'refunds', 'failed'];
