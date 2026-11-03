@@ -7167,6 +7167,771 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "21 Community",
+      "description": "Resident Community & Social Hub Module:\n- Community Feed & Posts with Filter Pills (All, Updates, Events, Birthdays)\n- Post Creation with Optional Photo Upload & Community Guidelines\n- Likes & Comments on Posts\n- Community Events categorized into Ongoing, Upcoming, and Past\n- Upcoming Resident Birthdays",
+      "item": [
+        {
+          "name": "Get Community Feed",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/posts?category=all&page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "posts"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "all",
+                  "description": "Filter pill: all | updates | events | birthdays"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Number of posts per page"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Search text inside post content"
+                }
+              ]
+            },
+            "description": "### GET /api/v1/community/posts\nRetrieves the resident community feed list with author details, room number, relative time (e.g. 3h ago), post content, photo attachment, like counter, comment counter, and whether current user has liked it."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Post Details",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/posts/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "posts",
+                "1"
+              ]
+            },
+            "description": "### GET /api/v1/community/posts/:id\nGet single community post details with author info and counts."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Post",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "content",
+                  "value": "Had an amazing time at the weekend movie night! Such a great vibe at HomeNest! 💚",
+                  "type": "text",
+                  "description": "Post text content (Required)"
+                },
+                {
+                  "key": "category",
+                  "value": "update",
+                  "type": "text",
+                  "description": "Category pill: update | event | birthday"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "description": "Optional post photo attachment (JPG, PNG, WebP up to 5MB)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/posts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "posts"
+              ]
+            },
+            "description": "### POST /api/v1/community/posts\nCreate a new post in the resident community feed."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Post",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "content",
+                  "value": "Updated: Had an amazing time at the Yoga session! Such a great vibe at HomeNest! 💚",
+                  "type": "text"
+                },
+                {
+                  "key": "category",
+                  "value": "update",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "description": "Optional replacement photo"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/posts/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "posts",
+                "1"
+              ]
+            },
+            "description": "### PUT /api/v1/community/posts/:id\nUpdate post text or replace photo (Author or Admin)."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Post",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/posts/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "posts",
+                "1"
+              ]
+            },
+            "description": "### DELETE /api/v1/community/posts/:id\nSoft delete a post (Author or Admin)."
+          },
+          "response": []
+        },
+        {
+          "name": "Toggle Like Post",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/posts/1/like",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "posts",
+                "1",
+                "like"
+              ]
+            },
+            "description": "### POST /api/v1/community/posts/:id/like\nToggle like or unlike on a post."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Post Comments",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/posts/1/comments?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "posts",
+                "1",
+                "comments"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Comments per page"
+                }
+              ]
+            },
+            "description": "### GET /api/v1/community/posts/:id/comments\nRetrieve comments on a specific post."
+          },
+          "response": []
+        },
+        {
+          "name": "Add Comment",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Such a wonderful event! Cant wait for the next one.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/posts/1/comments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "posts",
+                "1",
+                "comments"
+              ]
+            },
+            "description": "### POST /api/v1/community/posts/:id/comments\nAdd a comment to a community post."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Comment",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/comments/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "comments",
+                "1"
+              ]
+            },
+            "description": "### DELETE /api/v1/community/comments/:id\nSoft delete a comment (Comment author or Admin)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Community Events",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "timeline",
+                  "value": "ongoing",
+                  "disabled": true,
+                  "description": "Optional: ongoing | upcoming | past"
+                },
+                {
+                  "key": "category",
+                  "value": "Food & Fun",
+                  "disabled": true,
+                  "description": "Optional category filter"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Optional search text"
+                }
+              ]
+            },
+            "description": "### GET /api/v1/community/events\nReturns community events grouped by timeline sections (Ongoing, Upcoming, Past) matching Screen 3."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Event Details",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/events/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "events",
+                "1"
+              ]
+            },
+            "description": "### GET /api/v1/community/events/:id\nGet single event details."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Event",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "Food Festival",
+                  "type": "text"
+                },
+                {
+                  "key": "category",
+                  "value": "Food & Fun",
+                  "type": "text"
+                },
+                {
+                  "key": "event_date",
+                  "value": "2026-03-24T10:30:00Z",
+                  "type": "text"
+                },
+                {
+                  "key": "location",
+                  "value": "Common room",
+                  "type": "text"
+                },
+                {
+                  "key": "status",
+                  "value": "ongoing",
+                  "type": "text",
+                  "description": "ongoing | upcoming | past"
+                },
+                {
+                  "key": "description",
+                  "value": "Join us for a food extravaganza!",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "description": "Optional event banner"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "events"
+              ]
+            },
+            "description": "### POST /api/v1/community/events\nCreate a new community event (Admin / Staff)."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Event",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "Movie night",
+                  "type": "text"
+                },
+                {
+                  "key": "category",
+                  "value": "Cultural",
+                  "type": "text"
+                },
+                {
+                  "key": "event_date",
+                  "value": "2026-03-24T10:30:00Z",
+                  "type": "text"
+                },
+                {
+                  "key": "location",
+                  "value": "Common room",
+                  "type": "text"
+                },
+                {
+                  "key": "status",
+                  "value": "upcoming",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/events/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "events",
+                "1"
+              ]
+            },
+            "description": "### PUT /api/v1/community/events/:id\nUpdate event details or status (Admin / Staff)."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Event",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/events/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "events",
+                "1"
+              ]
+            },
+            "description": "### DELETE /api/v1/community/events/:id\nSoft delete an event (Admin / Staff)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Upcoming Birthdays",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/birthdays",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "birthdays"
+              ],
+              "query": [
+                {
+                  "key": "month",
+                  "value": "all",
+                  "disabled": true,
+                  "description": "Optional month (1 to 12) or all for full year"
+                },
+                {
+                  "key": "branch_id",
+                  "value": "1",
+                  "disabled": true,
+                  "description": "Optional branch filter"
+                }
+              ]
+            },
+            "description": "### GET /api/v1/community/birthdays\nReturns upcoming resident birthdays for the current month in the property for the Birthdays filter tab."
+          },
+          "response": []
+        }
+      ]
     }
   ]
 }

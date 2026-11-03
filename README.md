@@ -396,6 +396,24 @@ Unified endpoint returning tailored real-time data dynamically matching the auth
   - **Admin / Super Admin / Staff**: Operations Dashboard returning 5 top metric cards (`Total Residents`, `Occupancy Rate`, `Monthly Revenue`, `Pending Dues`, `Open Complaints`), 6-month occupancy trend curve, room type distribution breakdown (`Single`, `Double`, `Triple`, `Others`), and recent activity feed (`Complaints`, `Payments`, `Visitor Check-ins`).
   - **Resident**: Resident Mobile Dashboard returning personalized greeting, active stay banner (PG name, room no, bed number, branch photo), next rent due card (`amount`, `due_date`, `status`), next event card, gate pass QR code, quick actions, today's meal menu based on current time of day, recent complaint status card, latest notice alert, and unread notifications count badge.
 
+### 21. Community Feed, Posts & Events (`/api/v1/community`)
+Resident social hub, interactive community feed, post management, likes, comments, event schedules, and birthdays:
+- `GET /api/v1/community/posts` - List community posts with filter pills (`all`, `updates`, `events`, `birthdays`), search, author details, room number, relative time, likes/comments counts, and liked status
+- `GET /api/v1/community/posts/:id` - Get single post detail
+- `POST /api/v1/community/posts` - Create new post with content, category, and optional photo upload (multipart/form-data)
+- `PUT /api/v1/community/posts/:id` - Update post content, category, or photo
+- `DELETE /api/v1/community/posts/:id` - Soft delete post
+- `POST /api/v1/community/posts/:id/like` - Toggle like / unlike on a post
+- `GET /api/v1/community/posts/:id/comments` - List comments on a post with author profile and relative time
+- `POST /api/v1/community/posts/:id/comments` - Add a comment to a post
+- `DELETE /api/v1/community/comments/:id` - Delete a comment
+- `GET /api/v1/community/events` - List community events grouped by timeline sections (`ongoing`, `upcoming`, `past`) or filtered by `timeline` parameter
+- `GET /api/v1/community/events/:id` - Get event details
+- `POST /api/v1/community/events` - Create community event (Admin / Staff) with title, category, event_date, location, status, description, and photo
+- `PUT /api/v1/community/events/:id` - Update community event details or status
+- `DELETE /api/v1/community/events/:id` - Soft delete community event
+- `GET /api/v1/community/birthdays` - Get upcoming resident birthdays in the property for the current month
+
 ---
 
 ## 📮 Postman Collection
@@ -405,8 +423,8 @@ A complete standalone Postman collection is pre-configured:
 - **Collection file**: [`PG_Backend.postman_collection.json`](file:///d:/HomeNest_Backend/PG_Backend.postman_collection.json)
 
 ### Features included in the Postman collection:
-- **20 Clean Standardized Modules**: Numbered from `01 System & Health` to `20 Dashboard` in strict logical hierarchy.
-- **Over 130 Distinct API Endpoints**: All duplicate requests eliminated; canonical RESTful routes with complete documentation.
+- **21 Clean Standardized Modules**: Numbered from `01 System & Health` to `21 Community` in strict logical hierarchy.
+- **Over 145 Distinct API Endpoints**: All duplicate requests eliminated; canonical RESTful routes with complete documentation.
 - **Collection-Level Bearer Auth**: Automatic token propagation using `{{accessToken}}` across all private endpoints, with public endpoints configured with `noauth`.
 - **Multipart Form-Data & JSON Payloads**: Formdata parameters with comprehensive field descriptions for text parameters and file binary uploads.
 - **Auto-Capture Scripts**: Login, OTP verification, and entity creation automatically populate collection variables (`accessToken`, `refreshToken`, `pgId`, `branchId`, `roomId`, `userId`, `staffId`, `stayId`, `agreementId`, `paymentId`, `visitorId`, `menuId`, `complaintId`, `shiftId`, `laundryId`, `checkoutRequestId`, `planId`, `noticeId`).

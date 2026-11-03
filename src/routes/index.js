@@ -16,6 +16,7 @@ import laundryRoutes from './laundry.routes.js';
 import subscriptionRoutes from './subscription.routes.js';
 import noticeRoutes from './notice.routes.js';
 import dashboardRoutes from './dashboard.routes.js';
+import communityRoutes from './community.routes.js';
 import { success } from '../utils/apiResponse.js';
 
 const router = Router();
@@ -49,5 +50,6 @@ router.use('/laundry', laundryRoutes);
 router.use('/subscriptions', subscriptionRoutes);
 router.use('/notices', noticeRoutes);
 router.use('/dashboard', dashboardRoutes);
+router.use('/community', communityRoutes);
 
 export default router;

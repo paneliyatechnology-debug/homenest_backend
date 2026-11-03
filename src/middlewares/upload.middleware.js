@@ -15,9 +15,10 @@ const food_feedback_upload_dir = path.join(process.cwd(), 'uploads', 'food_feedb
 const complaints_upload_dir = path.join(process.cwd(), 'uploads', 'complaints');
 const staff_upload_dir = path.join(process.cwd(), 'uploads', 'staff');
 const notices_upload_dir = path.join(process.cwd(), 'uploads', 'notices');
+const community_upload_dir = path.join(process.cwd(), 'uploads', 'community');
 
 // Ensure upload directories exist
-[rooms_upload_dir, users_upload_dir, pgs_upload_dir, documents_upload_dir, visitors_upload_dir, branches_upload_dir, food_menu_upload_dir, food_feedback_upload_dir, complaints_upload_dir, staff_upload_dir, notices_upload_dir].forEach((dir) => {
+[rooms_upload_dir, users_upload_dir, pgs_upload_dir, documents_upload_dir, visitors_upload_dir, branches_upload_dir, food_menu_upload_dir, food_feedback_upload_dir, complaints_upload_dir, staff_upload_dir, notices_upload_dir, community_upload_dir].forEach((dir) => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -712,6 +713,58 @@ export const deleteNoticeAttachmentFile = (filename) => {
   }
 };
 
+// Community Post & Event image storage
+const community_storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, community_upload_dir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const unique_name = `community-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+    cb(null, unique_name);
+  },
+});
+
+const upload_community = multer({
+  storage: community_storage,
+  fileFilter: file_filter,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+});
+
+/**
+ * Middleware handling optional photo upload for community posts & events
+ */
+export const handleCommunityImageUpload = (req, res, next) => {
+  if (req.is('multipart/form-data')) {
+    const uploader = upload_community.single('image');
+    uploader(req, res, (err) => {
+      if (err) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return next(new AppError('Photo file size cannot exceed 5MB', HTTP_STATUS.BAD_REQUEST));
+        }
+        return next(err);
+      }
+      next();
+    });
+  } else {
+    next();
+  }
+};
+
+/**
+ * Delete a local community image file safely
+ * @param {string|null} filename
+ */
+export const deleteCommunityImageFile = (filename) => {
+  if (!filename) return;
+  try {
+    const file_path = path.join(community_upload_dir, path.basename(filename));
+    if (fs.existsSync(file_path)) {
+      fs.unlinkSync(file_path);
+    }
+  } catch (err) {
+    console.warn(`[Warning] Could not delete community image: ${filename}`, err.message);
+  }
+};
+
 export default {
   handleRoomImageUpload,
   handleUserPhotoUpload,
@@ -735,4 +788,6 @@ export default {
   deleteStaffPhotoFile,
   handleNoticeAttachmentUpload,
   deleteNoticeAttachmentFile,
+  handleCommunityImageUpload,
+  deleteCommunityImageFile,
 };
