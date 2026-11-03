@@ -13,6 +13,7 @@ import cronRoutes from './cron.routes.js';
 import foodMenuRoutes from './foodMenu.routes.js';
 import complaintRoutes from './complaint.routes.js';
 import laundryRoutes from './laundry.routes.js';
+import subscriptionRoutes from './subscription.routes.js';
 import { success } from '../utils/apiResponse.js';
 
 const router = Router();
@@ -43,5 +44,6 @@ router.use('/crons', cronRoutes);
 router.use('/food-menu', foodMenuRoutes);
 router.use('/complaints', complaintRoutes);
 router.use('/laundry', laundryRoutes);
+router.use('/subscriptions', subscriptionRoutes);
 
 export default router;

@@ -161,6 +161,12 @@
       "value": "3",
       "type": "string",
       "description": "Sample resident user ID for API testing"
+    },
+    {
+      "key": "planId",
+      "value": "1",
+      "type": "string",
+      "description": "Sample subscription plan ID for testing"
     }
   ],
   "auth": {
@@ -2406,6 +2412,12 @@
                   "value": "{{branchId}}",
                   "type": "text",
                   "description": "[OPTIONAL - Stay] Branch ID"
+                },
+                {
+                  "key": "subscription_plan_id",
+                  "value": "1",
+                  "type": "text",
+                  "description": "OPTIONAL: Subscription plan ID to assign to resident on creation"
                 }
               ]
             },
@@ -2420,7 +2432,7 @@
                 "users"
               ]
             },
-            "description": "### Create User (Onboard Resident / Admin)\n\nCreates a new user account. If creating a Resident, supports automatic atomic room allocation and onboarding payment demand creation.\n\n---\n#### Form Fields:\n- **Core User Fields**:\n  - `name` [REQUIRED] Full user name (2-100 characters).\n  - `email` [REQUIRED] Email address.\n  - `phone` [OPTIONAL] 10-digit mobile number.\n  - `gender` [OPTIONAL] `male` | `female` | `other`.\n  - `role` [OPTIONAL] `resident` | `admin` | `super_admin` (Default: `resident`).\n  - `status` [OPTIONAL] `active` | `pending` | `inactive` | `on_leave` (Default: `active`).\n  - `password` [OPTIONAL] Account password (Default: auto-generated secure password).\n  - `date_of_birth` [OPTIONAL] YYYY-MM-DD.\n  - `nationality` [OPTIONAL] Default: \"Indian\".\n  - `marital_status` [OPTIONAL] `single` | `married`.\n  - `occupation` [OPTIONAL] Occupation title (Student, Software Engineer, etc.).\n  - `address` [OPTIONAL] Permanent address.\n  - `profile_photo` [OPTIONAL - File] User avatar image.\n- **Resident Stay Allocation Fields (When role = resident)**:\n  - `room_id` [OPTIONAL] Room ID to allocate bed/stay.\n  - `bed_number` [OPTIONAL] Allocated bed identifier (e.g. \"Bed-1\").\n  - `monthly_rent` [OPTIONAL] Monthly rent amount in ₹.\n  - `maintenance_amount` [OPTIONAL] Monthly maintenance charge in ₹.\n  - `security_deposit` [OPTIONAL] Security deposit in ₹.\n  - `check_in_date` [OPTIONAL] Check-in date (YYYY-MM-DD, defaults to current date).\n  - `check_out_date` [OPTIONAL] Expected checkout date (YYYY-MM-DD).\n  - `branch_id` [OPTIONAL] Branch ID.\n  - `pg_id` [OPTIONAL] PG facility ID."
+            "description": "### Create User (Onboard Resident / Admin)\n\nCreates a new user account. If creating a Resident, supports automatic atomic room allocation and onboarding payment demand creation.\n\n---\n#### Form Fields:\n- **Core User Fields**:\n  - `name` [REQUIRED] Full user name (2-100 characters).\n  - `email` [REQUIRED] Email address.\n  - `phone` [OPTIONAL] 10-digit mobile number.\n  - `gender` [OPTIONAL] `male` | `female` | `other`.\n  - `role` [OPTIONAL] `resident` | `admin` | `super_admin` (Default: `resident`).\n  - `status` [OPTIONAL] `active` | `pending` | `inactive` | `on_leave` (Default: `active`).\n  - `password` [OPTIONAL] Account password (Default: auto-generated secure password).\n  - `date_of_birth` [OPTIONAL] YYYY-MM-DD.\n  - `nationality` [OPTIONAL] Default: \"Indian\".\n  - `marital_status` [OPTIONAL] `single` | `married`.\n  - `occupation` [OPTIONAL] Occupation title (Student, Software Engineer, etc.).\n  - `address` [OPTIONAL] Permanent address.\n  - `profile_photo` [OPTIONAL - File] User avatar image.\n- **Resident Stay Allocation Fields (When role = resident)**:\n  - `room_id` [OPTIONAL] Room ID to allocate bed/stay.\n  - `bed_number` [OPTIONAL] Allocated bed identifier (e.g. \"Bed-1\").\n  - `monthly_rent` [OPTIONAL] Monthly rent amount in ₹.\n  - `maintenance_amount` [OPTIONAL] Monthly maintenance charge in ₹.\n  - `security_deposit` [OPTIONAL] Security deposit in ₹.\n  - `check_in_date` [OPTIONAL] Check-in date (YYYY-MM-DD, defaults to current date).\n  - `check_out_date` [OPTIONAL] Expected checkout date (YYYY-MM-DD).\n  - `branch_id` [OPTIONAL] Branch ID.\n  - `pg_id` [OPTIONAL] PG facility ID.\n  - `subscription_plan_id` [OPTIONAL] Subscription plan ID (e.g. 1) to assign during resident onboarding. Automatically increments the plan's subscriber count and records the subscription purchase."
           },
           "response": []
         },
@@ -6378,6 +6390,268 @@
               ]
             },
             "description": "Soft delete a visitor pass. Residents can delete their pass only when status is \"pending\". Admins can delete at any time."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "18 Subscription Plans",
+      "item": [
+        {
+          "name": "Subscription Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/subscriptions/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "subscriptions",
+                "stats"
+              ]
+            },
+            "description": "### GET /api/v1/subscriptions/stats\nProtected (Admin / Super Admin / Branch Manager). Retrieves subscription dashboard KPI statistics: Total Plans, Total Subscribers, Active Plans, and Inactive Plans."
+          },
+          "response": []
+        },
+        {
+          "name": "List Plans",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/subscriptions?page=1&limit=10&plan_type=all&is_active=all&search=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "subscriptions"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Records per page"
+                },
+                {
+                  "key": "plan_type",
+                  "value": "all",
+                  "description": "Filter by plan type (all, monthly, quarterly, yearly)"
+                },
+                {
+                  "key": "is_active",
+                  "value": "all",
+                  "description": "Filter by active state (all, 1 = active, 0 = inactive)"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Search by plan name or description"
+                }
+              ]
+            },
+            "description": "### GET /api/v1/subscriptions\nProtected. Retrieves paginated list of resident subscription plans with filters (is_active: 1 or 0)."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Basic Plan\",\n  \"plan_type\": \"monthly\",\n  \"price\": 8999,\n  \"duration\": \"1 Month\",\n  \"description\": \"Standard monthly living plan covering essential facilities.\",\n  \"features\": [\n    \"WiFi Access\",\n    \"Laundry service\",\n    \"Housekeeping\",\n    \"Maintenance support\"\n  ],\n  \"is_active\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/subscriptions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "subscriptions"
+              ]
+            },
+            "description": "### POST /api/v1/subscriptions\nProtected (Admin / Super Admin / Branch Manager). Creates a new resident subscription plan.\n\n**Payload Fields**:\n- `name`: REQUIRED | String | Plan name (2-100 chars)\n- `plan_type`: REQUIRED | String | Enum: 'monthly', 'quarterly', 'yearly'\n- `price`: REQUIRED | Number | Plan price in INR\n- `duration`: REQUIRED | String | Duration display string (e.g. '1 Month', '3 Months', '1 Year')\n- `description`: OPTIONAL | String | Short overview of the plan (max 500 chars)\n- `features`: OPTIONAL | Array<String> | Included services checklist\n- `is_active`: OPTIONAL | Number | 1 (active) or 0 (inactive), default: 1"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Plan",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/subscriptions/{{planId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "subscriptions",
+                "{{planId}}"
+              ]
+            },
+            "description": "### GET /api/v1/subscriptions/:id\nProtected. Retrieves single subscription plan details, included features, and overview."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Plan",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Premium Plan\",\n  \"plan_type\": \"monthly\",\n  \"price\": 8999,\n  \"duration\": \"1 Month\",\n  \"description\": \"Our premium plan gives you the complete living experience with all essential services and extra benefits for a hassle-free stay.\",\n  \"features\": [\n    \"WiFi Access\",\n    \"Laundry service\",\n    \"Housekeeping\",\n    \"Maintenance support\",\n    \"Room cleaning\",\n    \"Food credits\",\n    \"Priority support\",\n    \"Discounts\"\n  ],\n  \"is_active\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/subscriptions/{{planId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "subscriptions",
+                "{{planId}}"
+              ]
+            },
+            "description": "### PUT /api/v1/subscriptions/:id\nProtected (Admin / Super Admin / Branch Manager). Updates subscription plan details.\n\nSupports updating name, plan_type, price, duration, description, features array, and is_active (1 or 0)."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Plan Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_active\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/subscriptions/{{planId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "subscriptions",
+                "{{planId}}",
+                "status"
+              ]
+            },
+            "description": "### PATCH /api/v1/subscriptions/:id/status\nProtected (Admin / Super Admin / Branch Manager). Toggles or updates plan is_active (1 = active, 0 = paused/inactive)."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Plan",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/subscriptions/{{planId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "subscriptions",
+                "{{planId}}"
+              ]
+            },
+            "description": "### DELETE /api/v1/subscriptions/:id\nProtected (Admin / Super Admin / Branch Manager). Soft-deletes a subscription plan."
           },
           "response": []
         }

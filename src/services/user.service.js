@@ -280,6 +280,7 @@ const formatResidentUser = (user, options = {}) => {
         total: Number(options.pending_payment.amount) || 0,
       },
     } : null,
+    subscription_plan: options.subscription_plan || null,
   };
 };
 
@@ -306,6 +307,13 @@ const formatUserListItem = (user) => {
     deleted_at: user.deleted_at || null,
     role: user.role || ROLES.RESIDENT,
     building_id: user.building_id ? Number(user.building_id) : null,
+    subscription_plan: user.subscription_plan_id ? {
+      id: Number(user.subscription_plan_id),
+      name: user.plan_name || null,
+      plan_type: user.plan_type || null,
+      price: user.plan_price !== null && user.plan_price !== undefined ? parseFloat(user.plan_price) : null,
+      duration: user.plan_duration || null,
+    } : null,
   };
 };
 
@@ -338,6 +346,11 @@ class UserService {
     'floors.floor_number',
     'floors.name as floor_name',
     'resident_pg_stays.bed_number',
+    'users.subscription_plan_id',
+    'subscription_plans.name as plan_name',
+    'subscription_plans.plan_type as plan_type',
+    'subscription_plans.price as plan_price',
+    'subscription_plans.duration as plan_duration',
   ];
 
   
@@ -453,7 +466,27 @@ class UserService {
         .first(),
     ]);
 
-    return formatResidentUser(raw_user, { active_stay, agreements, pending_payment });
+    let subscription_plan = null;
+    if (raw_user.subscription_plan_id) {
+      const plan = await db('subscription_plans')
+        .where({ id: raw_user.subscription_plan_id })
+        .whereNull('deleted_at')
+        .first();
+      if (plan) {
+        subscription_plan = {
+          id: plan.id,
+          name: plan.name,
+          plan_type: plan.plan_type,
+          price: parseFloat(plan.price) || 0,
+          duration: plan.duration,
+          description: plan.description || null,
+          features: typeof plan.features === 'string' ? JSON.parse(plan.features) : (plan.features || []),
+          is_active: plan.is_active ? 1 : 0,
+        };
+      }
+    }
+
+    return formatResidentUser(raw_user, { active_stay, agreements, pending_payment, subscription_plan });
   };
   /**
    * Create a new user record (Resident, Admin, Super Admin).
@@ -487,7 +520,27 @@ class UserService {
       security_deposit = 0.0,
       check_in_date = null,
       check_out_date = null,
+      subscription_plan_id = null,
     } = user_data;
+
+    const target_subscription_plan_id = subscription_plan_id ? Number(subscription_plan_id) : null;
+    let chosen_plan = null;
+    if (role === ROLES.RESIDENT && target_subscription_plan_id) {
+      chosen_plan = await db('subscription_plans')
+        .where({ id: target_subscription_plan_id })
+        .whereNull('deleted_at')
+        .first();
+      if (!chosen_plan) {
+        throw new AppError('Selected subscription plan not found', HTTP_STATUS.NOT_FOUND);
+      }
+      if (!chosen_plan.is_active) {
+        throw new AppError('Selected subscription plan is currently inactive', HTTP_STATUS.BAD_REQUEST);
+      }
+      const targetPgId = pg_id ? Number(pg_id) : null;
+      if (targetPgId && Number(chosen_plan.pg_id) !== targetPgId) {
+        throw new AppError('Selected subscription plan does not belong to the specified PG facility', HTTP_STATUS.BAD_REQUEST);
+      }
+    }
 
     // Validate email address is unique across active user accounts
     const existing_email = await this.findByEmail(email);
@@ -553,9 +606,41 @@ class UserService {
         occupation: occupation || null,
         profile_photo: profile_photo || null,
         status: status || 'active',
+        subscription_plan_id: chosen_plan ? chosen_plan.id : null,
         created_at: db.fn.now(),
         updated_at: db.fn.now(),
       });
+
+      // Increment subscriber count and record resident subscription purchase
+      if (role === ROLES.RESIDENT && chosen_plan) {
+        await trx('subscription_plans')
+          .where({ id: chosen_plan.id })
+          .increment('subscribers_count', 1);
+
+        const subStartDate = effective_check_in;
+        const startMoment = new Date(subStartDate);
+        let endMoment = new Date(subStartDate);
+        if (chosen_plan.plan_type === 'quarterly') {
+          endMoment.setMonth(endMoment.getMonth() + 3);
+        } else if (chosen_plan.plan_type === 'yearly') {
+          endMoment.setFullYear(endMoment.getFullYear() + 1);
+        } else {
+          endMoment.setMonth(endMoment.getMonth() + 1);
+        }
+        const subEndDate = endMoment.toISOString().split('T')[0];
+
+        await trx('resident_subscriptions').insert({
+          resident_id: user_id,
+          subscription_plan_id: chosen_plan.id,
+          pg_id: chosen_plan.pg_id,
+          price: chosen_plan.price,
+          start_date: subStartDate,
+          end_date: subEndDate,
+          status: 'active',
+          created_at: db.fn.now(),
+          updated_at: db.fn.now(),
+        });
+      }
 
       // If user is resident and room was resolved, allocate room stay
       if (role === ROLES.RESIDENT && target_room) {
@@ -742,6 +827,11 @@ class UserService {
         join
           .on('rooms.floor_id', '=', 'floors.id')
           .andOnNull('floors.deleted_at');
+      })
+      .leftJoin('subscription_plans', (join) => {
+        join
+          .on('users.subscription_plan_id', '=', 'subscription_plans.id')
+          .andOnNull('subscription_plans.deleted_at');
       })
       .select(...UserService.listSelectFields);
 

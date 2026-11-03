@@ -366,15 +366,28 @@ npm run dev
 
 ---
 
-## 📮 Postman Collection & Environment
+### 18. Subscription Plans (`/api/v1/subscriptions`)
+Manage and configure resident subscription plans with pricing, duration, and feature checklists:
+- `GET /api/v1/subscriptions/stats` - Dashboard KPI cards (Total Plans, Total Subscribers, Active Plans, Inactive Plans)
+- `GET /api/v1/subscriptions/features` - Predefined features checklist & allowed plan types
+- `GET /api/v1/subscriptions` - List subscription plans with filtering (plan_type, status, search, pagination)
+- `POST /api/v1/subscriptions` - Create new subscription plan with name, type, price, duration, features
+- `GET /api/v1/subscriptions/:id` - Get subscription plan details and overview
+- `PUT /api/v1/subscriptions/:id` - Update subscription plan details
+- `PATCH /api/v1/subscriptions/:id/status` - Quick toggle/update status (Pause Plan / Activate Plan)
+- `DELETE /api/v1/subscriptions/:id` - Soft-delete subscription plan
+
+---
+
+## 📮 Postman Collection
+
 
 A complete standalone Postman collection and environment are pre-configured:
 - **Collection file**: [`PG_Backend.postman_collection.json`](file:///d:/HomeNest_Backend/PG_Backend.postman_collection.json)
 
 ### Features included in the Postman collection:
-- **17 Clean Standardized Modules**: Numbered from `01 System & Health` to `17 Visitor Management` in strict logical hierarchy.
-- **120 Distinct API Endpoints**: All duplicate requests eliminated; canonical RESTful routes with complete documentation.
-- **350+ Saved Example Responses**: Realistic Success (`200 OK` / `201 Created`), Validation Error (`422 Unprocessable Entity`), Unauthorized (`401 Unauthorized`), and Forbidden (`403 Forbidden`) examples for all endpoints.
+- **18 Clean Standardized Modules**: Numbered from `01 System & Health` to `17 Visitor Management` in strict logical hierarchy.
+- **127 Distinct API Endpoints**: All duplicate requests eliminated; canonical RESTful routes with complete documentation.
 - **Collection-Level Bearer Auth**: Automatic token propagation using `{{accessToken}}` across all private endpoints, with public endpoints configured with `noauth`.
 - **Multipart Form-Data & JSON Payloads**: Formdata parameters with comprehensive field descriptions for text parameters and file binary uploads.
 - **Auto-Capture Scripts**: Login, OTP verification, and entity creation automatically populate collection and environment variables (`accessToken`, `refreshToken`, `pgId`, `branchId`, `roomId`, `userId`, `staffId`, `stayId`, `agreementId`, `paymentId`, `visitorId`, `menuId`, `complaintId`, `shiftId`, `laundryId`, `checkoutRequestId`).

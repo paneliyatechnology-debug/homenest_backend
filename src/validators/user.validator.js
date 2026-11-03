@@ -123,6 +123,13 @@ export const roomAllocationValidators = [
     .optional({ checkFalsy: true })
     .isISO8601()
     .withMessage('Check out date must be a valid date in YYYY-MM-DD format'),
+
+  body('subscription_plan_id')
+    .optional({ checkFalsy: true, nullable: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Subscription plan ID must be a positive integer'),
+
 ];
 
 /**
