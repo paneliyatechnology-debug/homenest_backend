@@ -7111,6 +7111,62 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "20 Dashboard",
+      "description": "Role-based Unified Dashboard Module:\n- Admin / Super Admin / Staff: Operations Dashboard\n- Resident: Resident Mobile Dashboard",
+      "item": [
+        {
+          "name": "Get Dashboard",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dashboard"
+              ],
+              "query": [
+                {
+                  "key": "role",
+                  "value": "resident",
+                  "disabled": true,
+                  "description": "Optional: pass resident when logged in as Admin to preview Resident Dashboard"
+                },
+                {
+                  "key": "branch_id",
+                  "value": "1",
+                  "disabled": true,
+                  "description": "Optional: filter Operations Dashboard data by specific Branch ID"
+                }
+              ]
+            },
+            "description": "### GET /api/v1/dashboard\nReturns role-tailored dashboard data based on JWT token.\n- Admin / Super Admin: Operations Dashboard (Resident counts, Occupancy rate, Monthly revenue, Pending dues, Open complaints, 6-month occupancy curve, room type donut distribution, recent activity feed).\n- Resident: Resident Dashboard (Stay overview, next rent due, next event, gate pass QR code, quick actions, today's meal menu, latest complaint card, latest notice banner, unread notification count)."
+          },
+          "response": []
+        }
+      ]
     }
   ]
 }
