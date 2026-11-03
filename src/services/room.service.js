@@ -97,7 +97,7 @@ export const create = async (data) => {
     if (defaultBranch) branch_id = defaultBranch.id;
   }
 
-  // Check unique room_no in same branch among active rooms
+  // Enforce unique room number within the same branch among active rooms
   const roomFilter = branch_id ? { branch_id, room_no } : { pg_id, room_no };
   const existing_room = await db('rooms')
     .where(roomFilter)
@@ -354,7 +354,7 @@ export const update = async (id, data) => {
 
   const branch_id = input_branch_id !== undefined ? Number(input_branch_id) : room.branch_id;
 
-  // Check unique room_no in branch if changed
+  // Enforce unique room number in branch if room number was modified
   if (room_no && (room_no !== room.room_no || branch_id !== room.branch_id)) {
     const filter = branch_id ? { branch_id, room_no } : { pg_id: room.pg_id, room_no };
     const duplicate = await db('rooms')
@@ -674,10 +674,12 @@ const baseShiftQuery = () => {
 };
 
 /**
- * Submit / Create Room Shift Request (Image 1 Mobile & Image 3 Web Form)
- * @param {Object} data - Request payload
- * @param {Object} user - Logged in user
- * @returns {Promise<Object>} Created room shift request
+ * Create a new room shift request for a resident.
+ * Supports both resident self-service requests and administrative relocation entries.
+ *
+ * @param {Object} data - Request payload containing reason, preferred room/bed details
+ * @param {Object} user - Authenticated user context
+ * @returns {Promise<Object>} Created room shift request record
  */
 export const createShift = async (data, user) => {
   let pgId;
@@ -726,7 +728,7 @@ export const createShift = async (data, user) => {
       );
     }
   } else {
-    // Admin Direct Creation Flow (Image 3)
+    // Administrative direct reallocation flow
     residentId = Number(data.resident_id);
 
     const resident = await db('users')
@@ -804,10 +806,12 @@ export const createShift = async (data, user) => {
 };
 
 /**
- * List Room Shift Requests with Filters & Pagination (Image 2 Web Table)
- * @param {Object} user - Logged in user
- * @param {Object} query - Query parameters
- * @returns {Promise<{requests: Array<Object>, pagination: Object}>}
+ * List room shift requests with status filters, search, and pagination.
+ * Scoped automatically to resident's own requests or admin's facility.
+ *
+ * @param {Object} user - Authenticated user context
+ * @param {Object} query - Query parameters (status, branch_id, search, page, limit)
+ * @returns {Promise<{requests: Array<Object>, pagination: Object}>} Paginated shift requests
  */
 export const findAllShifts = async (user, query = {}) => {
   const page = Math.max(1, parseInt(query.page, 10) || 1);
@@ -890,10 +894,11 @@ export const findShiftById = async (id, user) => {
 };
 
 /**
- * Get Room Shift KPI Statistics (Image 2 Top Cards: Total Requests, Approved, Pending, Rejected)
- * @param {Object} user - Logged in user
- * @param {Object} query - Query parameters (branch_id)
- * @returns {Promise<Object>} KPI statistics
+ * Retrieve KPI summary statistics for room shift requests (Total, Approved, Pending, Rejected).
+ *
+ * @param {Object} user - Authenticated user context
+ * @param {Object} query - Optional branch filter
+ * @returns {Promise<Object>} Aggregated KPI counts
  */
 export const getShiftStats = async (user, query = {}) => {
   const adminPg = await resolveAdminPg(user);

@@ -545,7 +545,7 @@ class FoodMenuService {
     const comments = data.comments ? data.comments.trim().slice(0, 300) : null;
     const imageFilename = file ? file.filename : null;
 
-    // Check if feedback already exists for this resident and menu_id
+    // Verify whether resident has already submitted feedback for this menu item
     const existing = await db('food_feedback')
       .where({
         resident_id: user.id,
@@ -583,7 +583,7 @@ class FoodMenuService {
       };
     }
 
-    // Insert new feedback
+    // Record new resident feedback with audit timestamp
     const [newId] = await db('food_feedback').insert({
       pg_id: menuItem.pg_id,
       branch_id: menuItem.branch_id,

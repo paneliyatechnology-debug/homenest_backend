@@ -87,7 +87,7 @@ export const vacateStay = async (req, res, next) => {
  */
 
 /**
- * Controller: Get resident checkout review, pending dues calculation & NOC preview (Image 1 Screen 2)
+ * Retrieve resident departure preview, including pending rent, unbilled laundry dues, and security deposit refund calculation.
  */
 export const getCheckoutReview = async (req, res, next) => {
   try {
@@ -99,7 +99,7 @@ export const getCheckoutReview = async (req, res, next) => {
 };
 
 /**
- * Controller: Submit checkout departure request (Image 1 Screen 1 & Screen 2)
+ * Submit a formal departure checkout request with planned vacation date, reason, and bank refund details.
  */
 export const createCheckoutRequest = async (req, res, next) => {
   try {
@@ -111,7 +111,7 @@ export const createCheckoutRequest = async (req, res, next) => {
 };
 
 /**
- * Controller: List checkout requests for Admin Portal with tabs, filters, and export (Image 2 Web Table)
+ * Retrieve paginated checkout departure requests with filter tabs (all, pending, approved, completed, rejected).
  */
 export const getAllCheckoutRequests = async (req, res, next) => {
   try {
@@ -172,7 +172,7 @@ export const getCheckoutRequestById = async (req, res, next) => {
 };
 
 /**
- * Controller: Update checkout request status, checklist, NOC, and refund approval (Image 2 & Stepper)
+ * Update checkout request review status, inspection clearance checklist, NOC issuance, and security deposit refund.
  */
 export const updateCheckoutStatus = async (req, res, next) => {
   try {

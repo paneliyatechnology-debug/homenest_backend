@@ -47,7 +47,7 @@ router.put(
 
 /**
  * @route   GET /api/v1/laundry/stats
- * @desc    Get KPI statistics for Laundry Requests dashboard cards (Total, In Progress, Pending, Completed) (Image 3)
+ * @desc    Get KPI statistics for Laundry Requests dashboard cards (Total, In Progress, Pending, Completed)
  * @access  Private (Admin / Super Admin)
  */
 router.get(
@@ -116,7 +116,7 @@ router.post(
 
 /**
  * @route   GET /api/v1/laundry
- * @desc    List laundry requests with filters and pagination (Image 1 Mobile Tabs & Image 3 Web Table)
+ * @desc    List laundry requests with status filters, search, and pagination
  * @access  Private (Resident / Admin / Super Admin / Staff)
  */
 router.get(
@@ -150,7 +150,7 @@ router.patch(
 
 /**
  * @route   PATCH /api/v1/laundry/:id/assign
- * @desc    Assign staff member to laundry request (Image 2 Form)
+ * @desc    Assign operational staff member to a laundry order
  * @access  Private (Admin / Super Admin)
  */
 router.patch(

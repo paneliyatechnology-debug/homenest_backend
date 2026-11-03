@@ -33,16 +33,16 @@ class AuthService {
   };
 
   /**
-   * Helper: Normalize and map user roles
-   * @param {string} role
-   * @returns {string} Standardized role string
+   * Helper: Normalize user role string to standard system role
+   * @param {string} role - Raw role input
+   * @returns {string} Standardized role ('admin', 'super_admin', 'staff', or 'resident')
    */
   normalizeRole = (role) => {
     if (!role) return ROLES.RESIDENT;
     const lower = String(role).toLowerCase().trim();
-    if (lower === ROLES.RESIDENT) return ROLES.RESIDENT;
     if (lower === ROLES.ADMIN) return ROLES.ADMIN;
     if (lower === ROLES.SUPER_ADMIN) return ROLES.SUPER_ADMIN;
+    if (lower === ROLES.STAFF) return ROLES.STAFF;
     return ROLES.RESIDENT;
   };
 
@@ -383,7 +383,7 @@ class AuthService {
     // Hash new password
     const hashed_password = await hashPassword(password);
 
-    // Update in database
+    // Persist updated credentials in database
     await userService.updatePassword(user.id, hashed_password);
 
     // Invalidate reset token in Redis

@@ -1,5 +1,5 @@
 import visitorService from '../services/visitor.service.js';
-import { success, successAction, AppError } from '../utils/apiResponse.js';
+import { success, successAction } from '../utils/apiResponse.js';
 import { HTTP_STATUS, ROLES } from '../constants/index.js';
 
 /**

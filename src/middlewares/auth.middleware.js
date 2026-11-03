@@ -101,7 +101,9 @@ export const authenticate = async (req, res, next) => {
 
 /**
  * Role-based authorization middleware.
- * @param {...string} roles - Permitted roles (e.g. 'admin', 'super_admin', 'resident')
+ * Supports both top-level user roles (super_admin, admin, resident, staff)
+ * and operational staff roles (e.g., BRANCH_MANAGER).
+ * @param {...string} roles - Permitted roles (e.g. 'admin', 'super_admin', 'resident', 'staff', 'BRANCH_MANAGER')
  */
 export const authorize = (...roles) => {
   return (req, res, next) => {
@@ -109,10 +111,14 @@ export const authorize = (...roles) => {
       return next(new AppError('Authentication required', HTTP_STATUS.UNAUTHORIZED));
     }
 
-    if (!roles.includes(req.user.role)) {
+    const userRole = req.user.role;
+    const staffRole = req.user.staff_role;
+    const isAllowed = roles.includes(userRole) || (Boolean(staffRole) && roles.includes(staffRole));
+
+    if (!isAllowed) {
       return next(
         new AppError(
-          `Permission denied. You do not have permission to perform this action.`,
+          'Permission denied. You do not have permission to perform this action.',
           HTTP_STATUS.FORBIDDEN
         )
       );

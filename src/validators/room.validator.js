@@ -221,7 +221,7 @@ export const createRoomShiftValidator = [
     .isInt({ min: 1 })
     .withMessage('Preferred room ID must be a positive integer'),
 
-  // Resident flow: expected_move_date is required (Image 1)
+  // Resident submission requirement: expected_move_date is mandatory
   body('expected_move_date')
     .if((val, { req }) => req.user && req.user.role === ROLES.RESIDENT)
     .notEmpty()
@@ -246,7 +246,7 @@ export const createRoomShiftValidator = [
     .isLength({ max: 500 })
     .withMessage('Notes cannot exceed 500 characters'),
 
-  // Admin flow: status can be set directly (Image 3)
+  // Administrative submission: status may be preset directly (e.g. approved)
   body('status')
     .optional({ checkFalsy: true })
     .trim()

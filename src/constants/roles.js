@@ -3,9 +3,10 @@
  */
 export const ROLES = {
   SUPER_ADMIN: 'super_admin',
-  ADMIN: 'admin',       // PG Owner / Manager
-  RESIDENT: 'resident', // Resident staying in PGs
-  STAFF: 'staff',       // Staff member
+  ADMIN: 'admin',                 // PG Owner / Super Manager
+  RESIDENT: 'resident',           // Resident staying in PG
+  STAFF: 'staff',                 // General Staff member
+  BRANCH_MANAGER: 'BRANCH_MANAGER', // Dedicated Branch / Property Manager
 };
 
 export const ALL_ROLES = Object.values(ROLES);

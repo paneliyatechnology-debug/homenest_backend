@@ -24,7 +24,7 @@ router.use(authenticate);
 
 /**
  * @route   GET /api/v1/stays/checkouts/review
- * @desc    Get resident checkout review, pending dues calculation & NOC preview (Image 1 Screen 2)
+ * @desc    Get resident checkout review, pending dues calculation & NOC preview
  * @access  Private (Resident / Admin / Super Admin)
  */
 router.get(
@@ -35,7 +35,7 @@ router.get(
 
 /**
  * @route   POST /api/v1/stays/checkouts
- * @desc    Submit checkout departure request (Image 1 Screen 1 & Screen 2)
+ * @desc    Submit checkout departure request with notice details
  * @access  Private (Resident / Admin / Super Admin)
  */
 router.post(
@@ -58,7 +58,7 @@ router.get(
 
 /**
  * @route   GET /api/v1/stays/checkouts
- * @desc    List checkout requests for Admin Portal with tabs, filters, and export (Image 2 Web Table)
+ * @desc    List checkout requests for Admin Portal with status tabs, filters, and pagination
  * @access  Private (Admin / Super Admin / Staff / Branch Manager)
  */
 router.get(
@@ -81,7 +81,7 @@ router.get(
 
 /**
  * @route   PATCH /api/v1/stays/checkouts/:id/status
- * @desc    Update checkout request status, checklist, NOC, and refund approval (Image 2 & Stepper)
+ * @desc    Update checkout request status, checklist, NOC, and refund approval
  * @access  Private (Admin / Super Admin / Branch Manager)
  */
 router.patch(

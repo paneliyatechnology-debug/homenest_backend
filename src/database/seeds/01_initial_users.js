@@ -91,7 +91,7 @@ export const seed = async (knex) => {
     },
   ]);
 
-  // Insert seed branches for PG facility matching dashboard UI designs
+  // Insert initial branch records for PG property
   await knex('branches').insert([
     {
       id: 1,
@@ -223,7 +223,7 @@ export const seed = async (knex) => {
     },
   ]);
 
-  // Insert seed rooms matching UI designs
+  // Insert initial room inventory
   const mainBuildingFloor2Rooms = [
     { id: 1, room_no: 'A-201', room_type: 'single', capacity: 1, size: '12 m*2', image: 'room-a201.jpg', status: 'occupied' },
     { id: 2, room_no: 'A-202', room_type: 'single', capacity: 1, size: '12 m*2', image: 'room-a202.jpg', status: 'occupied' },
@@ -481,7 +481,7 @@ export const seed = async (knex) => {
     },
   ]);
 
-  // Insert seed visitor records (matching Admin & Resident Portal screens)
+  // Insert initial visitor passes with generated QR codes
   const visitorUploadDir = path.join(process.cwd(), 'uploads', 'visitors');
   if (!fs.existsSync(visitorUploadDir)) {
     fs.mkdirSync(visitorUploadDir, { recursive: true });

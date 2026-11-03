@@ -4,13 +4,15 @@ import ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
 import db from '../config/db.js';
 import { AppError } from '../utils/apiResponse.js';
-import { HTTP_STATUS, ROLES } from '../constants/index.js';
+import { HTTP_STATUS, ROLES, STAFF_ROLES } from '../constants/index.js';
 import { syncBranchStats } from './branch.service.js';
-import { formatDate } from '../utils/date.js';
 import { buildFileUrl } from '../utils/url.js';
 
 /**
- * Format timestamp for stepper timeline: "05 March 2026 | 10:30 AM" (Image 1 Screen 3)
+ * Format timestamp for departure stepper timeline: "05 March 2026 | 10:30 AM"
+ *
+ * @param {string|Date} dateVal - Input date/timestamp
+ * @returns {string|null} Formatted date and time string
  */
 const formatTimelineTimestamp = (dateVal) => {
   if (!dateVal) return null;
@@ -22,7 +24,10 @@ const formatTimelineTimestamp = (dateVal) => {
 };
 
 /**
- * Format display date: "31 Dec 2026" (Image 2 Web Table & Mobile Review)
+ * Format date for tabular reports and review screens: "31 Dec 2026"
+ *
+ * @param {string|Date} dateVal - Input date value
+ * @returns {string|null} Short formatted date string
  */
 const formatDisplayDate = (dateVal) => {
   if (!dateVal) return null;
@@ -66,7 +71,7 @@ const resolveUserBranches = async (user, trx) => {
     return { isSuperAdmin: false, branchIds, pgId: pg.id, pgName: pg.name || 'HomeNest PG' };
   }
 
-  if (user.role === ROLES.STAFF || user.role === ROLES.BRANCH_MANAGER) {
+  if (user.role === ROLES.STAFF || user.staff_role === STAFF_ROLES.BRANCH_MANAGER || user.role === ROLES.BRANCH_MANAGER) {
     const assignedBranches = await query('user_branches').where({ user_id: user.id }).select('branch_id');
     const branchIds = assignedBranches.map((b) => b.branch_id);
     let pg = null;
@@ -344,8 +349,12 @@ class StayService {
    */
 
   /**
-   * Get resident checkout review, pending dues calculation & NOC preview (Image 1 Screen 2)
-   * Calculates live pending dues from payments and estimated refund from security deposit.
+   * Retrieve resident checkout departure review, dues calculation, and NOC preview.
+   * Calculates live pending dues from rent and laundry payments and estimates net deposit refund.
+   *
+   * @param {object} user - Authenticated user context
+   * @param {object} query - Optional query filters (resident_id, stay_id)
+   * @returns {Promise<object>} Comprehensive departure financial breakdown
    */
   getCheckoutReview = async (user, query = {}) => {
     let targetResidentId = user.id;
@@ -404,7 +413,7 @@ class StayService {
       throw new AppError('No active PG stay found for this resident', HTTP_STATUS.NOT_FOUND);
     }
 
-    // Check tenancy permissions for admin
+    // Verify property ownership and branch authorization for administrative caller
     if (user.role !== ROLES.RESIDENT && user.role !== ROLES.SUPER_ADMIN) {
       const context = await resolveUserBranches(user);
       if (!context.branchIds.includes(stay.branch_id)) {
@@ -475,7 +484,11 @@ class StayService {
   };
 
   /**
-   * Submit checkout departure request (Image 1 Screen 1 & Screen 2)
+   * Submit resident checkout departure request with planned notice date and refund details.
+   *
+   * @param {object} user - Authenticated user context
+   * @param {object} data - Departure request payload
+   * @returns {Promise<object>} Created checkout request record with timeline
    */
   createCheckoutRequest = async (user, data) => {
     let targetResidentId = user.id;
@@ -574,7 +587,10 @@ class StayService {
   };
 
   /**
-   * Helper: Format checkout request with complete 5-step timeline (Image 1 Screen 3)
+   * Helper: Format checkout request entity with full 5-step operational timeline and financial breakdown.
+   *
+   * @param {object} row - Raw checkout request record
+   * @returns {object} Standardized checkout timeline object
    */
   formatCheckoutTimeline = (row) => {
     let breakdown = [];
@@ -735,7 +751,11 @@ class StayService {
   };
 
   /**
-   * List checkout requests for Admin Portal with tabs, filters, and export (Image 2 Web Table)
+   * List checkout departure requests for administration with status filter tabs, search, and pagination.
+   *
+   * @param {object} user - Authenticated user context
+   * @param {object} query - Filtering and pagination parameters
+   * @returns {Promise<object>} Filtered requests list and dashboard summary
    */
   findAllCheckoutRequests = async (user, query = {}) => {
     const context = await resolveUserBranches(user);
@@ -958,7 +978,11 @@ class StayService {
   };
 
   /**
-   * Generate Excel report (.xlsx) for Checkout and Refund Approvals (Image 2 Web Table)
+   * Generate downloadable Microsoft Excel (.xlsx) report for checkout requests and refund approvals.
+   *
+   * @param {Array<object>} rows - List of checkout records
+   * @param {object} [options] - Additional formatting options
+   * @returns {Promise<object>} Export payload with file buffer and metadata
    */
   exportCheckoutsExcel = async (rows = [], options = {}) => {
     const totalRecords = rows.length;
@@ -1202,7 +1226,11 @@ class StayService {
   };
 
   /**
-   * Generate PDF statement report (.pdf) for Checkout and Refund Approvals (Image 2 Web Table)
+   * Generate downloadable PDF statement report for checkout requests and refund approvals.
+   *
+   * @param {Array<object>} rows - List of checkout records
+   * @param {object} [options] - Additional styling and report options
+   * @returns {Promise<object>} PDF export payload with base64/buffer data
    */
   exportCheckoutsPdf = async (rows = [], options = {}) => {
     const totalRecords = rows.length;
@@ -1605,7 +1633,12 @@ class StayService {
   };
 
   /**
-   * Update checkout request status, clearance checklist, and refund approval (Image 2 & Stepper)
+   * Update checkout request status, room inspection clearance, NOC issuance, and security deposit refund.
+   *
+   * @param {number|string} id - Checkout request ID
+   * @param {object} user - Authenticated user context
+   * @param {object} data - Update payload with clearance checklist and notes
+   * @returns {Promise<object>} Updated checkout entity
    */
   updateCheckoutStatus = async (id, user, data) => {
     const existing = await db('checkout_requests')
@@ -1674,7 +1707,7 @@ class StayService {
             updated_at: db.fn.now(),
           });
 
-        // Check if any other active resident remains in this room
+        // Verify whether any other active resident stays remain in this room
         const remainingOccupants = await trx('resident_pg_stays')
           .where({ room_id: existing.room_id, status: 'active' })
           .whereNull('deleted_at')

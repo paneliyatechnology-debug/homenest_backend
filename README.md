@@ -201,6 +201,105 @@ A production-grade RESTful API backend engineered for the **HouseNest** PG & Hos
 | `POST` | `/api/v1/payments` | Create a new billing demand / invoice with itemized breakdown | `admin`, `super_admin` |
 | `GET` | `/api/v1/payments/:id` | Get payment invoice details by primary ID | Private |
 
+### 10. Visitor Management (`/api/v1/visitors`)
+| Method | Endpoint | Description | Access |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/visitors/stats` | Dashboard KPI metrics (Total passes, inside, expected, expired) | `admin`, `super_admin` |
+| `POST` | `/api/v1/visitors/scan` | QR pass scan at security gate (auto check-in / check-out toggle) | `admin`, `super_admin`, `staff` |
+| `GET` | `/api/v1/visitors` | Paginated visitors directory with filters & active status | Private |
+| `POST` | `/api/v1/visitors` | Create new visitor pass with QR code generation | Private |
+| `GET` | `/api/v1/visitors/gate/logs` | Gate activity log timeline with security guard records | `admin`, `super_admin`, `staff` |
+| `GET` | `/api/v1/visitors/:id/logs` | Multi-entry timeline logs for a specific visitor | Private |
+| `GET` | `/api/v1/visitors/:id` | Get visitor pass details and QR image URL | Private |
+| `PUT` | `/api/v1/visitors/:id` | Update visitor pass details | `admin`, `super_admin`, `resident` |
+| `PATCH` | `/api/v1/visitors/:id/status` | Quick update visitor pass status | `admin`, `super_admin`, `staff` |
+| `DELETE` | `/api/v1/visitors/:id` | Soft delete visitor pass record | `admin`, `super_admin` |
+
+### 11. Branch Management (`/api/v1/branches`)
+| Method | Endpoint | Description | Access |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/branches/stats` | Multi-branch KPI statistics (Total, Active, Maintenance, Upcoming) | Private |
+| `GET` | `/api/v1/branches` | Paginated branches list with capacity & occupancy counts | Private |
+| `POST` | `/api/v1/branches` | Create new facility branch (Supports optional photo upload) | `admin`, `super_admin` |
+| `GET` | `/api/v1/branches/:id` | Get branch details with buildings & floor breakdown | Private |
+| `PUT` | `/api/v1/branches/:id` | Update branch details (Supports optional photo upload) | `admin`, `super_admin` |
+| `DELETE` | `/api/v1/branches/:id` | Soft delete branch (guarded against active rooms/stays) | `admin`, `super_admin` |
+
+### 12. Food Menu & Feedback (`/api/v1/food-menu`)
+| Method | Endpoint | Description | Access |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/food-menu/feedback/my` | Resident's historical meal feedback list | `resident` |
+| `GET` | `/api/v1/food-menu/feedback/summary` | Analytics summary (Overall average, meal type breakdown, star counts) | `admin`, `super_admin` |
+| `GET` | `/api/v1/food-menu/feedback` | Paginated resident meal feedback table with date filters | `admin`, `super_admin` |
+| `GET` | `/api/v1/food-menu/:id/feedback` | Get feedback and ratings for a specific menu item | Private |
+| `POST` | `/api/v1/food-menu/:id/feedback` | Submit or update meal rating and feedback with optional dish photo | `resident` |
+| `GET` | `/api/v1/food-menu` | Paginated date-range meal menu (Breakfast, Lunch, Dinner) | Private |
+| `POST` | `/api/v1/food-menu` | Create daily meal offering with dish items & meal timings | `admin`, `super_admin` |
+| `GET` | `/api/v1/food-menu/:id` | Get menu item details with average feedback score | Private |
+| `PUT` | `/api/v1/food-menu/:id` | Update menu details, timings, or active status | `admin`, `super_admin` |
+| `DELETE` | `/api/v1/food-menu/:id` | Delete menu item record | `admin`, `super_admin` |
+
+### 13. Complaint Management (`/api/v1/complaints`)
+| Method | Endpoint | Description | Access |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/complaints/categories` | Predefined complaint categories (Cleaning, AC, WiFi, Water, Food, etc.) | Private |
+| `GET` | `/api/v1/complaints/stats` | Real-time complaint KPIs (Total, Open, In Progress, Resolved, Overdue) | `admin`, `super_admin` |
+| `GET` | `/api/v1/complaints` | Paginated complaints table (Resident: own; Admin: branch-wide) | Private |
+| `POST` | `/api/v1/complaints` | Register complaint with optional attachments & WiFi diagnostics | Private |
+| `GET` | `/api/v1/complaints/:id` | Get complaint details, activity log, and technician notes | Private |
+| `PATCH` | `/api/v1/complaints/:id/assignment` | Assign complaint to operational staff member | `admin`, `super_admin`, `staff` |
+| `PATCH` | `/api/v1/complaints/:id/status` | Update ticket status (open -> in_progress -> resolved) | `admin`, `super_admin`, `staff` |
+| `POST` | `/api/v1/complaints/:id/updates` | Append communication update note to complaint timeline | Private |
+| `POST` | `/api/v1/complaints/:id/feedback` | Resident star rating and satisfaction feedback on resolved ticket | `resident` |
+
+### 14. Operational Staff Management (`/api/v1/users/staff`)
+| Method | Endpoint | Description | Access |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/users/staff/stats` | Staff dashboard KPI cards (Total, Active, On Leave, Inactive, Roles) | `admin`, `super_admin` |
+| `GET` | `/api/v1/users/staff` | Unified staff directory (Multi-branch filtering & resident directory) | Private |
+| `POST` | `/api/v1/users/staff` | Onboard staff member with role & multi-branch assignments | `admin`, `super_admin` |
+| `GET` | `/api/v1/users/staff/:id` | Get staff profile with assigned branches | `admin`, `super_admin` |
+| `PUT` | `/api/v1/users/staff/:id` | Update staff contact details, role, or branch assignments | `admin`, `super_admin` |
+| `PATCH` | `/api/v1/users/staff/:id/status` | Quick update staff status (`active`, `on_leave`, `inactive`) | `admin`, `super_admin` |
+| `DELETE` | `/api/v1/users/staff/:id` | Soft delete staff member | `admin`, `super_admin` |
+
+### 15. Room Shift Requests (`/api/v1/rooms/shifts`)
+| Method | Endpoint | Description | Access |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/rooms/shifts/stats` | Shift requests KPI statistics (Total, Pending, Approved, Rejected) | `admin`, `super_admin` |
+| `POST` | `/api/v1/rooms/shifts` | Submit room relocation request with preferred room type & reason | Private |
+| `GET` | `/api/v1/rooms/shifts` | Paginated room shift requests with status filters | Private |
+| `GET` | `/api/v1/rooms/shifts/:id` | Get room shift request details | Private |
+| `PATCH` | `/api/v1/rooms/shifts/:id/status` | Approve / Reject shift (Approving atomically reallocates room & bed) | `admin`, `super_admin` |
+| `DELETE` | `/api/v1/rooms/shifts/:id` | Cancel or delete room shift request | Private |
+
+### 16. Laundry Management (`/api/v1/laundry`)
+| Method | Endpoint | Description | Access |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/laundry/catalog` | Active laundry item catalog and itemized rate list | Private |
+| `PUT` | `/api/v1/laundry/catalog` | Configure laundry item prices (branch-specific or all branches) | `admin`, `super_admin` |
+| `GET` | `/api/v1/laundry/stats` | Laundry KPI metrics (Total orders, pending pickup, in process, unbilled) | `admin`, `super_admin` |
+| `GET` | `/api/v1/laundry/users` | List residents with unbilled laundry amounts and order counts | `admin`, `super_admin`, `staff` |
+| `GET` | `/api/v1/laundry/residents/:resident_id/billing` | Resident itemized laundry order history and billing summary | Private |
+| `POST` | `/api/v1/laundry/payments` | Generate billing invoices for unbilled laundry orders (single or bulk) | `admin`, `super_admin` |
+| `POST` | `/api/v1/laundry` | Submit laundry request (itemized clothing counts & pickup time) | Private |
+| `GET` | `/api/v1/laundry` | Paginated laundry orders table with status and type filters | Private |
+| `GET` | `/api/v1/laundry/:id` | Get laundry request details and itemized pricing breakdown | Private |
+| `PATCH` | `/api/v1/laundry/:id/status` | Update laundry order status (`pending_pickup` -> `completed`) | `admin`, `super_admin`, `staff` |
+| `PATCH` | `/api/v1/laundry/:id/assign` | Assign laundry pickup / processing to staff member | `admin`, `super_admin` |
+| `DELETE` | `/api/v1/laundry/:id` | Cancel laundry request | Private |
+
+### 17. Checkout & Refund Approvals (`/api/v1/stays/checkouts`)
+| Method | Endpoint | Description | Access |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/stays/checkouts/review` | Resident checkout review, live pending dues calculation & NOC preview | Private |
+| `POST` | `/api/v1/stays/checkouts` | Submit planned departure request with reason and notice period | Private |
+| `GET` | `/api/v1/stays/checkouts/export` | Export checkout and refund approvals report as Excel (.xlsx) or PDF (.pdf) | `admin`, `super_admin`, `staff` |
+| `GET` | `/api/v1/stays/checkouts` | Paginated departure clearance & refund approval table | `admin`, `super_admin`, `staff` |
+| `GET` | `/api/v1/stays/checkouts/:id` | Get checkout request details, inspection checklist & refund breakdown | Private |
+| `PATCH` | `/api/v1/stays/checkouts/:id/status` | Update status, verify checklist, grant NOC, and process refund | `admin`, `super_admin` |
+| `DELETE` | `/api/v1/stays/checkouts/:id` | Cancel departure request | Private |
+
 ---
 
 ## ⚙️ Environment Configuration
@@ -267,14 +366,16 @@ npm run dev
 
 ---
 
-## 📮 Postman Collection
+## 📮 Postman Collection & Environment
 
-A complete standalone Postman collection is pre-configured with embedded collection variables (no separate environment file required):
-- **Collection file**: [`PG_Backend.postman_collection.json`](file:///d:/PG_Backend/PG_Backend.postman_collection.json)
+A complete standalone Postman collection and environment are pre-configured:
+- **Collection file**: [`PG_Backend.postman_collection.json`](file:///d:/HomeNest_Backend/PG_Backend.postman_collection.json)
 
 ### Features included in the Postman collection:
-- **9 Clean Modules**: `01 Health`, `02 Authentication`, `03 Building Management`, `04 Floor Management`, `05 Room Management`, `06 User Management`, `07 Resident Stays`, and `08 Agreements`.
+- **17 Clean Standardized Modules**: Numbered from `01 System & Health` to `17 Visitor Management` in strict logical hierarchy.
+- **120 Distinct API Endpoints**: All duplicate requests eliminated; canonical RESTful routes with complete documentation.
+- **350+ Saved Example Responses**: Realistic Success (`200 OK` / `201 Created`), Validation Error (`422 Unprocessable Entity`), Unauthorized (`401 Unauthorized`), and Forbidden (`403 Forbidden`) examples for all endpoints.
 - **Collection-Level Bearer Auth**: Automatic token propagation using `{{accessToken}}` across all private endpoints, with public endpoints configured with `noauth`.
-- **Multipart Form-Data for File Uploads**: `POST /rooms`, `PUT /rooms/:id`, `POST /users`, `PUT /users/:id`, and `PUT /users/profile` use `multipart/form-data` with comprehensive, field-by-field descriptions for text parameters and file binary uploads.
-- **Auto-Capture Scripts**: Login, OTP verification, and entity creation automatically populate collection variables (`accessToken`, `refreshToken`, `pgId`, `roomId`, `userId`, `agreementId`, `stayId`, `resetToken`).
+- **Multipart Form-Data & JSON Payloads**: Formdata parameters with comprehensive field descriptions for text parameters and file binary uploads.
+- **Auto-Capture Scripts**: Login, OTP verification, and entity creation automatically populate collection and environment variables (`accessToken`, `refreshToken`, `pgId`, `branchId`, `roomId`, `userId`, `staffId`, `stayId`, `agreementId`, `paymentId`, `visitorId`, `menuId`, `complaintId`, `shiftId`, `laundryId`, `checkoutRequestId`).
 - **Complete Parameter Documentation**: Every query param, header, and body field has a dedicated description detailing purpose, data type, and validation rules.

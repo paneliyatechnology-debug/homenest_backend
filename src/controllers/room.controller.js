@@ -212,7 +212,7 @@ export const createRoomShift = async (req, res, next) => {
 };
 
 /**
- * List room shift requests with filters and pagination (Image 2 Web Table)
+ * Retrieve paginated room relocation and shift requests with status and branch filtering.
  */
 export const getAllRoomShifts = async (req, res, next) => {
   try {
@@ -230,7 +230,7 @@ export const getAllRoomShifts = async (req, res, next) => {
 };
 
 /**
- * Get room shift KPI statistics (Image 2 Top Cards: Total, Approved, Pending, Rejected)
+ * Retrieve KPI dashboard summary statistics for room shift requests (Total, Approved, Pending, Rejected).
  */
 export const getRoomShiftStats = async (req, res, next) => {
   try {

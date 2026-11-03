@@ -558,7 +558,7 @@ export const normalizeBranchIds = (value, { req }) => {
 };
 
 /**
- * Validator for creating staff under User module (Image 2)
+ * Validator for creating staff under User module
  */
 export const createStaffValidator = [
   body('name')
@@ -674,7 +674,7 @@ export const branchIdQueryValidator = query('branch_id')
   .withMessage('Branch ID must be a positive integer');
 
 /**
- * Validator for listing staff query params (Image 1 table & Image 3 mobile directory)
+ * Validator for listing staff members and directory query parameters
  */
 export const listStaffQueryValidator = [
   branchIdQueryValidator,

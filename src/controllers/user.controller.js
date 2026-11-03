@@ -137,7 +137,7 @@ export const deleteUser = async (req, res, next) => {
  */
 
 /**
- * Get staff KPI statistics for admin dashboard (Image 1 cards)
+ * Retrieve KPI summary statistics for operational staff (total staff, active, on leave, inactive, and roles breakdown).
  */
 export const getStaffStats = async (req, res, next) => {
   try {
@@ -175,7 +175,7 @@ export const getStaff = async (req, res, next) => {
 export const getStaffDirectory = getStaff;
 
 /**
- * Create a new staff member under user module (Image 2 form)
+ * Onboard a new operational staff member with multi-branch assignments and optional profile photo.
  */
 export const createStaff = async (req, res, next) => {
   try {
@@ -200,7 +200,7 @@ export const getStaffById = async (req, res, next) => {
 };
 
 /**
- * Update staff details (Image 2 Edit mode)
+ * Update staff contact details, operational role, or branch assignments.
  */
 export const updateStaff = async (req, res, next) => {
   try {

@@ -1,4 +1,4 @@
-import { body, param, query, check } from 'express-validator';
+import { body, query, check } from 'express-validator';
 
 export const MEAL_TYPES = ['breakfast', 'lunch', 'dinner'];
 

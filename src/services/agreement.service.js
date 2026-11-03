@@ -101,7 +101,7 @@ class AgreementService {
       throw new AppError('PG facility not found', HTTP_STATUS.NOT_FOUND);
     }
 
-    // Check unique agreement number
+    // Ensure agreement number is unique across active agreements
     const existing = await this.findByAgreementNo(agreement_no);
     if (existing) {
       throw new AppError(`Agreement number '${agreement_no}' already exists`, HTTP_STATUS.CONFLICT);
@@ -215,11 +215,11 @@ class AgreementService {
         }
       });
 
-    // Count total records
+    // Calculate total matching records for pagination metadata
     const count_result = await base_query.clone().count('agreements.id as total').first();
     const total = count_result ? parseInt(count_result.total, 10) : 0;
 
-    // Fetch paginated rows
+    // Retrieve paginated slice of agreement records
     const agreements = await base_query
       .clone()
       .select(AgreementService.selectFields)
@@ -250,7 +250,7 @@ class AgreementService {
       throw new AppError('Agreement record not found', HTTP_STATUS.NOT_FOUND);
     }
 
-    // Check unique agreement_no if changing
+    // Ensure updated agreement number is not already assigned to another agreement
     if (update_data.agreement_no && update_data.agreement_no !== existing.agreement_no) {
       const duplicate = await db('agreements')
         .where({ agreement_no: update_data.agreement_no })

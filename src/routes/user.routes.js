@@ -10,7 +10,6 @@ import {
   updateStaffStatusValidator,
   listStaffQueryValidator,
   staffStatsQueryValidator,
-  staffDirectoryQueryValidator,
 } from '../validators/user.validator.js';
 import validate from '../middlewares/validate.middleware.js';
 import { authenticate, authorize } from '../middlewares/auth.middleware.js';
@@ -64,7 +63,7 @@ router.get(
 
 /**
  * @route   POST /api/v1/users/staff
- * @desc    Create new staff user with multi-branch assignment and optional photo (Image 2 form)
+ * @desc    Create new staff user with multi-branch assignment and optional profile photo
  * @access  Private (Admin / Super Admin)
  */
 router.post(
@@ -88,7 +87,7 @@ router.get(
 
 /**
  * @route   PUT /api/v1/users/staff/:id
- * @desc    Update staff details (Image 2 Edit mode)
+ * @desc    Update staff details, operational role, or branch assignments
  * @access  Private (Admin / Super Admin)
  */
 router.put(

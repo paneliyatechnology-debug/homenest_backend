@@ -1,5 +1,5 @@
 import complaintService from '../services/complaint.service.js';
-import { success, successAction } from '../utils/apiResponse.js';
+import { success } from '../utils/apiResponse.js';
 import { HTTP_STATUS } from '../constants/index.js';
 
 /**

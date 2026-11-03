@@ -15,7 +15,7 @@ export class FloorService {
       name,
     } = data;
 
-    // Check building exists
+    // Verify parent building exists and is active
     const building = await db('buildings')
       .where({ id: building_id })
       .whereNull('deleted_at')
@@ -29,7 +29,7 @@ export class FloorService {
 
     const fNum = Number(floor_number);
 
-    // Check unique floor_number in building
+    // Enforce unique floor number within the target building
     const existing = await db('floors')
       .where({ building_id, floor_number: fNum })
       .whereNull('deleted_at')
@@ -185,7 +185,7 @@ export class FloorService {
 
     if (!floor) return null;
 
-    // Get rooms on this floor
+    // Retrieve active room inventory allocated on this floor
     const rooms = await db('rooms')
       .where({ floor_id: id })
       .whereNull('deleted_at')
@@ -258,7 +258,7 @@ export class FloorService {
       throw new AppError('Floor not found', HTTP_STATUS.NOT_FOUND);
     }
 
-    // Check if active rooms exist on this floor
+    // Prevent deletion of floor if active room allocations exist
     const activeRooms = await db('rooms')
       .where({ floor_id: id })
       .whereNull('deleted_at')

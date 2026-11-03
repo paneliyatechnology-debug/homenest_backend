@@ -489,13 +489,13 @@ class UserService {
       check_out_date = null,
     } = user_data;
 
-    // Check duplicate email
+    // Validate email address is unique across active user accounts
     const existing_email = await this.findByEmail(email);
     if (existing_email) {
       throw new AppError('Email address is already registered', HTTP_STATUS.CONFLICT);
     }
 
-    // Check duplicate phone
+    // Validate phone number is unique across active user accounts
     if (phone) {
       const existing_phone = await this.findByPhone(phone);
       if (existing_phone) {
@@ -829,7 +829,7 @@ class UserService {
       throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
     }
 
-    // Check duplicate email
+    // Validate email address is unique across active user accounts
     if (update_data.email && update_data.email.toLowerCase().trim() !== existing.email) {
       const duplicate_email = await db('users')
         .where({ email: update_data.email.toLowerCase().trim() })
@@ -841,7 +841,7 @@ class UserService {
       }
     }
 
-    // Check duplicate phone
+    // Validate phone number is unique across active user accounts
     if (update_data.phone && update_data.phone.trim() !== existing.phone) {
       const duplicate_phone = await db('users')
         .where({ phone: update_data.phone.trim() })
@@ -1229,7 +1229,11 @@ class UserService {
   };
 
   /**
-   * 1. Get Staff KPI Statistics (Image 1)
+   * Calculate KPI summary statistics for operational staff (total staff, active, on leave, inactive, and role breakdown).
+   *
+   * @param {object} user - Authenticated user context
+   * @param {object} query - Filtering options (branch_id)
+   * @returns {Promise<object>} Aggregated staff counts and metrics
    */
   getStaffStats = async (user, query = {}) => {
     const pg = await this.resolveAdminPg(user);
@@ -1437,7 +1441,12 @@ class UserService {
   };
 
   /**
-   * 4. Create Staff Member under Users Module (Image 2)
+   * Onboard a new operational staff member with multi-branch assignments, hashed credentials, and optional photo.
+   *
+   * @param {object} data - Staff registration payload (name, email, phone, staff_role, branch_ids)
+   * @param {Express.Multer.File|null} [file] - Uploaded profile photo file
+   * @param {object} user - Authenticated user context
+   * @returns {Promise<object>} Created staff member record
    */
   createStaff = async (data, file = null, user) => {
     const pg = await this.resolveAdminPg(user);
@@ -1542,7 +1551,13 @@ class UserService {
   };
 
   /**
-   * 6. Update Staff Details (Image 2 Edit mode)
+   * Update staff contact details, status, operational role, or branch assignments.
+   *
+   * @param {number|string} id - Staff user ID
+   * @param {object} data - Updated details payload
+   * @param {Express.Multer.File|null} [file] - Optional replacement photo
+   * @param {object} user - Authenticated user context
+   * @returns {Promise<object>} Updated staff entity
    */
   updateStaff = async (id, data, file = null, user) => {
     const pg = await this.resolveAdminPg(user);

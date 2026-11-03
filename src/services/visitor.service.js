@@ -238,7 +238,7 @@ class VisitorService {
     const room_no = active_stay?.room_no || null;
     const room_type = active_stay?.room_type || null;
 
-    // Check branch ownership for Admin
+    // Verify property ownership for administrative caller
     if (is_admin && user.role === ROLES.ADMIN) {
       const targetPg = await db('pgs').where({ id: pg_id }).whereNull('deleted_at').first();
       if (!targetPg || targetPg.owner_id !== user.id) {
@@ -481,7 +481,7 @@ class VisitorService {
       }
     }
 
-    // Fetch full movement audit trail (all entries and exits)
+    // Retrieve complete entry/exit access log timeline for this visitor
     const logs = await db('visitor_logs')
       .where({ visitor_id: id })
       .whereNull('visitor_logs.deleted_at')
@@ -555,7 +555,7 @@ class VisitorService {
       throw new AppError('Visitor record not found', HTTP_STATUS.NOT_FOUND);
     }
 
-    // Check permissions
+    // Validate administrative permissions to modify visitor record
     if (user.role === ROLES.RESIDENT) {
       if (existing.resident_id !== user.id) {
         throw new AppError('Access denied. You can only update your own visitors', HTTP_STATUS.FORBIDDEN);
@@ -804,7 +804,7 @@ class VisitorService {
       throw new AppError('Visitor pass was rejected by administration. Gate access denied.', HTTP_STATUS.BAD_REQUEST);
     }
 
-    // Check time period authorization (visit_date to valid_until)
+    // Verify that the current date falls within authorized visit pass dates
     const visitDateStr = VisitorService.formatDateStr(existing.visit_date);
     const validUntilStr = VisitorService.formatDateStr(existing.valid_until || existing.visit_date);
 

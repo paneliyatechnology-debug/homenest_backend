@@ -1,6 +1,5 @@
 import { body } from 'express-validator';
 import userService from '../services/user.service.js';
-import ROLES from '../constants/roles.js';
 
 /**
  * Normalizes an Indian phone number to 10 digits

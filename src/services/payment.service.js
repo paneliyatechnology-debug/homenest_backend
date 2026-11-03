@@ -344,11 +344,11 @@ class PaymentService {
 
     const base_query = this.buildFilterQuery(options);
 
-    // Count total records
+    // Calculate total matching payment records for pagination
     const count_result = await base_query.clone().count('payments.id as total').first();
     const total = count_result ? parseInt(count_result.total, 10) : 0;
 
-    // Fetch paginated rows
+    // Retrieve paginated slice of payment transactions
     const raw_rows = await base_query
       .clone()
       .select(PaymentService.selectFields)

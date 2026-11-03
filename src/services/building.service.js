@@ -30,13 +30,13 @@ export class BuildingService {
       throw new AppError('Branch ID is required', HTTP_STATUS.BAD_REQUEST);
     }
 
-    // Check PG exists
+    // Verify that target PG facility exists and is active
     const pg = await db('pgs').where({ id: pg_id }).whereNull('deleted_at').first();
     if (!pg) {
       throw new AppError('PG facility not found', HTTP_STATUS.NOT_FOUND);
     }
 
-    // Check unique name in same branch
+    // Enforce unique building name within the target branch
     const existing = await db('buildings')
       .where({ branch_id, name: String(name).trim() })
       .whereNull('deleted_at')
@@ -183,7 +183,7 @@ export class BuildingService {
 
     if (!building) return null;
 
-    // Fetch floors belonging to this building
+    // Retrieve associated floors and room counts for this building
     const floors = await db('floors')
       .where('floors.building_id', id)
       .whereNull('floors.deleted_at')
@@ -288,7 +288,7 @@ export class BuildingService {
       throw new AppError('Building not found', HTTP_STATUS.NOT_FOUND);
     }
 
-    // Check if active rooms exist under this building
+    // Guard against deleting building while active rooms are assigned to it
     const activeRooms = await db('rooms')
       .where({ building_id: id })
       .whereNull('deleted_at')

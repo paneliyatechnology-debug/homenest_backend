@@ -17,7 +17,7 @@ export const vacateStayValidator = [
 ];
 
 /**
- * Validator for reviewing checkout details, dues calculation, and NOC preview (Image 1 Screen 2)
+ * Validator for reviewing checkout details, live dues calculation, and NOC preview
  */
 export const checkoutReviewQueryValidator = [
   query('departure_date')
@@ -39,7 +39,7 @@ export const checkoutReviewQueryValidator = [
 ];
 
 /**
- * Validator for submitting a checkout request (Image 1 Screen 1 & Screen 2)
+ * Validator for submitting a resident checkout departure request
  */
 export const createCheckoutRequestValidator = [
   body('departure_date')
@@ -75,7 +75,7 @@ export const createCheckoutRequestValidator = [
 ];
 
 /**
- * Validator for listing checkout requests (Image 2 Web Table)
+ * Validator for listing checkout requests with filters, status tabs, and pagination
  */
 export const listCheckoutRequestsQueryValidator = [
   query('branch_id')
@@ -207,7 +207,7 @@ export const checkoutRequestIdParamValidator = [
 ];
 
 /**
- * Validator for updating checkout status, checklist clearance, and refund (Image 2 & Stepper)
+ * Validator for updating checkout request status, checklist clearance, and refund approval
  */
 export const updateCheckoutStatusValidator = [
   param('id')

@@ -104,7 +104,7 @@ class BranchService {
       throw new AppError('PG facility not found', HTTP_STATUS.NOT_FOUND);
     }
 
-    // Check unique branch name in same PG
+    // Enforce unique branch name within the same PG property
     const existing = await query
       .where({ pg_id, name: String(data.name).trim() })
       .whereNull('deleted_at')
@@ -213,7 +213,7 @@ class BranchService {
       return qb;
     };
 
-    // Count query
+    // Calculate total matching branches for pagination
     const [{ total }] = await baseQuery().count('branches.id as total');
     const total_records = Number(total) || 0;
 
@@ -327,7 +327,7 @@ class BranchService {
   update = async (id, data, user) => {
     const existing = await this.findById(id, { user });
 
-    // Check unique name if name is changed
+    // Enforce unique name within property if branch name was modified
     if (data.name && String(data.name).trim().toLowerCase() !== existing.name.toLowerCase()) {
       const duplicate = await db('branches')
         .where({ pg_id: existing.pg_id, name: String(data.name).trim() })
@@ -374,7 +374,7 @@ class BranchService {
   delete = async (id, user) => {
     const existing = await this.findById(id, { user });
 
-    // Delete photo if exists
+    // Clean up stored branch image file from storage if present
     if (existing.branch_photo) {
       deleteBranchPhotoFile(existing.branch_photo);
     }

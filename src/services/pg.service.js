@@ -1,7 +1,7 @@
 import db from '../config/db.js';
 import { buildFileUrl } from '../utils/url.js';
-const { AppError } = await import('../utils/apiResponse.js');
-const { HTTP_STATUS } = await import('../constants/index.js');
+import { AppError } from '../utils/apiResponse.js';
+import { HTTP_STATUS } from '../constants/index.js';
 
 
 /**
@@ -124,7 +124,7 @@ class PgService {
       }
     }
 
-    // Get current active resident count
+    // Calculate total active resident occupancy across all rooms
     const active_stay_query = trx ? db('resident_pg_stays').transacting(trx) : db('resident_pg_stays');
     const [{ active_residents }] = await active_stay_query
       .where({ pg_id: id, status: 'active' })

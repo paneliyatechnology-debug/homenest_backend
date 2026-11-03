@@ -3,8 +3,6 @@ import db from '../config/db.js';
 import { AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS, ROLES } from '../constants/index.js';
 import { buildFileUrl } from '../utils/url.js';
-import { deleteComplaintAttachmentFile } from '../middlewares/upload.middleware.js';
-import emailService from './email.service.js';
 
 class ComplaintService {
   /**
@@ -287,7 +285,7 @@ class ComplaintService {
         notify_updates: data.notify_updates !== undefined ? Boolean(data.notify_updates) : true,
       });
 
-      // Insert file attachments
+      // Associate uploaded proof attachments with the complaint record
       if (files && files.length > 0) {
         const attachmentRecords = files.map((file) => ({
           complaint_id: newId,
@@ -406,11 +404,11 @@ class ComplaintService {
         }
       });
 
-    // Count Total
+    // Calculate total matching complaints for pagination
     const countRes = await base_query.clone().count('complaints.id as total').first();
     const total = countRes ? parseInt(countRes.total, 10) : 0;
 
-    // Fetch Rows
+    // Retrieve paginated complaint records
     const rows = await base_query
       .clone()
       .select(
@@ -432,7 +430,7 @@ class ComplaintService {
       .limit(per_page)
       .offset(offset);
 
-    // Fetch attachments for these complaints
+    // Hydrate complaints with their uploaded photo/document attachments
     let attachmentsByComplaintId = {};
     if (rows.length > 0) {
       const complaintIds = rows.map((r) => r.id);
@@ -926,7 +924,7 @@ class ComplaintService {
       );
     }
 
-    // Check duplicate feedback
+    // Prevent duplicate feedback submission for the same complaint
     const existingFeedback = await db('complaint_feedback')
       .where('complaint_id', id)
       .first();

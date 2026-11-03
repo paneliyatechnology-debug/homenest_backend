@@ -4,7 +4,7 @@ import { HTTP_STATUS, ROLES, STAFF_ROLES } from '../constants/index.js';
 import { formatDate } from '../utils/date.js';
 import { buildFileUrl } from '../utils/url.js';
 
-// Standard system fallback catalog pricing matching Image 1 Mobile Screen
+// Default system laundry service pricing catalog per piece/item
 export const LAUNDRY_CATALOG = [
   { name: 'Shirt', rate: 20 },
   { name: 'T-Shirt', rate: 15 },
@@ -17,8 +17,11 @@ export const LAUNDRY_PICKUP_TIME_SLOT = '09:00 AM - 11:00 AM (Mon - Sat)';
 export const LAUNDRY_SERVICE_TYPES = ['Wash & Fold', 'Dry Cleaning'];
 
 /**
- * Format items into compact request detail summary string for Admin Table (Image 3)
- * e.g., "2 t-shirt, 1 Jeans" or "2 Shirt, 3 T-Shirt, 1 Jeans, +1 more"
+ * Format laundry item quantities into a compact human-readable summary string.
+ * Examples: "2 Shirt, 1 Jeans" or "2 Shirt, 3 T-Shirt, 1 Jeans, +1 more"
+ *
+ * @param {Array<{name: string, quantity: number}>} items - List of laundry items
+ * @returns {string} Formatted item summary
  */
 export const generateRequestDetail = (items) => {
   if (!items || !Array.isArray(items) || items.length === 0) {
@@ -38,8 +41,12 @@ export const generateRequestDetail = (items) => {
 };
 
 /**
- * Format pickup schedule string for Admin Table (Image 3)
- * e.g., "31 Dec 2026, 09:00 AM" or "26 Mar 2026, 09:00 AM - 11:00 AM"
+ * Format pickup date and time window for tabular display.
+ * Examples: "31 Dec 2026, 09:00 AM" or "26 Mar 2026, 09:00 AM - 11:00 AM"
+ *
+ * @param {string|Date} pickupDate - Scheduled pickup date
+ * @param {string} [pickupTime] - Scheduled pickup time slot
+ * @returns {string} Formatted schedule string
  */
 export const formatPickupSchedule = (pickupDate, pickupTime) => {
   if (!pickupDate) return '-';
@@ -55,7 +62,10 @@ export const formatPickupSchedule = (pickupDate, pickupTime) => {
 };
 
 /**
- * Generate unique request number formatted like #CL-1024 (Image 1 & 3)
+ * Generate a sequential tracking request identifier with prefix format "#CL-1024".
+ *
+ * @param {import('knex').Knex.Transaction} [trx] - Optional Knex transaction
+ * @returns {Promise<string>} Sequential tracking code
  */
 const generateRequestNumber = async (trx) => {
   const query = trx ? trx('laundry_requests') : db('laundry_requests');
@@ -99,7 +109,7 @@ const resolveUserBranches = async (user, trx) => {
     return { isSuperAdmin: false, branchIds, pgId: pg.id };
   }
 
-  if (user.role === ROLES.STAFF || user.role === ROLES.BRANCH_MANAGER) {
+  if (user.role === ROLES.STAFF || user.staff_role === STAFF_ROLES.BRANCH_MANAGER || user.role === ROLES.BRANCH_MANAGER) {
     const assignedBranches = await query('user_branches').where({ user_id: user.id }).select('branch_id');
     const branchIds = assignedBranches.map((b) => b.branch_id);
     return { isSuperAdmin: false, branchIds, pgId: user.pg_id || null };
@@ -475,7 +485,7 @@ export const findAll = async (user, query) => {
     baseQuery.where('laundry_requests.branch_id', filterBranchId);
   }
 
-  // Tabs (Image 1 Mobile & Image 3 Admin Table)
+  // Apply filter tabs (current active orders vs historical completed orders)
   if (query.tab) {
     const tab = query.tab.toLowerCase();
     if (tab === 'current') {
@@ -724,7 +734,11 @@ export const findById = async (id, user, trx) => {
 };
 
 /**
- * Service: Get KPI statistics for top 4 cards (Image 3)
+ * Calculate KPI summary statistics for the laundry dashboard cards (Total, In Progress, Pending Pickup, Completed).
+ *
+ * @param {object} user - Authenticated user context
+ * @param {object} query - Filter options (branch_id, date range)
+ * @returns {Promise<object>} Dashboard metrics object
  */
 export const getStats = async (user, query = {}) => {
   const { isSuperAdmin, branchIds, pgId } = await resolveUserBranches(user);
@@ -1126,7 +1140,7 @@ export const createLaundryPaymentEntries = async (user, payload) => {
       const receiptNo = `LND-${Date.now().toString().slice(-6)}-${resId}`;
       const transactionId = `TXN-LND-${Date.now()}-${resId}`;
 
-      // Insert into payments table
+      // Record laundry invoice in payments table
       const [paymentId] = await trx('payments').insert({
         transaction_id: transactionId,
         receipt_no: receiptNo,
@@ -1285,7 +1299,7 @@ export const findAllResidentsWithLaundry = async (user, query = {}) => {
     }
   }
 
-  // Count total matching records
+  // Calculate total matching residents for pagination
   const countRow = await baseQuery.clone().count('users.id as total').first();
   const total = parseInt(countRow?.total || 0, 10);
 
@@ -1339,7 +1353,7 @@ export const findAllResidentsWithLaundry = async (user, query = {}) => {
     .limit(limit)
     .offset(offset);
 
-  // Fetch latest order for each resident in this page
+  // Populate the most recent laundry order details for each resident
   const residentIds = rows.map((r) => r.resident_id);
   const latestOrdersMap = {};
 

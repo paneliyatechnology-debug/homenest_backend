@@ -1,4 +1,4 @@
-import { body, param, query } from 'express-validator';
+import { body, param } from 'express-validator';
 import db from '../config/db.js';
 
 const ALLOWED_STATUSES = ['signed', 'pending', 'draft', 'expired'];

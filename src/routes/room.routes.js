@@ -26,7 +26,7 @@ router.use(authenticate);
 
 /**
  * @route   GET /api/v1/rooms/shifts/stats
- * @desc    Get KPI statistics for Room Shifts dashboard cards (Total, Approved, Pending, Rejected) (Image 2)
+ * @desc    Get KPI statistics for Room Shifts dashboard cards (Total, Approved, Pending, Rejected)
  * @access  Private (Admin / Super Admin)
  */
 router.get(
@@ -49,7 +49,7 @@ router.post(
 
 /**
  * @route   GET /api/v1/rooms/shifts
- * @desc    List room shift requests with filters and pagination (Image 2 Web Table)
+ * @desc    List room shift requests with filters and pagination
  * @access  Private (Resident / Admin / Super Admin)
  */
 router.get(
