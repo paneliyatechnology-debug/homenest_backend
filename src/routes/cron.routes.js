@@ -7,8 +7,25 @@
 import { Router } from 'express';
 import cron from 'node-cron';
 import cronController from '../controllers/cron.controller.js';
+import noticeService from '../services/notice.service.js';
 
 const router = Router();
+
+/**
+ * Scheduled Recurring Task: Auto-publish due scheduled notices
+ * Runs every minute to transition scheduled notices whose scheduled_at <= NOW() to 'sent'.
+ */
+cron.schedule(
+  '* * * * *',
+  async () => {
+    try {
+      await noticeService.publishDueScheduledNotices();
+    } catch (err) {
+      console.warn('[Cron] Scheduled notices publication error:', err.message);
+    }
+  },
+  { timezone: 'Asia/Kolkata' }
+);
 
 /**
  * Scheduled Daily Task: Automated Payment Proof & Uploads Cleanup

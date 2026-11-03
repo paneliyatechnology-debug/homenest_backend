@@ -14,9 +14,10 @@ const food_menu_upload_dir = path.join(process.cwd(), 'uploads', 'food_menu');
 const food_feedback_upload_dir = path.join(process.cwd(), 'uploads', 'food_feedback');
 const complaints_upload_dir = path.join(process.cwd(), 'uploads', 'complaints');
 const staff_upload_dir = path.join(process.cwd(), 'uploads', 'staff');
+const notices_upload_dir = path.join(process.cwd(), 'uploads', 'notices');
 
 // Ensure upload directories exist
-[rooms_upload_dir, users_upload_dir, pgs_upload_dir, documents_upload_dir, visitors_upload_dir, branches_upload_dir, food_menu_upload_dir, food_feedback_upload_dir, complaints_upload_dir, staff_upload_dir].forEach((dir) => {
+[rooms_upload_dir, users_upload_dir, pgs_upload_dir, documents_upload_dir, visitors_upload_dir, branches_upload_dir, food_menu_upload_dir, food_feedback_upload_dir, complaints_upload_dir, staff_upload_dir, notices_upload_dir].forEach((dir) => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -629,6 +630,88 @@ export const deleteComplaintAttachmentFile = (filename) => {
 export const handleStaffPhotoUpload = handleUserPhotoUpload;
 export const deleteStaffPhotoFile = deleteUserPhotoFile;
 
+// Notice attachment file storage and filter
+const notice_attachment_storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, notices_upload_dir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const unique_name = `notice-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+    cb(null, unique_name);
+  },
+});
+
+const allowed_notice_mimetypes = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+];
+
+const upload_notice = multer({
+  storage: notice_attachment_storage,
+  fileFilter: (req, file, cb) => {
+    if (allowed_notice_mimetypes.includes(file.mimetype.toLowerCase())) {
+      cb(null, true);
+    } else {
+      cb(
+        new AppError(
+          'Invalid file type. Only PDF, DOC, DOCX, and JPG/PNG images are allowed (max 5MB)',
+          HTTP_STATUS.BAD_REQUEST
+        ),
+        false
+      );
+    }
+  },
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+});
+
+/**
+ * Middleware for notice attachment file upload (PDF, DOC, JPG, PNG up to 5MB).
+ * Accepts 'file', 'attachment', or 'document'.
+ */
+export const handleNoticeAttachmentUpload = (req, res, next) => {
+  const content_type = req.headers['content-type'] || '';
+  if (content_type.startsWith('multipart/form-data')) {
+    upload_notice.fields([
+      { name: 'file', maxCount: 1 },
+      { name: 'attachment', maxCount: 1 },
+      { name: 'document', maxCount: 1 },
+    ])(req, res, (err) => {
+      if (err) {
+        if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+          return next(new AppError('Notice attachment file size exceeds 5MB limit', HTTP_STATUS.BAD_REQUEST));
+        }
+        return next(err);
+      }
+      if (req.files) {
+        req.file = req.files['file']?.[0] || req.files['attachment']?.[0] || req.files['document']?.[0] || null;
+      }
+      next();
+    });
+  } else {
+    next();
+  }
+};
+
+/**
+ * Delete a local notice attachment file safely
+ * @param {string|null} filename
+ */
+export const deleteNoticeAttachmentFile = (filename) => {
+  if (!filename) return;
+  try {
+    const file_path = path.join(notices_upload_dir, path.basename(filename));
+    if (fs.existsSync(file_path)) {
+      fs.unlinkSync(file_path);
+    }
+  } catch (err) {
+    console.warn(`[Warning] Could not delete notice attachment: ${filename}`, err.message);
+  }
+};
+
 export default {
   handleRoomImageUpload,
   handleUserPhotoUpload,
@@ -650,4 +733,6 @@ export default {
   deleteComplaintAttachmentFile,
   handleStaffPhotoUpload,
   deleteStaffPhotoFile,
+  handleNoticeAttachmentUpload,
+  deleteNoticeAttachmentFile,
 };

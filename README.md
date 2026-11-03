@@ -369,7 +369,6 @@ npm run dev
 ### 18. Subscription Plans (`/api/v1/subscriptions`)
 Manage and configure resident subscription plans with pricing, duration, and feature checklists:
 - `GET /api/v1/subscriptions/stats` - Dashboard KPI cards (Total Plans, Total Subscribers, Active Plans, Inactive Plans)
-- `GET /api/v1/subscriptions/features` - Predefined features checklist & allowed plan types
 - `GET /api/v1/subscriptions` - List subscription plans with filtering (plan_type, status, search, pagination)
 - `POST /api/v1/subscriptions` - Create new subscription plan with name, type, price, duration, features
 - `GET /api/v1/subscriptions/:id` - Get subscription plan details and overview
@@ -377,18 +376,32 @@ Manage and configure resident subscription plans with pricing, duration, and fea
 - `PATCH /api/v1/subscriptions/:id/status` - Quick toggle/update status (Pause Plan / Activate Plan)
 - `DELETE /api/v1/subscriptions/:id` - Soft-delete subscription plan
 
+### 19. Notice Management & Communications (`/api/v1/notices`)
+Property communications, broadcast announcements, scheduling, and resident notification center:
+- `GET /api/v1/notices/stats` - Notice KPI cards (Total Notices, Drafts, Scheduled, Sent)
+- `GET /api/v1/notices` - Paginated notices table with tab filtering (All, Drafts, Scheduled, Sent), category, priority, and search
+- `POST /api/v1/notices` - Create or schedule notice with audience targeting (All, Branch, Room, Resident) and optional document/image attachment (PDF, DOC, JPG, PNG)
+- `GET /api/v1/notices/:id` - Get notice details by ID for Admin portal
+- `PUT /api/v1/notices/:id` - Update notice content, reschedule, or replace attachment
+- `DELETE /api/v1/notices/:id` - Soft delete notice
+- `POST /api/v1/notices/:id/send` - Immediately publish / broadcast draft or scheduled notice
+- `GET /api/v1/notices/resident` - Resident Mobile Notification Center list with category pills (All, Important, General, Events) and unread counters
+- `GET /api/v1/notices/resident/:id` - Resident Notice Detail screen showing category, priority, date/time, content, and attachment download card (automatically marks as read)
+- `PATCH /api/v1/notices/resident/:id/read` - Explicitly mark notice as read by resident
+- `PATCH /api/v1/notices/resident/read-all` - Mark all notifications as read for resident
+
 ---
 
 ## 📮 Postman Collection
 
 
-A complete standalone Postman collection and environment are pre-configured:
+A complete standalone Postman collection is pre-configured:
 - **Collection file**: [`PG_Backend.postman_collection.json`](file:///d:/HomeNest_Backend/PG_Backend.postman_collection.json)
 
 ### Features included in the Postman collection:
-- **18 Clean Standardized Modules**: Numbered from `01 System & Health` to `17 Visitor Management` in strict logical hierarchy.
-- **127 Distinct API Endpoints**: All duplicate requests eliminated; canonical RESTful routes with complete documentation.
+- **19 Clean Standardized Modules**: Numbered from `01 System & Health` to `19 Notice Management` in strict logical hierarchy.
+- **Over 130 Distinct API Endpoints**: All duplicate requests eliminated; canonical RESTful routes with complete documentation.
 - **Collection-Level Bearer Auth**: Automatic token propagation using `{{accessToken}}` across all private endpoints, with public endpoints configured with `noauth`.
 - **Multipart Form-Data & JSON Payloads**: Formdata parameters with comprehensive field descriptions for text parameters and file binary uploads.
-- **Auto-Capture Scripts**: Login, OTP verification, and entity creation automatically populate collection and environment variables (`accessToken`, `refreshToken`, `pgId`, `branchId`, `roomId`, `userId`, `staffId`, `stayId`, `agreementId`, `paymentId`, `visitorId`, `menuId`, `complaintId`, `shiftId`, `laundryId`, `checkoutRequestId`).
+- **Auto-Capture Scripts**: Login, OTP verification, and entity creation automatically populate collection variables (`accessToken`, `refreshToken`, `pgId`, `branchId`, `roomId`, `userId`, `staffId`, `stayId`, `agreementId`, `paymentId`, `visitorId`, `menuId`, `complaintId`, `shiftId`, `laundryId`, `checkoutRequestId`, `planId`, `noticeId`).
 - **Complete Parameter Documentation**: Every query param, header, and body field has a dedicated description detailing purpose, data type, and validation rules.

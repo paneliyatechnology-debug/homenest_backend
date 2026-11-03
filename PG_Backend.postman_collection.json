@@ -167,6 +167,12 @@
       "value": "1",
       "type": "string",
       "description": "Sample subscription plan ID for testing"
+    },
+    {
+      "key": "noticeId",
+      "value": "1",
+      "type": "string",
+      "description": "Notice Identifier"
     }
   ],
   "auth": {
@@ -6652,6 +6658,455 @@
               ]
             },
             "description": "### DELETE /api/v1/subscriptions/:id\nProtected (Admin / Super Admin / Branch Manager). Soft-deletes a subscription plan."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "19 Notice Management",
+      "item": [
+        {
+          "name": "Notice Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notices/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notices",
+                "stats"
+              ]
+            },
+            "description": "### GET /api/v1/notices/stats\nRetrieves Notice Management KPI dashboard cards: Total Notices, Drafts, Scheduled, and Sent."
+          },
+          "response": []
+        },
+        {
+          "name": "List Notices",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notices?page=1&limit=10&tab=all&category=all&priority=all&search=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notices"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Items per page"
+                },
+                {
+                  "key": "tab",
+                  "value": "all",
+                  "description": "Tab filter: all | drafts | scheduled | sent"
+                },
+                {
+                  "key": "category",
+                  "value": "all",
+                  "description": "Category: Maintenance | General | Event | Important | all"
+                },
+                {
+                  "key": "priority",
+                  "value": "all",
+                  "description": "Priority: low | medium | high | all"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Search notices by title, content, or category"
+                }
+              ]
+            },
+            "description": "### GET /api/v1/notices\nList notices table with tabs (All, Drafts, Scheduled, Sent), category/priority filters, search, and pagination."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Notice",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "Water supply maintenance",
+                  "type": "text",
+                  "description": "Notice Title"
+                },
+                {
+                  "key": "category",
+                  "value": "Maintenance",
+                  "type": "text",
+                  "description": "Category: Maintenance | General | Event | Important"
+                },
+                {
+                  "key": "priority",
+                  "value": "high",
+                  "type": "text",
+                  "description": "Priority: low | medium | high"
+                },
+                {
+                  "key": "audience_type",
+                  "value": "all",
+                  "type": "text",
+                  "description": "all | branch | room | resident"
+                },
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "type": "text",
+                  "description": "Branch ID (optional, for specific branch)"
+                },
+                {
+                  "key": "content",
+                  "value": "Dear Residents, The water supply will be closed on 25 march from 09:00 AM to 02:00 PM for maintenance work. Please store enough water in advance.",
+                  "type": "text",
+                  "description": "Notice message content"
+                },
+                {
+                  "key": "schedule_date",
+                  "value": "2026-03-25",
+                  "type": "text",
+                  "description": "Schedule date YYYY-MM-DD"
+                },
+                {
+                  "key": "schedule_time",
+                  "value": "10:00 AM",
+                  "type": "text",
+                  "description": "Schedule time"
+                },
+                {
+                  "key": "status",
+                  "value": "draft",
+                  "type": "text",
+                  "description": "draft | scheduled | sent (Default: draft)"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Optional attachment file: PDF, DOC, JPG, PNG (Max 5MB)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notices",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notices"
+              ]
+            },
+            "description": "### POST /api/v1/notices\nCreates a new notice or schedules communication with optional document/image attachment."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Notice",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notices/{{noticeId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notices",
+                "{{noticeId}}"
+              ]
+            },
+            "description": "### GET /api/v1/notices/:id\nGet notice details by ID for Admin portal."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Notice",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "Water supply maintenance (Updated)",
+                  "type": "text"
+                },
+                {
+                  "key": "category",
+                  "value": "Maintenance",
+                  "type": "text"
+                },
+                {
+                  "key": "priority",
+                  "value": "high",
+                  "type": "text"
+                },
+                {
+                  "key": "content",
+                  "value": "Updated: Maintenance will take 4 hours instead of 5.",
+                  "type": "text"
+                },
+                {
+                  "key": "status",
+                  "value": "scheduled",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notices/{{noticeId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notices",
+                "{{noticeId}}"
+              ]
+            },
+            "description": "### PUT /api/v1/notices/:id\nUpdate an existing notice, reschedule, or replace attachment."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Notice",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notices/{{noticeId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notices",
+                "{{noticeId}}"
+              ]
+            },
+            "description": "### DELETE /api/v1/notices/:id\nSoft deletes a notice record."
+          },
+          "response": []
+        },
+        {
+          "name": "Send Notice",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notices/{{noticeId}}/send",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notices",
+                "{{noticeId}}",
+                "send"
+              ]
+            },
+            "description": "### POST /api/v1/notices/:id/send\nImmediately publishes / broadcasts a draft or scheduled notice to residents."
+          },
+          "response": []
+        },
+        {
+          "name": "Resident Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notices/resident?category=all&page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notices",
+                "resident"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "all",
+                  "description": "Filter pill: all | important | general | events"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Limit"
+                }
+              ]
+            },
+            "description": "### GET /api/v1/notices/resident\nResident Mobile Notification Center list with category pills (All, Important, General, Events) and unread counters."
+          },
+          "response": []
+        },
+        {
+          "name": "Resident Notice Detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notices/resident/{{noticeId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notices",
+                "resident",
+                "{{noticeId}}"
+              ]
+            },
+            "description": "### GET /api/v1/notices/resident/:id\nResident Notice Detail screen showing category tag, title, timestamp, full body message, attachment download card, and marks as read."
+          },
+          "response": []
+        },
+        {
+          "name": "Mark Notice Read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notices/resident/{{noticeId}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notices",
+                "resident",
+                "{{noticeId}}",
+                "read"
+              ]
+            },
+            "description": "### PATCH /api/v1/notices/resident/:id/read\nExplicitly mark a notice as read by resident."
+          },
+          "response": []
+        },
+        {
+          "name": "Mark All Read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notices/resident/read-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notices",
+                "resident",
+                "read-all"
+              ]
+            },
+            "description": "### PATCH /api/v1/notices/resident/read-all\nMarks all unread notifications as read for authenticated resident."
           },
           "response": []
         }
