@@ -10,6 +10,8 @@ import {
   updateStaffStatusValidator,
   listStaffQueryValidator,
   staffStatsQueryValidator,
+  userStatsQueryValidator,
+  listUsersQueryValidator,
 } from '../validators/user.validator.js';
 import validate from '../middlewares/validate.middleware.js';
 import { authenticate, authorize } from '../middlewares/auth.middleware.js';
@@ -127,6 +129,18 @@ router.delete(
 // ==========================================
 
 /**
+ * @route   GET /api/v1/users/stats
+ * @desc    Get resident / user dashboard KPI statistics cards (Total Residents, Active, Pending, Inactive)
+ * @access  Private (Admin / Super Admin)
+ */
+router.get(
+  '/stats',
+  authorize(ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  validate(userStatsQueryValidator),
+  userController.getUserStats
+);
+
+/**
  * @route   POST /api/v1/users
  * @desc    Create a new user (Resident, Admin, Super Admin).
  *          Supports FormData with optional 'profile_photo'. If resident, can allocate room.
@@ -148,6 +162,7 @@ router.post(
 router.get(
   '/',
   authorize(ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  validate(listUsersQueryValidator),
   userController.getAllUsers
 );
 

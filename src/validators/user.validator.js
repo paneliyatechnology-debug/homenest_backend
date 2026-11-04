@@ -735,6 +735,111 @@ export const staffStatsQueryValidator = [
  */
 export const staffDirectoryQueryValidator = listStaffQueryValidator;
 
+/**
+ * Validator for user / resident dashboard statistics query params
+ * (Total Residents, Active, Pending, Inactive KPI cards)
+ */
+export const userStatsQueryValidator = [
+  branchIdQueryValidator,
+
+  query('role')
+    .optional({ checkFalsy: true })
+    .trim()
+    .toLowerCase(),
+
+  query('status')
+    .optional({ checkFalsy: true })
+    .trim()
+    .toLowerCase()
+    .custom((val) => {
+      if (val === 'all' || val === '' || val === undefined) return true;
+      if (!ALLOWED_STATUSES.includes(val)) {
+        throw new Error(`Status filter must be one of: all, ${ALLOWED_STATUSES.join(', ')}`);
+      }
+      return true;
+    }),
+
+  query('room_type')
+    .optional({ checkFalsy: true })
+    .trim()
+    .toLowerCase(),
+
+  query('search')
+    .optional({ checkFalsy: true })
+    .trim(),
+
+  query('pg_id')
+    .optional({ checkFalsy: true })
+    .customSanitizer((val) => {
+      if (val === 'all' || val === '' || val === undefined || val === null) {
+        return undefined;
+      }
+      return val;
+    })
+    .optional()
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('PG ID must be a positive integer'),
+];
+
+/**
+ * Validator for listing users (GET /api/v1/users)
+ */
+export const listUsersQueryValidator = [
+  branchIdQueryValidator,
+
+  query('role')
+    .optional({ checkFalsy: true })
+    .trim()
+    .toLowerCase(),
+
+  query('status')
+    .optional({ checkFalsy: true })
+    .trim()
+    .toLowerCase()
+    .custom((val) => {
+      if (val === 'all' || val === '' || val === undefined) return true;
+      if (!ALLOWED_STATUSES.includes(val)) {
+        throw new Error(`Status filter must be one of: all, ${ALLOWED_STATUSES.join(', ')}`);
+      }
+      return true;
+    }),
+
+  query('room_type')
+    .optional({ checkFalsy: true })
+    .trim()
+    .toLowerCase(),
+
+  query('search')
+    .optional({ checkFalsy: true })
+    .trim(),
+
+  query('pg_id')
+    .optional({ checkFalsy: true })
+    .customSanitizer((val) => {
+      if (val === 'all' || val === '' || val === undefined || val === null) {
+        return undefined;
+      }
+      return val;
+    })
+    .optional()
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('PG ID must be a positive integer'),
+
+  query('page')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Page must be a positive integer'),
+
+  query('limit')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Limit must be between 1 and 100'),
+];
+
 export default {
   createUserValidator,
   updateUserValidator,
@@ -750,6 +855,8 @@ export default {
   listStaffQueryValidator,
   staffStatsQueryValidator,
   staffDirectoryQueryValidator,
+  userStatsQueryValidator,
+  listUsersQueryValidator,
   STAFF_STATUSES,
   ALLOWED_STATUSES,
   ALLOWED_GENDERS,

@@ -27,6 +27,26 @@ export const createUser = async (req, res, next) => {
 };
 
 /**
+ * Get user / resident statistics KPI cards (Total Residents, Active, Pending, Inactive)
+ * Supports query filters: role, branch_id, room_type, status, search, pg_id
+ */
+export const getUserStats = async (req, res, next) => {
+  try {
+    const is_admin = req.user.role === ROLES.ADMIN;
+    const pg_id = req.query.pg_id ? Number(req.query.pg_id) : (is_admin ? req.pg_id : undefined);
+
+    const stats = await userService.getUserStats(req.user, {
+      ...req.query,
+      pg_id,
+    });
+
+    return success(res, 'User statistics retrieved successfully', stats);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
  * Get all users with filtering by role, status, pg_id, and search.
  */
 export const getAllUsers = async (req, res, next) => {
@@ -37,17 +57,19 @@ export const getAllUsers = async (req, res, next) => {
     const {
       role,
       status,
+      room_type,
       search,
       page = 1,
       limit = 10,
     } = req.query;
 
     const pg_id = req.query.pg_id ? Number(req.query.pg_id) : (is_admin ? req.pg_id : undefined);
-    const branch_id = req.query.branch_id ? Number(req.query.branch_id) : undefined;
+    const branch_id = req.query.branch_id && req.query.branch_id !== 'all' ? Number(req.query.branch_id) : undefined;
 
     const { users, pagination } = await userService.findAll({
       role,
       status,
+      room_type,
       pg_id,
       branch_id,
       owner_id,
@@ -241,6 +263,7 @@ export const deleteStaff = async (req, res, next) => {
 
 export default {
   createUser,
+  getUserStats,
   getAllUsers,
   getUserById,
   updateProfile,

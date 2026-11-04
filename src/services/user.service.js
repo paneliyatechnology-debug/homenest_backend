@@ -291,6 +291,7 @@ const formatUserListItem = (user) => {
     status: user.status || 'active',
     profile_photo_url: buildFileUrl('users', user.profile_photo),
     room_no: user.room_no || null,
+    room_type: user.room_type || null,
     building_name: user.building_name || null,
     floor_name: user.floor_name || null,
     room_id: user.room_id ? Number(user.room_id) : null,
@@ -335,6 +336,7 @@ class UserService {
     'resident_pg_stays.branch_id',
     'resident_pg_stays.room_id',
     'rooms.room_no',
+    'rooms.room_type',
     'rooms.building_id',
     'buildings.name as building_name',
     'rooms.floor_id',
@@ -782,12 +784,13 @@ class UserService {
     role = '',
     status = '',
     pg_id = null,
-      branch_id = null,
-      maintenance_amount = 0.0,
+    branch_id = null,
+    maintenance_amount = 0.0,
     owner_id = null,
     search = '',
     page = 1,
     limit = 10,
+    room_type = '',
   }) => {
     const current_page = Math.max(1, parseInt(page, 10) || 1);
     const per_page = Math.max(1, parseInt(limit, 10) || 10);
@@ -849,17 +852,26 @@ class UserService {
       .countDistinct('users.id as total');
 
     const apply_filters = (builder) => {
-      if (role) {
+      if (role && role !== 'all') {
         builder.where('users.role', role);
       }
-      if (status) {
+      if (status && status !== 'all') {
         builder.where('users.status', status);
       }
       if (pg_id) {
-        builder.where('resident_pg_stays.pg_id', pg_id);
+        builder.where((pg_qb) => {
+          pg_qb.where('resident_pg_stays.pg_id', pg_id)
+            .orWhere('users.pg_id', pg_id);
+        });
       }
-      if (branch_id) {
-        builder.where('resident_pg_stays.branch_id', branch_id);
+      if (branch_id && branch_id !== 'all') {
+        builder.where((b_qb) => {
+          b_qb.where('resident_pg_stays.branch_id', branch_id)
+            .orWhereIn('users.id', db('user_branches').select('user_id').where('branch_id', branch_id));
+        });
+      }
+      if (room_type && room_type !== 'all') {
+        builder.where('rooms.room_type', room_type);
       }
       if (owner_id) {
         builder.where((owner_qb) => {
@@ -1309,6 +1321,126 @@ class UserService {
         updated_at: user.updated_at,
       };
     });
+  };
+
+  /**
+   * Calculate KPI summary statistics for Residents / Users
+   * (Total Residents, Active, Pending, Inactive KPI cards)
+   * Supports filtering by role (defaults to resident), branch_id, room_type, status, search, and pg_id.
+   *
+   * @param {Object} user - Authenticated user context
+   * @param {Object} query - Filter parameters
+   * @returns {Promise<Object>} Statistics counts
+   */
+  getUserStats = async (user, query = {}) => {
+    const is_admin = user.role === ROLES.ADMIN;
+    const owner_id = is_admin ? user.id : undefined;
+
+    let effectivePgId = query.pg_id ? Number(query.pg_id) : undefined;
+    if (!effectivePgId && is_admin) {
+      const pg = await db('pgs').where({ owner_id: user.id }).whereNull('deleted_at').orderBy('id', 'asc').first();
+      if (pg) effectivePgId = pg.id;
+    }
+
+    const branch_id = query.branch_id && query.branch_id !== 'all' ? Number(query.branch_id) : undefined;
+    const room_type = query.room_type && query.room_type !== 'all' ? String(query.room_type).trim().toLowerCase() : undefined;
+    const status = query.status && query.status !== 'all' ? String(query.status).trim().toLowerCase() : undefined;
+    const search = query.search ? String(query.search).trim() : undefined;
+    const role = query.role && query.role !== 'all' ? String(query.role).trim().toLowerCase() : ROLES.RESIDENT;
+
+    let base = db('users')
+      .whereNull('users.deleted_at')
+      .leftJoin('resident_pg_stays', (join) => {
+        join
+          .on('users.id', '=', 'resident_pg_stays.resident_id')
+          .andOn('resident_pg_stays.status', '=', db.raw('?', ['active']))
+          .andOnNull('resident_pg_stays.deleted_at');
+      })
+      .leftJoin('pgs', (join) => {
+        join
+          .on('resident_pg_stays.pg_id', '=', 'pgs.id')
+          .andOnNull('pgs.deleted_at');
+      })
+      .leftJoin('rooms', (join) => {
+        join
+          .on('resident_pg_stays.room_id', '=', 'rooms.id')
+          .andOnNull('rooms.deleted_at');
+      });
+
+    if (role) {
+      base.where('users.role', role);
+    }
+
+    if (effectivePgId) {
+      base.where((qb) => {
+        qb.where('resident_pg_stays.pg_id', effectivePgId)
+          .orWhere('users.pg_id', effectivePgId);
+      });
+    }
+
+    if (owner_id) {
+      base.where((qb) => {
+        qb.where('pgs.owner_id', owner_id).orWhereNull('pgs.owner_id');
+      });
+    }
+
+    if (branch_id) {
+      base.where((qb) => {
+        qb.where('resident_pg_stays.branch_id', branch_id)
+          .orWhereIn(
+            'users.id',
+            db('user_branches').select('user_id').where('branch_id', branch_id)
+          );
+      });
+    }
+
+    if (room_type) {
+      base.where('rooms.room_type', room_type);
+    }
+
+    if (search) {
+      const search_pattern = `%${search}%`;
+      base.where((search_builder) => {
+        search_builder
+          .where('users.name', 'like', search_pattern)
+          .orWhere('users.email', 'like', search_pattern)
+          .orWhere('users.phone', 'like', search_pattern)
+          .orWhere('rooms.room_no', 'like', search_pattern);
+      });
+    }
+
+    const counts = await base
+      .select(
+        db.raw('COUNT(DISTINCT users.id) as total_residents'),
+        db.raw("COUNT(DISTINCT CASE WHEN users.status = 'active' THEN users.id END) as active"),
+        db.raw("COUNT(DISTINCT CASE WHEN users.status = 'pending' THEN users.id END) as pending"),
+        db.raw("COUNT(DISTINCT CASE WHEN users.status = 'inactive' THEN users.id END) as inactive")
+      )
+      .first();
+
+    const total = parseInt(counts?.total_residents || 0, 10);
+    const active = parseInt(counts?.active || 0, 10);
+    const pending = parseInt(counts?.pending || 0, 10);
+    const inactive = parseInt(counts?.inactive || 0, 10);
+
+    let filteredTotal = total;
+    if (status) {
+      if (status === 'active') filteredTotal = active;
+      else if (status === 'pending') filteredTotal = pending;
+      else if (status === 'inactive') filteredTotal = inactive;
+    }
+
+    return {
+      total,
+      total_residents: total,
+      active,
+      pending,
+      inactive,
+      active_residents: active,
+      pending_residents: pending,
+      inactive_residents: inactive,
+      filtered_total: filteredTotal,
+    };
   };
 
   /**

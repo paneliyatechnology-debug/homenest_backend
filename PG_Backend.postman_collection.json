@@ -2443,6 +2443,70 @@
           "response": []
         },
         {
+          "name": "User / Resident Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/stats?role=resident&branch_id={{branchId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "stats"
+              ],
+              "query": [
+                {
+                  "key": "role",
+                  "value": "resident",
+                  "description": "[OPTIONAL] Filter by role (defaults to resident)"
+                },
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "description": "[OPTIONAL] Filter by Branch ID",
+                  "disabled": false
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "[OPTIONAL] Filter by status (active | pending | inactive | on_leave)",
+                  "disabled": true
+                },
+                {
+                  "key": "room_type",
+                  "value": "",
+                  "description": "[OPTIONAL] Filter by room type (e.g. single | double | triple)",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "[OPTIONAL] Search by resident name, email, phone, or room number",
+                  "disabled": true
+                },
+                {
+                  "key": "pg_id",
+                  "value": "{{pgId}}",
+                  "description": "[OPTIONAL] PG facility ID override for Super Admin",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "### GET /api/v1/users/stats\nProtected (Admin / Super Admin).\nReturns resident / user dashboard KPI summary cards matching the Resident List admin portal view:\n- Total Residents: Total count of residents matching scope\n- Active: Count of residents with active status\n- Pending: Count of residents with pending status\n- Inactive: Count of residents with inactive status\nSupports filtering by role, branch_id, room_type, status, search, and pg_id."
+          },
+          "response": []
+        },
+        {
           "name": "List Users",
           "request": {
             "method": "GET",
@@ -2501,6 +2565,12 @@
                   "key": "branch_id",
                   "value": "{{branchId}}",
                   "description": "[OPTIONAL] Filter by Branch ID",
+                  "disabled": true
+                },
+                {
+                  "key": "room_type",
+                  "value": "",
+                  "description": "[OPTIONAL] Filter by room type (e.g. single | double | triple)",
                   "disabled": true
                 }
               ]
