@@ -498,6 +498,18 @@ class UserService {
       phone,
       gender,
       address,
+      address_line_1,
+      city,
+      state,
+      pincode,
+      emergency_contact_name,
+      emergency_contact_relationship,
+      emergency_contact_phone,
+      aadhar_card,
+      address_proof,
+      education_certificate,
+      signature,
+      terms_accepted,
       role = ROLES.RESIDENT,
       password = null,
       date_of_birth = null,
@@ -595,13 +607,36 @@ class UserService {
         password: hashed_password,
         phone: phone ? String(phone).trim() : null,
         gender: gender ? String(gender).toLowerCase() : null,
-        address: address || null,
+        address: address || address_line_1 || null,
+        address_line_1: address_line_1 || address || null,
+        city: city ? String(city).trim() : null,
+        state: state ? String(state).trim() : null,
+        pincode: pincode ? String(pincode).trim() : null,
+        emergency_contact_name: emergency_contact_name ? String(emergency_contact_name).trim() : null,
+        emergency_contact_relationship: emergency_contact_relationship ? String(emergency_contact_relationship).trim() : null,
+        emergency_contact_phone: emergency_contact_phone ? String(emergency_contact_phone).trim() : null,
         role: role || ROLES.RESIDENT,
         date_of_birth: date_of_birth || null,
         nationality: nationality || 'Indian',
         marital_status: marital_status ? String(marital_status).toLowerCase() : 'single',
         occupation: occupation || null,
         profile_photo: profile_photo || null,
+        aadhar_card: aadhar_card || null,
+        address_proof: address_proof || null,
+        education_certificate: education_certificate || null,
+        signature: signature || null,
+        terms_accepted: Boolean(
+          terms_accepted === true ||
+          terms_accepted === 'true' ||
+          terms_accepted === 1 ||
+          terms_accepted === '1'
+        ),
+        terms_accepted_at: (
+          terms_accepted === true ||
+          terms_accepted === 'true' ||
+          terms_accepted === 1 ||
+          terms_accepted === '1'
+        ) ? db.fn.now() : null,
         status: status || 'active',
         subscription_plan_id: chosen_plan ? chosen_plan.id : null,
         created_at: db.fn.now(),
@@ -1016,6 +1051,9 @@ class UserService {
         status: update_data.status,
       }),
       ...(update_data.role !== undefined && { role: update_data.role }),
+      ...(update_data.subscription_plan_id !== undefined && {
+        subscription_plan_id: update_data.subscription_plan_id ? Number(update_data.subscription_plan_id) : null,
+      }),
       updated_at: db.fn.now(),
     };
 

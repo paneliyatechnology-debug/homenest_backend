@@ -2424,6 +2424,82 @@
                   "value": "1",
                   "type": "text",
                   "description": "OPTIONAL: Subscription plan ID to assign to resident on creation"
+                },
+                {
+                  "key": "address_line_1",
+                  "value": "Flat 202, Green Park Residency",
+                  "type": "text",
+                  "description": "[OPTIONAL] Address Line 1"
+                },
+                {
+                  "key": "city",
+                  "value": "Surat",
+                  "type": "text",
+                  "description": "[OPTIONAL] City"
+                },
+                {
+                  "key": "state",
+                  "value": "Gujarat",
+                  "type": "text",
+                  "description": "[OPTIONAL] State"
+                },
+                {
+                  "key": "pincode",
+                  "value": "395006",
+                  "type": "text",
+                  "description": "[OPTIONAL] 6-digit PIN code"
+                },
+                {
+                  "key": "emergency_contact_name",
+                  "value": "Ramesh Patel",
+                  "type": "text",
+                  "description": "[OPTIONAL] Emergency contact name"
+                },
+                {
+                  "key": "emergency_contact_relationship",
+                  "value": "Father",
+                  "type": "text",
+                  "description": "[OPTIONAL] Emergency contact relationship"
+                },
+                {
+                  "key": "emergency_contact_phone",
+                  "value": "9876543210",
+                  "type": "text",
+                  "description": "[OPTIONAL] Emergency contact 10-digit phone"
+                },
+                {
+                  "key": "aadhar_card",
+                  "type": "file",
+                  "src": [],
+                  "description": "[OPTIONAL] Aadhar Card document file",
+                  "value": ""
+                },
+                {
+                  "key": "address_proof",
+                  "type": "file",
+                  "src": [],
+                  "description": "[OPTIONAL] Address Proof document file",
+                  "value": ""
+                },
+                {
+                  "key": "education_certificate",
+                  "type": "file",
+                  "src": [],
+                  "description": "[OPTIONAL] Education Certificate document file",
+                  "value": ""
+                },
+                {
+                  "key": "signature",
+                  "type": "file",
+                  "src": [],
+                  "description": "[OPTIONAL] Signature image file",
+                  "value": ""
+                },
+                {
+                  "key": "terms_accepted",
+                  "value": "true",
+                  "type": "text",
+                  "description": "[OPTIONAL] Terms accepted indicator (true | false)"
                 }
               ]
             },

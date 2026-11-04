@@ -209,6 +209,64 @@ export const createUserValidator = [
     .isLength({ min: 6 })
     .withMessage('Password must be at least 6 characters long'),
 
+  body('address')
+    .optional({ checkFalsy: true })
+    .trim(),
+
+  body('address_line_1')
+    .optional({ checkFalsy: true })
+    .trim(),
+
+  body('city')
+    .optional({ checkFalsy: true })
+    .trim(),
+
+  body('state')
+    .optional({ checkFalsy: true })
+    .trim(),
+
+  body('pincode')
+    .optional({ checkFalsy: true })
+    .trim()
+    .matches(/^[1-9][0-9]{5}$/)
+    .withMessage('Please provide a valid 6-digit Indian PIN code'),
+
+  body('emergency_contact_name')
+    .optional({ checkFalsy: true })
+    .trim(),
+
+  body('emergency_contact_relationship')
+    .optional({ checkFalsy: true })
+    .trim(),
+
+  body('emergency_contact_phone')
+    .optional({ checkFalsy: true })
+    .trim()
+    .matches(/^(\+91[\-\s]?)?[6-9]\d{9}$/)
+    .withMessage('Please provide a valid 10-digit emergency contact phone number')
+    .customSanitizer(normalizePhone),
+
+  body('aadhar_card')
+    .optional({ checkFalsy: true }),
+
+  body('address_proof')
+    .optional({ checkFalsy: true }),
+
+  body('education_certificate')
+    .optional({ checkFalsy: true }),
+
+  body('profile_photo')
+    .optional({ checkFalsy: true }),
+
+  body('passport_photo')
+    .optional({ checkFalsy: true }),
+
+  body('terms_accepted')
+    .optional({ checkFalsy: true }),
+
+  body('signature')
+    .optional({ checkFalsy: true }),
+
   ...roomAllocationValidators,
 ];
 
