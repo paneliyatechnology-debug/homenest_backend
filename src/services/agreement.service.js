@@ -19,6 +19,7 @@ class AgreementService {
     'resident.phone as resident_phone',
     'agreements.pg_id',
     'agreements.branch_id',
+    'branches.name as branch_name',
     'pgs.name as pg_name',
     'pgs.owner_id',
     'agreements.room_id',
@@ -54,8 +55,106 @@ class AgreementService {
       .leftJoin('rooms', (join) => {
         join.on('agreements.room_id', '=', 'rooms.id').andOnNull('rooms.deleted_at');
       })
+      .leftJoin('branches', (join) => {
+        join.on('agreements.branch_id', '=', 'branches.id').andOnNull('branches.deleted_at');
+      })
       .select(AgreementService.selectFields)
       .first();
+  };
+
+  /**
+   * Safely resolves a valid branch_id from branch_id, room_id, building_id, resident stay, or PG.
+   * Ensures the returned branch_id actually exists in branches table (or null).
+   * @param {object} params
+   * @param {number|string} [params.branch_id]
+   * @param {number|string} [params.room_id]
+   * @param {number|string} [params.resident_id]
+   * @param {number|string} [params.pg_id]
+   * @returns {Promise<number|null>}
+   */
+  resolveBranchId = async ({ branch_id, room_id, resident_id, pg_id }) => {
+    let resolved_id = null;
+
+    // 1. If room_id provided, look up room first because a room's branch is authoritative
+    if (room_id) {
+      const room = await db('rooms').where({ id: Number(room_id) }).whereNull('deleted_at').first();
+      if (room?.branch_id) {
+        const b = await db('branches').where({ id: room.branch_id }).whereNull('deleted_at').first();
+        if (b) resolved_id = b.id;
+      }
+      if (!resolved_id && room?.building_id) {
+        const bld = await db('buildings').where({ id: room.building_id }).whereNull('deleted_at').first();
+        if (bld?.branch_id) {
+          const b = await db('branches').where({ id: bld.branch_id }).whereNull('deleted_at').first();
+          if (b) resolved_id = b.id;
+        }
+      }
+    }
+
+    // 2. If not resolved from room, check if provided branch_id matches a branch or building
+    if (!resolved_id && branch_id) {
+      const branch = await db('branches')
+        .where({ id: Number(branch_id) })
+        .modify((qb) => {
+          if (pg_id) qb.where({ pg_id: Number(pg_id) });
+        })
+        .whereNull('deleted_at')
+        .first();
+
+      if (branch) {
+        resolved_id = branch.id;
+      } else {
+        // If not found in branches, check if frontend mistakenly sent a building_id as branch_id
+        const building = await db('buildings')
+          .where({ id: Number(branch_id) })
+          .whereNull('deleted_at')
+          .first();
+
+        if (building?.branch_id) {
+          const bFromBuilding = await db('branches')
+            .where({ id: building.branch_id })
+            .whereNull('deleted_at')
+            .first();
+          if (bFromBuilding) resolved_id = bFromBuilding.id;
+        }
+      }
+    }
+
+    // 3. If still not resolved and resident_id provided, resolve from active resident stay
+    if (!resolved_id && resident_id) {
+      const stay = await db('resident_pg_stays')
+        .where({ resident_id: Number(resident_id) })
+        .modify((qb) => {
+          if (pg_id) qb.where({ pg_id: Number(pg_id) });
+        })
+        .whereNull('deleted_at')
+        .orderBy('id', 'desc')
+        .first();
+
+      if (stay?.branch_id) {
+        const b = await db('branches').where({ id: stay.branch_id }).whereNull('deleted_at').first();
+        if (b) resolved_id = b.id;
+      }
+    }
+
+    // 4. Fallback to default branch for this PG
+    if (!resolved_id && pg_id) {
+      const defBranch = await db('branches')
+        .where({ pg_id: Number(pg_id) })
+        .whereNull('deleted_at')
+        .orderBy('id', 'asc')
+        .first();
+
+      if (defBranch) resolved_id = defBranch.id;
+    }
+
+    // 5. Final safety verification against branches table
+    if (resolved_id) {
+      const exists = await db('branches').where({ id: resolved_id }).whereNull('deleted_at').first();
+      if (!exists) resolved_id = null;
+    }
+
+    return resolved_id;
   };
 
   /**
@@ -122,15 +221,12 @@ class AgreementService {
       }
     }
 
-    let resolved_branch_id = data.branch_id ? Number(data.branch_id) : null;
-    if (!resolved_branch_id && room_id) {
-      const r = await db('rooms').where({ id: room_id }).first();
-      if (r?.branch_id) resolved_branch_id = r.branch_id;
-    }
-    if (!resolved_branch_id) {
-      const defB = await db('branches').where({ pg_id }).whereNull('deleted_at').orderBy('id', 'asc').first();
-      if (defB) resolved_branch_id = defB.id;
-    }
+    const resolved_branch_id = await this.resolveBranchId({
+      branch_id: data.branch_id,
+      room_id,
+      resident_id,
+      pg_id,
+    });
 
     const [id] = await db('agreements').insert({
       agreement_no: String(agreement_no).trim(),
@@ -182,6 +278,9 @@ class AgreementService {
       })
       .leftJoin('rooms', (join) => {
         join.on('agreements.room_id', '=', 'rooms.id').andOnNull('rooms.deleted_at');
+      })
+      .leftJoin('branches', (join) => {
+        join.on('agreements.branch_id', '=', 'branches.id').andOnNull('branches.deleted_at');
       })
       .modify((qb) => {
         if (owner_id) {
@@ -277,8 +376,18 @@ class AgreementService {
       }
     }
 
+    let resolved_branch_id = undefined;
+    if (update_data.branch_id !== undefined || update_data.room_id !== undefined) {
+      resolved_branch_id = await this.resolveBranchId({
+        branch_id: update_data.branch_id !== undefined ? update_data.branch_id : existing.branch_id,
+        room_id: update_data.room_id !== undefined ? update_data.room_id : existing.room_id,
+        resident_id: existing.resident_id,
+        pg_id: update_data.pg_id || existing.pg_id,
+      });
+    }
+
     const allowed_updates = {
-      ...(update_data.branch_id !== undefined && { branch_id: update_data.branch_id ? Number(update_data.branch_id) : null }),
+      ...(resolved_branch_id !== undefined && { branch_id: resolved_branch_id }),
       ...(update_data.agreement_no !== undefined && { agreement_no: String(update_data.agreement_no).trim() }),
       ...(update_data.room_id !== undefined && { room_id: update_data.room_id ? Number(update_data.room_id) : null }),
       ...(resolved_room_type !== undefined && { room_type: resolved_room_type }),

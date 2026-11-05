@@ -8078,6 +8078,281 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "22 Audit Management",
+      "item": [
+        {
+          "name": "Audit Dashboard Stats",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audits/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "audits",
+                "stats"
+              ],
+              "query": [
+                {
+                  "key": "branch_id",
+                  "value": "1",
+                  "disabled": true,
+                  "description": "Optional branch filter (branch ID or all)"
+                },
+                {
+                  "key": "date_range",
+                  "value": "01 mar 2026 - 31 mar 2026",
+                  "disabled": true,
+                  "description": "Optional date range picker string matching the UI"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-03-01",
+                  "disabled": true,
+                  "description": "Optional ISO start date"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-03-31",
+                  "disabled": true,
+                  "description": "Optional ISO end date"
+                }
+              ]
+            },
+            "description": "### GET /api/v1/audits/stats\nGet KPI statistics cards for Administrative Activity Log:\n- `total_activities`: Total Activities (e.g. 1,248)\n- `today`: Today (e.g. 86)\n- `last_7_days`: Last 7 Days (e.g. 642)\n- `last_30_days`: Last 30 Days (e.g. 2,341)"
+          },
+          "response": []
+        },
+        {
+          "name": "Export Activity Log",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audits/export",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "audits",
+                "export"
+              ],
+              "query": [
+                {
+                  "key": "branch_id",
+                  "value": "1",
+                  "disabled": true,
+                  "description": "Filter by branch ID or 'all'"
+                },
+                {
+                  "key": "module",
+                  "value": "Residents",
+                  "disabled": true,
+                  "description": "Filter by module (Residents, Rooms, Payments, Complaints, Visitors, Notices, etc.)"
+                },
+                {
+                  "key": "action",
+                  "value": "Update resident profile",
+                  "disabled": true,
+                  "description": "Filter by action (Update, Create, Delete, etc.)"
+                },
+                {
+                  "key": "user",
+                  "value": "Aarav sharma",
+                  "disabled": true,
+                  "description": "Filter by user name or ID"
+                },
+                {
+                  "key": "date_range",
+                  "value": "01 mar 2026 - 31 mar 2026",
+                  "disabled": true,
+                  "description": "Filter by date range string"
+                },
+                {
+                  "key": "format",
+                  "value": "xlsx",
+                  "description": "Export format: 'xlsx' (default) or 'pdf'"
+                }
+              ]
+            },
+            "description": "### GET /api/v1/audits/export\nPowers the 'Export Log' button on the Administrative Activity Log screen.\nSupports two formats only:\n- `format=xlsx` (default): Microsoft Excel (.xlsx) styled report with KPI cards and full table.\n- `format=pdf`: Landscape A4 PDF (.pdf) document with header, KPI cards, and table."
+          },
+          "response": []
+        },
+        {
+          "name": "List Activity Logs",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audits?page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "audits"
+              ],
+              "query": [
+                {
+                  "key": "branch_id",
+                  "value": "1",
+                  "disabled": true,
+                  "description": "Filter by Branch ID or 'all'"
+                },
+                {
+                  "key": "module",
+                  "value": "Residents",
+                  "disabled": true,
+                  "description": "Filter by Module dropdown (Residents, Rooms, Payments, Complaints, Visitors, Notices, etc.)"
+                },
+                {
+                  "key": "action",
+                  "value": "Update resident profile",
+                  "disabled": true,
+                  "description": "Filter by Actions dropdown (All, Update, Create, Delete, etc.)"
+                },
+                {
+                  "key": "user",
+                  "value": "Aarav sharma",
+                  "disabled": true,
+                  "description": "Filter by Users dropdown (User name or User ID)"
+                },
+                {
+                  "key": "date_range",
+                  "value": "01 mar 2026 - 31 mar 2026",
+                  "disabled": true,
+                  "description": "Filter by date range string"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-03-01",
+                  "disabled": true,
+                  "description": "Filter by start date (YYYY-MM-DD)"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-03-31",
+                  "disabled": true,
+                  "description": "Filter by end date (YYYY-MM-DD)"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Keyword search across description, user name, entity ID, action, IP"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Results per page (1 to 100)"
+                }
+              ]
+            },
+            "description": "### GET /api/v1/audits\nList paginated administrative activity logs with multi-field filtering matching the UI:\n- Modules: Residents, Rooms, Payments, etc.\n- Actions: Create, Update, Delete, etc.\n- Users: All or specific user name/ID\n- Date Range: e.g. 01 mar 2026 - 31 mar 2026\nTable fields returned: `sr_no`, `user`, `action`, `module`, `details`, `timestamp`, `ip_address`, `id`."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Activity Log Details",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audits/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "audits",
+                "1"
+              ]
+            },
+            "description": "### GET /api/v1/audits/:id\nGet single audit log details by primary ID with full before/after values, IP address, user agent, branch, and actor details."
+          },
+          "response": []
+        }
+      ]
     }
   ]
 }

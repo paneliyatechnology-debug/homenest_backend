@@ -5,9 +5,10 @@ import path from 'path';
 import moment from 'moment';
 import db from '../config/db.js';
 import { AppError } from '../utils/apiResponse.js';
-import { HTTP_STATUS } from '../constants/index.js';
+import { HTTP_STATUS, AUDIT_MODULES, AUDIT_ACTIONS } from '../constants/index.js';
 import { buildFileUrl } from '../utils/url.js';
 import QRCode from 'qrcode';
+import auditService from './audit.service.js';
 
 /**
  * Service managing Payments, Invoices, Billing Breakdowns, QR/UPI Checkout, and Receipts.
@@ -1386,6 +1387,18 @@ class PaymentService {
         updated_at: db.fn.now(),
       });
 
+    auditService.log({
+      pg_id: payment.pg_id,
+      branch_id: payment.branch_id,
+      user_id: payment.resident_id,
+      module: AUDIT_MODULES.PAYMENT,
+      action: AUDIT_ACTIONS.PAYMENT_RECORD,
+      entity_type: 'payment',
+      entity_id: payment_id,
+      description: `Payment #${payment_id} recorded (₹${paid_amount} via ${payment_method})`,
+      new_values: { amount: paid_amount, payment_method, upi_ref_no: payload.upi_ref_no },
+    });
+
     return await this.findById(payment_id);
   };
 
@@ -1484,6 +1497,18 @@ class PaymentService {
       updated_at: db.fn.now(),
     });
 
+    auditService.log({
+      pg_id,
+      branch_id,
+      user_id: resident_id,
+      module: AUDIT_MODULES.PAYMENT,
+      action: AUDIT_ACTIONS.CREATE,
+      entity_type: 'payment',
+      entity_id: id,
+      description: `Created invoice #${id} for resident ${resident.name} (₹${calculated_total})`,
+      new_values: { resident_id, amount: calculated_total, title, due_date },
+    });
+
     return await this.findById(id);
   };
 
@@ -1575,6 +1600,18 @@ class PaymentService {
 
     await db('payments').where({ id }).update(updatePayload);
 
+    auditService.log({
+      pg_id: existing.pg_id,
+      branch_id: existing.branch_id,
+      module: AUDIT_MODULES.PAYMENT,
+      action: AUDIT_ACTIONS.UPDATE,
+      entity_type: 'payment',
+      entity_id: id,
+      description: `Updated payment record #${id}`,
+      old_values: { status: existing.status, amount: existing.amount },
+      new_values: updatePayload,
+    });
+
     return await this.findById(id);
   };
 
@@ -1593,6 +1630,17 @@ class PaymentService {
     await db('payments').where({ id }).update({
       deleted_at: db.fn.now(),
       updated_at: db.fn.now(),
+    });
+
+    auditService.log({
+      pg_id: existing.pg_id,
+      branch_id: existing.branch_id,
+      module: AUDIT_MODULES.PAYMENT,
+      action: AUDIT_ACTIONS.DELETE,
+      entity_type: 'payment',
+      entity_id: id,
+      description: `Deleted payment record #${id}`,
+      old_values: { amount: existing.amount, status: existing.status },
     });
 
     return true;

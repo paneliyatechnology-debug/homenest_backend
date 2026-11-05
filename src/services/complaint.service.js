@@ -1,9 +1,10 @@
 import moment from 'moment';
 import db from '../config/db.js';
 import { AppError } from '../utils/apiResponse.js';
-import { HTTP_STATUS, ROLES } from '../constants/index.js';
+import { HTTP_STATUS, ROLES, AUDIT_MODULES, AUDIT_ACTIONS } from '../constants/index.js';
 import { buildFileUrl } from '../utils/url.js';
 import socketService, { SOCKET_EVENTS } from './socket.service.js';
+import auditService from './audit.service.js';
 
 class ComplaintService {
   /**
@@ -322,16 +323,18 @@ class ComplaintService {
       created_at: moment().toISOString(),
     });
 
-    // Real-time: Notify property admins of new complaint request
-    socketService.emitToPgAdmins(targetPgId, SOCKET_EVENTS.COMPLAINT_NEW, {
-      id: complaintId,
-      complaint_number: complaintNumber,
-      title: data.title ? data.title.trim() : `${category.name} Issue`,
-      priority,
-      status: 'OPEN',
-      room_id: targetRoomId,
-      resident_id: residentId,
-      created_at: moment().toISOString(),
+    auditService.log({
+      pg_id: targetPgId,
+      branch_id: targetBranchId,
+      user_id: user.id,
+      user_name: user.name,
+      user_role: user.role,
+      module: AUDIT_MODULES.COMPLAINT,
+      action: AUDIT_ACTIONS.CREATE,
+      entity_type: 'complaint',
+      entity_id: complaintId,
+      description: `Complaint #${complaintNumber} created: ${data.title ? data.title.trim() : category.name}`,
+      new_values: { complaint_number: complaintNumber, title: data.title, priority, room_id: targetRoomId },
     });
 
     return {
@@ -809,6 +812,21 @@ class ComplaintService {
       due_date: dueDate,
     });
 
+    auditService.log({
+      pg_id: complaint.pg_id,
+      branch_id: complaint.branch_id,
+      user_id: user.id,
+      user_name: user.name,
+      user_role: user.role,
+      module: AUDIT_MODULES.COMPLAINT,
+      action: AUDIT_ACTIONS.ASSIGN,
+      entity_type: 'complaint',
+      entity_id: id,
+      description: `Complaint #${complaint.complaint_number} assigned to ${staffUser.name}`,
+      old_values: { assigned_to: complaint.assigned_to },
+      new_values: { assigned_to: staffUser.id, staff_name: staffUser.name, due_date: dueDate },
+    });
+
     return {
       id,
       assigned_to: staffUser.name,
@@ -888,21 +906,19 @@ class ComplaintService {
       updated_at: moment().toISOString(),
     });
 
-    // Real-time: Notify resident and property admins of status change
-    socketService.emitToUser(complaint.resident_id, SOCKET_EVENTS.COMPLAINT_STATUS_UPDATED, {
-      id,
-      complaint_number: complaint.complaint_number,
-      old_status: oldStatus,
-      status: newStatus,
-      resolution_notes: resolutionNotes,
-      updated_at: moment().toISOString(),
-    });
-    socketService.emitToPgAdmins(complaint.pg_id, SOCKET_EVENTS.COMPLAINT_STATUS_UPDATED, {
-      id,
-      complaint_number: complaint.complaint_number,
-      old_status: oldStatus,
-      status: newStatus,
-      updated_at: moment().toISOString(),
+    auditService.log({
+      pg_id: complaint.pg_id,
+      branch_id: complaint.branch_id,
+      user_id: user.id,
+      user_name: user.name,
+      user_role: user.role,
+      module: AUDIT_MODULES.COMPLAINT,
+      action: AUDIT_ACTIONS.STATUS_CHANGE,
+      entity_type: 'complaint',
+      entity_id: id,
+      description: `Complaint #${complaint.complaint_number} status changed from ${oldStatus} to ${newStatus}`,
+      old_values: { status: oldStatus },
+      new_values: { status: newStatus, notes: resolutionNotes },
     });
 
     return {

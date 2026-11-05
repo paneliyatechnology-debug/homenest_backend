@@ -18,6 +18,7 @@ import subscriptionRoutes from './subscription.routes.js';
 import noticeRoutes from './notice.routes.js';
 import dashboardRoutes from './dashboard.routes.js';
 import communityRoutes from './community.routes.js';
+import auditRoutes from './audit.routes.js';
 import { success } from '../utils/apiResponse.js';
 
 const router = Router();
@@ -52,5 +53,6 @@ router.use('/subscriptions', subscriptionRoutes);
 router.use('/notices', noticeRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/community', communityRoutes);
+router.use('/audits', auditRoutes);
 
 export default router;

@@ -4,11 +4,12 @@ import QRCode from 'qrcode';
 import moment from 'moment';
 import db from '../config/db.js';
 import { AppError } from '../utils/apiResponse.js';
-import { HTTP_STATUS, ROLES } from '../constants/index.js';
+import { HTTP_STATUS, ROLES, AUDIT_MODULES, AUDIT_ACTIONS } from '../constants/index.js';
 import { buildFileUrl } from '../utils/url.js';
 import emailService from './email.service.js';
 import { deleteVisitorPhotoFile } from '../middlewares/upload.middleware.js';
 import socketService, { SOCKET_EVENTS } from './socket.service.js';
+import auditService from './audit.service.js';
 
 class VisitorService {
   /**
@@ -323,6 +324,20 @@ class VisitorService {
     }
 
     const createdRecord = await this.findById(id);
+
+    auditService.log({
+      pg_id: pg_id || active_stay?.pg_id,
+      branch_id: branch_id || active_stay?.branch_id,
+      user_id: user?.id,
+      user_name: user?.name,
+      user_role: user?.role,
+      module: AUDIT_MODULES.VISITOR,
+      action: AUDIT_ACTIONS.CREATE,
+      entity_type: 'visitor',
+      entity_id: id,
+      description: `Visitor pass created for ${data.visitor_name} (Code: ${pass_code})`,
+      new_values: { visitor_name: data.visitor_name, visitor_phone: data.visitor_phone, visit_date: data.visit_date, pass_code },
+    });
 
     // If created directly as approved, dispatch pass email to resident with QR code
     if (status === 'approved' && resident.email) {
@@ -756,20 +771,19 @@ class VisitorService {
       updated_at: moment().toISOString(),
     });
 
-    // Real-time: Notify resident and property admins of visitor pass status change
-    socketService.emitToUser(existing.resident_id, SOCKET_EVENTS.VISITOR_STATUS_UPDATED, {
-      id,
-      visitor_name: existing.visitor_name,
-      status,
-      pass_code,
-      updated_at: moment().toISOString(),
-    });
-    socketService.emitToPgAdmins(existing.pg_id, SOCKET_EVENTS.VISITOR_STATUS_UPDATED, {
-      id,
-      visitor_name: existing.visitor_name,
-      status,
-      pass_code,
-      updated_at: moment().toISOString(),
+    auditService.log({
+      pg_id: existing.pg_id,
+      branch_id: existing.branch_id,
+      user_id: user?.id,
+      user_name: user?.name,
+      user_role: user?.role,
+      module: AUDIT_MODULES.VISITOR,
+      action: status === 'approved' ? AUDIT_ACTIONS.APPROVE : (status === 'rejected' ? AUDIT_ACTIONS.REJECT : AUDIT_ACTIONS.STATUS_CHANGE),
+      entity_type: 'visitor',
+      entity_id: id,
+      description: `Visitor pass #${id} for ${existing.visitor_name} status updated to ${status}`,
+      old_values: { status: existing.status },
+      new_values: { status, pass_code },
     });
 
     return await this.findById(id);
@@ -891,6 +905,19 @@ class VisitorService {
         log_time: currentTime,
       });
 
+      auditService.log({
+        pg_id: existing.pg_id,
+        branch_id: existing.branch_id,
+        user_id: user?.id,
+        user_name: user?.name,
+        user_role: user?.role,
+        module: AUDIT_MODULES.VISITOR,
+        action: AUDIT_ACTIONS.GATE_EXIT,
+        entity_type: 'visitor',
+        entity_id: existing.id,
+        description: `Visitor ${existing.visitor_name} recorded exit at ${options?.gate_name || 'Main Gate'}`,
+      });
+
       return {
         action: 'EXIT',
         direction: 'OUT',
@@ -937,6 +964,19 @@ class VisitorService {
         direction: 'IN',
         gate_name: options?.gate_name || 'Main Gate',
         log_time: currentTime,
+      });
+
+      auditService.log({
+        pg_id: existing.pg_id,
+        branch_id: existing.branch_id,
+        user_id: user?.id,
+        user_name: user?.name,
+        user_role: user?.role,
+        module: AUDIT_MODULES.VISITOR,
+        action: AUDIT_ACTIONS.GATE_ENTRY,
+        entity_type: 'visitor',
+        entity_id: existing.id,
+        description: `Visitor ${existing.visitor_name} recorded entry at ${options?.gate_name || 'Main Gate'}`,
       });
 
       return {

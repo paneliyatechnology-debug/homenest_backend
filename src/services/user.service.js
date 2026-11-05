@@ -3,8 +3,9 @@ import db from '../config/db.js';
 import config from '../config/index.js';
 import { hashPassword, generateSecurePassword } from '../utils/password.js';
 import emailService from './email.service.js';
+import auditService from './audit.service.js';
 import { AppError } from '../utils/apiResponse.js';
-import { HTTP_STATUS, ROLES, STAFF_ROLES, ALL_STAFF_ROLES } from '../constants/index.js';
+import { HTTP_STATUS, ROLES, STAFF_ROLES, ALL_STAFF_ROLES, AUDIT_MODULES, AUDIT_ACTIONS } from '../constants/index.js';
 import { deleteUserPhotoFile, deleteDocumentFile } from '../middlewares/upload.middleware.js';
 import { buildFileUrl } from '../utils/url.js';
 import { syncBranchStats } from './branch.service.js';
@@ -807,6 +808,17 @@ class UserService {
       console.error('[User Service] Welcome credentials email delivery failed:', emailError.message);
     }
 
+    auditService.log({
+      pg_id: pg_id || user_data.pg_id,
+      branch_id: branch_id || user_data.branch_id,
+      module: AUDIT_MODULES.USER,
+      action: AUDIT_ACTIONS.CREATE,
+      entity_type: 'user',
+      entity_id: inserted_id,
+      description: `Created user ${name} with role ${role || ROLES.RESIDENT}`,
+      new_values: { name, email, phone, role: role || ROLES.RESIDENT },
+    });
+
     return await this.findById(inserted_id);
   };
 
@@ -1149,6 +1161,18 @@ class UserService {
       }
     }
 
+    auditService.log({
+      pg_id: existing_user.pg_id,
+      branch_id: existing_user.branch_id || update_data.branch_id,
+      module: AUDIT_MODULES.USER,
+      action: AUDIT_ACTIONS.UPDATE,
+      entity_type: 'user',
+      entity_id: id,
+      description: `Updated profile for user ${existing_user.name}`,
+      old_values: { name: existing_user.name, email: existing_user.email, status: existing_user.status },
+      new_values: { name: update_data.name, email: update_data.email, status: update_data.status },
+    });
+
     return await this.findById(id);
   };
 
@@ -1216,6 +1240,17 @@ class UserService {
         status: 'inactive',
         updated_at: db.fn.now(),
       });
+
+    auditService.log({
+      pg_id: user.pg_id,
+      branch_id: user.branch_id || user.room_info?.branch_id,
+      module: AUDIT_MODULES.USER,
+      action: AUDIT_ACTIONS.DELETE,
+      entity_type: 'user',
+      entity_id: id,
+      description: `Deleted user ${user.name} (${user.role})`,
+      old_values: { name: user.name, email: user.email, role: user.role },
+    });
 
     return true;
   };
@@ -1780,6 +1815,20 @@ class UserService {
       };
     });
 
+    auditService.log({
+      pg_id: pg.id,
+      branch_id: branchIds[0] || null,
+      user_id: user?.id,
+      user_name: user?.name,
+      user_role: user?.role,
+      module: AUDIT_MODULES.USER,
+      action: AUDIT_ACTIONS.CREATE,
+      entity_type: 'staff',
+      entity_id: newStaff.id,
+      description: `Added staff member ${newStaff.name} (${newStaff.role})`,
+      new_values: { name: newStaff.name, email: newStaff.email, staff_role: newStaff.role, branch_ids: branchIds },
+    });
+
     return newStaff;
   };
 
@@ -1888,6 +1937,19 @@ class UserService {
       }
     });
 
+    auditService.log({
+      pg_id: pg.id,
+      user_id: user?.id,
+      user_name: user?.name,
+      user_role: user?.role,
+      module: AUDIT_MODULES.USER,
+      action: AUDIT_ACTIONS.UPDATE,
+      entity_type: 'staff',
+      entity_id: id,
+      description: `Updated staff member ${staff.name}`,
+      new_values: { name: data.name, email: data.email, staff_role: data.staff_role || data.role },
+    });
+
     return await this.getStaffById(id, user);
   };
 
@@ -1910,6 +1972,20 @@ class UserService {
     await db('users').where({ id }).update({
       status: normalizedStatus,
       updated_at: db.fn.now(),
+    });
+
+    auditService.log({
+      pg_id: pg.id,
+      user_id: user?.id,
+      user_name: user?.name,
+      user_role: user?.role,
+      module: AUDIT_MODULES.USER,
+      action: AUDIT_ACTIONS.STATUS_CHANGE,
+      entity_type: 'staff',
+      entity_id: id,
+      description: `Changed staff ${staff.name} status from ${staff.status} to ${normalizedStatus}`,
+      old_values: { status: staff.status },
+      new_values: { status: normalizedStatus },
     });
 
     return {
@@ -1940,6 +2016,19 @@ class UserService {
       status: 'inactive',
       deleted_at: db.fn.now(),
       updated_at: db.fn.now(),
+    });
+
+    auditService.log({
+      pg_id: pg.id,
+      user_id: user?.id,
+      user_name: user?.name,
+      user_role: user?.role,
+      module: AUDIT_MODULES.USER,
+      action: AUDIT_ACTIONS.DELETE,
+      entity_type: 'staff',
+      entity_id: id,
+      description: `Removed staff member ${staff.name}`,
+      old_values: { name: staff.name, email: staff.email, role: staff.role },
     });
 
     return {

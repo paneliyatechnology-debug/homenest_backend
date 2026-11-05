@@ -1,7 +1,8 @@
 import authService from '../services/auth.service.js';
 import userService from '../services/user.service.js';
+import auditService from '../services/audit.service.js';
 import { success, successMessage, successAction, AppError } from '../utils/apiResponse.js';
-import { HTTP_STATUS } from '../constants/index.js';
+import { HTTP_STATUS, ROLES, AUDIT_MODULES, AUDIT_ACTIONS } from '../constants/index.js';
 import { getCookieOptions } from '../utils/jwt.js';
 
 // Cookie Lifetimes (in milliseconds)
@@ -20,6 +21,21 @@ export const registerOwnerWithPg = async (req, res, next) => {
     res.cookie('access_token', result.access_token, getCookieOptions(ACCESS_TOKEN_MAX_AGE));
     res.cookie('refresh_token', result.refresh_token, getCookieOptions(REFRESH_TOKEN_MAX_AGE));
 
+    // Non-blocking audit log
+    auditService.log({
+      pg_id: result.pg_id,
+      branch_id: result.branch_id,
+      user_id: result.owner_id,
+      user_name: req.body.name,
+      user_role: ROLES.ADMIN,
+      module: AUDIT_MODULES.AUTH,
+      action: AUDIT_ACTIONS.CREATE,
+      entity_type: 'pg_owner',
+      entity_id: result.owner_id,
+      description: `PG Owner ${req.body.name} registered with property ${req.body.pg_name}`,
+      req,
+    });
+
     return successAction(res, 'PG Owner and PG registered successfully', result.owner_id, HTTP_STATUS.CREATED);
   } catch (err) {
     next(err);
@@ -37,6 +53,21 @@ export const login = async (req, res, next) => {
     // Set secure HTTP-only cookies
     res.cookie('access_token', result.access_token, getCookieOptions(ACCESS_TOKEN_MAX_AGE));
     res.cookie('refresh_token', result.refresh_token, getCookieOptions(REFRESH_TOKEN_MAX_AGE));
+
+    // Non-blocking audit log
+    auditService.log({
+      pg_id: result.user?.pg_id,
+      branch_id: result.user?.branch_id,
+      user_id: result.user?.id,
+      user_name: result.user?.name,
+      user_role: result.user?.role,
+      module: AUDIT_MODULES.AUTH,
+      action: AUDIT_ACTIONS.LOGIN,
+      entity_type: 'user',
+      entity_id: result.user?.id,
+      description: `User ${result.user?.name || result.user?.email} logged in successfully`,
+      req,
+    });
 
     return success(res, 'Login successful', result);
   } catch (err) {
@@ -75,6 +106,22 @@ export const refresh = async (req, res, next) => {
  */
 export const logout = async (req, res, next) => {
   try {
+    if (req.user) {
+      auditService.log({
+        pg_id: req.user.pg_id,
+        branch_id: req.user.branch_id,
+        user_id: req.user.id,
+        user_name: req.user.name,
+        user_role: req.user.role,
+        module: AUDIT_MODULES.AUTH,
+        action: AUDIT_ACTIONS.LOGOUT,
+        entity_type: 'user',
+        entity_id: req.user.id,
+        description: `User ${req.user.name} logged out`,
+        req,
+      });
+    }
+
     res.clearCookie('access_token', getCookieOptions(0));
     res.clearCookie('refresh_token', getCookieOptions(0));
 
@@ -109,6 +156,21 @@ export const verifyOtp = async (req, res, next) => {
     // Set secure HTTP-only cookies
     res.cookie('access_token', result.access_token, getCookieOptions(ACCESS_TOKEN_MAX_AGE));
     res.cookie('refresh_token', result.refresh_token, getCookieOptions(REFRESH_TOKEN_MAX_AGE));
+
+    // Non-blocking audit log
+    auditService.log({
+      pg_id: result.user?.pg_id,
+      branch_id: result.user?.branch_id,
+      user_id: result.user?.id,
+      user_name: result.user?.name,
+      user_role: result.user?.role,
+      module: AUDIT_MODULES.AUTH,
+      action: AUDIT_ACTIONS.LOGIN,
+      entity_type: 'user',
+      entity_id: result.user?.id,
+      description: `User ${result.user?.name || result.user?.phone} logged in via OTP`,
+      req,
+    });
 
     return success(res, 'OTP verified successfully. Login successful', result);
   } catch (err) {

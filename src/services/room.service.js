@@ -1,10 +1,11 @@
 import moment from 'moment';
 import db from '../config/db.js';
 import { AppError } from '../utils/apiResponse.js';
-import { HTTP_STATUS, ROLES } from '../constants/index.js';
+import { HTTP_STATUS, ROLES, AUDIT_MODULES, AUDIT_ACTIONS } from '../constants/index.js';
 import { buildFileUrl } from '../utils/url.js';
 import { syncBranchStats, decrementBranchRoomsOnDelete } from './branch.service.js';
 import socketService, { SOCKET_EVENTS } from './socket.service.js';
+import auditService from './audit.service.js';
 
 /**
  * Helper to attach full image URL to room object
@@ -128,6 +129,17 @@ export const create = async (data) => {
   if (branch_id) {
     await syncBranchStats(branch_id);
   }
+
+  auditService.log({
+    pg_id,
+    branch_id,
+    module: AUDIT_MODULES.ROOM,
+    action: AUDIT_ACTIONS.CREATE,
+    entity_type: 'room',
+    entity_id: id,
+    description: `Created room ${room_no} (${room_type}) in building ${building.name}`,
+    new_values: { room_no, room_type, building_id, floor_id, capacity, status },
+  });
 
   return findById(id);
 };
@@ -395,6 +407,18 @@ export const update = async (id, data) => {
     await syncBranchStats(branch_id);
   }
 
+  auditService.log({
+    pg_id: room.pg_id,
+    branch_id: branch_id || room.branch_id,
+    module: AUDIT_MODULES.ROOM,
+    action: AUDIT_ACTIONS.UPDATE,
+    entity_type: 'room',
+    entity_id: id,
+    description: `Updated room ${room.room_no}`,
+    old_values: { room_no: room.room_no, status: room.status, capacity: room.capacity },
+    new_values: update_data,
+  });
+
   return findById(id);
 };
 
@@ -436,6 +460,17 @@ export const remove = async (id) => {
   if (room.branch_id) {
     await decrementBranchRoomsOnDelete(room.branch_id);
   }
+
+  auditService.log({
+    pg_id: room.pg_id,
+    branch_id: room.branch_id,
+    module: AUDIT_MODULES.ROOM,
+    action: AUDIT_ACTIONS.DELETE,
+    entity_type: 'room',
+    entity_id: id,
+    description: `Deleted room ${room.room_no}`,
+    old_values: { room_no: room.room_no, branch_id: room.branch_id },
+  });
 
   return true;
 };
@@ -824,6 +859,21 @@ export const createShift = async (data, user) => {
     reviewed_at: moment().toISOString(),
   });
 
+  auditService.log({
+    pg_id: request.resident?.pg_id,
+    branch_id: request.current_room?.branch_id,
+    user_id: user?.id,
+    user_name: user?.name,
+    user_role: user?.role,
+    module: AUDIT_MODULES.ROOM,
+    action: status.toLowerCase() === 'approved' ? AUDIT_ACTIONS.APPROVE : AUDIT_ACTIONS.REJECT,
+    entity_type: 'room_shift_request',
+    entity_id: id,
+    description: `Room shift request #${id} ${status.toLowerCase()} for resident ${request.resident?.name}`,
+    old_values: { status: request.status },
+    new_values: { status: status.toLowerCase(), admin_notes: adminNotes },
+  });
+
   return updatedShift;
 };
 
@@ -1083,6 +1133,21 @@ export const updateShiftStatus = async (id, data, user) => {
     status: status.toLowerCase(),
     admin_notes: adminNotes,
     reviewed_at: moment().toISOString(),
+  });
+
+  auditService.log({
+    pg_id: request.resident?.pg_id,
+    branch_id: request.current_room?.branch_id,
+    user_id: user?.id,
+    user_name: user?.name,
+    user_role: user?.role,
+    module: AUDIT_MODULES.ROOM,
+    action: status.toLowerCase() === 'approved' ? AUDIT_ACTIONS.APPROVE : AUDIT_ACTIONS.REJECT,
+    entity_type: 'room_shift_request',
+    entity_id: id,
+    description: `Room shift request #${id} ${status.toLowerCase()} for resident ${request.resident?.name}`,
+    old_values: { status: request.status },
+    new_values: { status: status.toLowerCase(), admin_notes: adminNotes },
   });
 
   return updatedShift;

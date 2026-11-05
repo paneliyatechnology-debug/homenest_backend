@@ -1,8 +1,9 @@
 import db from '../config/db.js';
 import { AppError } from '../utils/apiResponse.js';
-import { HTTP_STATUS, ROLES } from '../constants/index.js';
+import { HTTP_STATUS, ROLES, AUDIT_MODULES, AUDIT_ACTIONS } from '../constants/index.js';
 import { buildFileUrl } from '../utils/url.js';
 import { deleteBranchPhotoFile } from '../middlewares/upload.middleware.js';
+import auditService from './audit.service.js';
 
 /**
  * Service managing Property Branches.
@@ -144,6 +145,20 @@ class BranchService {
         .onConflict(['user_id', 'branch_id'])
         .ignore();
     }
+
+    auditService.log({
+      pg_id: target_pg_id,
+      branch_id,
+      user_id: user?.id,
+      user_name: user?.name,
+      user_role: user?.role,
+      module: AUDIT_MODULES.BRANCH,
+      action: AUDIT_ACTIONS.CREATE,
+      entity_type: 'branch',
+      entity_id: branch_id,
+      description: `Created branch ${data.name.trim()} (${data.location || ''})`,
+      new_values: { name: data.name, location: data.location, total_rooms: data.total_rooms },
+    });
 
     return await this.findById(branch_id, { user, trx });
   };
@@ -362,6 +377,21 @@ class BranchService {
     await db('branches').where({ id }).update(updatePayload);
     await this.syncBranchStats(id);
 
+    auditService.log({
+      pg_id: existing.pg_id,
+      branch_id: id,
+      user_id: user?.id,
+      user_name: user?.name,
+      user_role: user?.role,
+      module: AUDIT_MODULES.BRANCH,
+      action: AUDIT_ACTIONS.UPDATE,
+      entity_type: 'branch',
+      entity_id: id,
+      description: `Updated branch ${existing.name}`,
+      old_values: { name: existing.name, status: existing.status },
+      new_values: updatePayload,
+    });
+
     return await this.findById(id, { user });
   };
 
@@ -382,6 +412,20 @@ class BranchService {
     await db('branches').where({ id }).update({
       deleted_at: db.fn.now(),
       updated_at: db.fn.now(),
+    });
+
+    auditService.log({
+      pg_id: existing.pg_id,
+      branch_id: id,
+      user_id: user?.id,
+      user_name: user?.name,
+      user_role: user?.role,
+      module: AUDIT_MODULES.BRANCH,
+      action: AUDIT_ACTIONS.DELETE,
+      entity_type: 'branch',
+      entity_id: id,
+      description: `Deleted branch ${existing.name}`,
+      old_values: { name: existing.name },
     });
 
     return true;

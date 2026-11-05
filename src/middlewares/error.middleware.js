@@ -31,6 +31,18 @@ export const errorHandler = (err, req, res, next) => {
     message = 'Duplicate entry error: Resource already exists';
   }
 
+  // Handle MySQL Foreign Key Constraint Error (ER_NO_REFERENCED_ROW_2)
+  if (err.code === 'ER_NO_REFERENCED_ROW_2' || err.errno === 1452) {
+    statusCode = HTTP_STATUS.BAD_REQUEST;
+    message = 'Referenced entity does not exist or has an invalid relationship';
+  }
+
+  // Handle MySQL Foreign Key Cascade Delete Error (ER_ROW_IS_REFERENCED_2)
+  if (err.code === 'ER_ROW_IS_REFERENCED_2' || err.errno === 1451) {
+    statusCode = HTTP_STATUS.CONFLICT;
+    message = 'Cannot delete or update resource: it is currently referenced by other records';
+  }
+
   // Handle Multer file upload errors
   if (err.name === 'MulterError') {
     statusCode = HTTP_STATUS.BAD_REQUEST;

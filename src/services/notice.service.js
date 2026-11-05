@@ -1,10 +1,11 @@
 import moment from 'moment';
 import db from '../config/db.js';
 import { AppError } from '../utils/apiResponse.js';
-import { HTTP_STATUS, ROLES } from '../constants/index.js';
+import { HTTP_STATUS, ROLES, AUDIT_MODULES, AUDIT_ACTIONS } from '../constants/index.js';
 import { buildFileUrl } from '../utils/url.js';
 import { deleteNoticeAttachmentFile } from '../middlewares/upload.middleware.js';
 import socketService, { SOCKET_EVENTS } from './socket.service.js';
+import auditService from './audit.service.js';
 
 /**
  * Notice & Communication Management Service
@@ -525,6 +526,20 @@ class NoticeService {
       });
     }
 
+    auditService.log({
+      pg_id: pgId,
+      branch_id: branchId,
+      user_id: user.id,
+      user_name: user.name,
+      user_role: user.role,
+      module: AUDIT_MODULES.NOTICE,
+      action: AUDIT_ACTIONS.CREATE,
+      entity_type: 'notice',
+      entity_id: id,
+      description: `Created notice "${data.title.trim()}" (${status})`,
+      new_values: { title: data.title, category: data.category, priority: data.priority, audience_type: data.audience_type, status },
+    });
+
     return { id };
   };
 
@@ -596,6 +611,20 @@ class NoticeService {
 
     await db('notices').where({ id }).update(updatePayload);
 
+    auditService.log({
+      pg_id: existing.pg_id,
+      branch_id: existing.branch_id,
+      user_id: user.id,
+      user_name: user.name,
+      user_role: user.role,
+      module: AUDIT_MODULES.NOTICE,
+      action: AUDIT_ACTIONS.UPDATE,
+      entity_type: 'notice',
+      entity_id: id,
+      description: `Updated notice "${existing.title}"`,
+      new_values: updatePayload,
+    });
+
     return { id: Number(id) };
   };
 
@@ -617,6 +646,19 @@ class NoticeService {
     if (existing.attachment?.file_name) {
       deleteNoticeAttachmentFile(existing.attachment.file_name);
     }
+
+    auditService.log({
+      pg_id: existing.pg_id,
+      branch_id: existing.branch_id,
+      user_id: user.id,
+      user_name: user.name,
+      user_role: user.role,
+      module: AUDIT_MODULES.NOTICE,
+      action: AUDIT_ACTIONS.DELETE,
+      entity_type: 'notice',
+      entity_id: id,
+      description: `Deleted notice "${existing.title}"`,
+    });
 
     return { id: Number(id) };
   };
@@ -648,6 +690,19 @@ class NoticeService {
       priority: existing.priority,
       content: existing.content,
       sent_at: moment().toISOString(),
+    });
+
+    auditService.log({
+      pg_id: existing.pg_id,
+      branch_id: existing.branch_id,
+      user_id: user.id,
+      user_name: user.name,
+      user_role: user.role,
+      module: AUDIT_MODULES.NOTICE,
+      action: AUDIT_ACTIONS.SEND,
+      entity_type: 'notice',
+      entity_id: id,
+      description: `Broadcasted notice "${existing.title}" to ${existing.audience_type}`,
     });
 
     return { id: Number(id) };

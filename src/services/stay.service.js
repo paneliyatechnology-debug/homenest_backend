@@ -5,10 +5,11 @@ import PDFDocument from 'pdfkit';
 import moment from 'moment';
 import db from '../config/db.js';
 import { AppError } from '../utils/apiResponse.js';
-import { HTTP_STATUS, ROLES, STAFF_ROLES } from '../constants/index.js';
+import { HTTP_STATUS, ROLES, STAFF_ROLES, AUDIT_MODULES, AUDIT_ACTIONS } from '../constants/index.js';
 import { syncBranchStats } from './branch.service.js';
 import { buildFileUrl } from '../utils/url.js';
 import socketService, { SOCKET_EVENTS } from './socket.service.js';
+import auditService from './audit.service.js';
 
 /**
  * Format timestamp for departure stepper timeline: "05 March 2026 | 10:30 AM" using moment
@@ -207,6 +208,19 @@ class StayService {
           await syncBranchStats(roomRecord.branch_id, trx);
         }
       }
+    });
+
+    auditService.log({
+      pg_id: stay.pg_id,
+      branch_id: stay.branch_id,
+      user_id: stay.resident_id,
+      module: AUDIT_MODULES.STAY,
+      action: AUDIT_ACTIONS.CHECK_OUT,
+      entity_type: 'stay',
+      entity_id: stay_id,
+      description: `Stay #${stay_id} vacated for resident #${stay.resident_id}`,
+      old_values: { status: stay.status },
+      new_values: { status: 'completed', check_out_date: effective_checkout_date },
     });
 
     return await this.findById(stay_id);
@@ -591,14 +605,18 @@ class StayService {
       created_at: moment().toISOString(),
     });
 
-    // Real-time: Notify PG admins of new checkout request
-    socketService.emitToPgAdmins(stay.pg_id, SOCKET_EVENTS.CHECKOUT_NEW, {
-      id: insertId,
-      resident_id: targetResidentId,
-      room_id: stay.room_id,
-      departure_date: data.departure_date,
-      reason: data.reason.trim(),
-      created_at: new Date().toISOString(),
+    auditService.log({
+      pg_id: stay.pg_id,
+      branch_id: stay.branch_id,
+      user_id: user.id,
+      user_name: user.name,
+      user_role: user.role,
+      module: AUDIT_MODULES.STAY,
+      action: AUDIT_ACTIONS.CHECKOUT_REQUEST,
+      entity_type: 'checkout_request',
+      entity_id: insertId,
+      description: `Checkout request #${insertId} submitted for resident #${targetResidentId}`,
+      new_values: { stay_id: stay.id, departure_date: data.departure_date, reason: data.reason },
     });
 
     return await this.findCheckoutRequestById(insertId, user);
@@ -1750,12 +1768,19 @@ class StayService {
       updated_at: moment().toISOString(),
     });
 
-    // Real-time: Notify resident that checkout request status was updated
-    socketService.emitToUser(existing.resident_id, SOCKET_EVENTS.CHECKOUT_STATUS_UPDATED, {
-      id,
-      status: data.status,
-      admin_notes: data.admin_notes || null,
-      updated_at: new Date().toISOString(),
+    auditService.log({
+      pg_id: existing.pg_id,
+      branch_id: existing.branch_id,
+      user_id: user?.id,
+      user_name: user?.name,
+      user_role: user?.role,
+      module: AUDIT_MODULES.STAY,
+      action: data.status === 'approved' ? AUDIT_ACTIONS.APPROVE : (data.status === 'rejected' ? AUDIT_ACTIONS.REJECT : AUDIT_ACTIONS.STATUS_CHANGE),
+      entity_type: 'checkout_request',
+      entity_id: id,
+      description: `Checkout request #${id} updated to ${data.status}`,
+      old_values: { status: existing.status },
+      new_values: { status: data.status, admin_notes: data.admin_notes },
     });
 
     return await this.findCheckoutRequestById(id, user);
