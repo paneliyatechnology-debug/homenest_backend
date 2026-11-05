@@ -1040,10 +1040,10 @@ class UserService {
       ...(update_data.nationality !== undefined && { nationality: update_data.nationality || 'Indian' }),
       ...(update_data.marital_status !== undefined && { marital_status: update_data.marital_status || 'single' }),
       ...(update_data.occupation !== undefined && { occupation: update_data.occupation || null }),
-      ...(update_data.profile_photo !== undefined && { profile_photo: update_data.profile_photo }),
-      ...(update_data.aadhar_card !== undefined && { aadhar_card: update_data.aadhar_card }),
-      ...(update_data.address_proof !== undefined && { address_proof: update_data.address_proof }),
-      ...(update_data.education_certificate !== undefined && { education_certificate: update_data.education_certificate }),
+      ...(update_data.profile_photo !== undefined && { profile_photo: (!update_data.profile_photo || update_data.profile_photo === 'null' || update_data.profile_photo === 'undefined') ? null : update_data.profile_photo }),
+      ...(update_data.aadhar_card !== undefined && { aadhar_card: (!update_data.aadhar_card || update_data.aadhar_card === 'null' || update_data.aadhar_card === 'undefined') ? null : update_data.aadhar_card }),
+      ...(update_data.address_proof !== undefined && { address_proof: (!update_data.address_proof || update_data.address_proof === 'null' || update_data.address_proof === 'undefined') ? null : update_data.address_proof }),
+      ...(update_data.education_certificate !== undefined && { education_certificate: (!update_data.education_certificate || update_data.education_certificate === 'null' || update_data.education_certificate === 'undefined') ? null : update_data.education_certificate }),
       ...(update_data.terms_accepted !== undefined && {
         terms_accepted: Boolean(
           update_data.terms_accepted === true ||

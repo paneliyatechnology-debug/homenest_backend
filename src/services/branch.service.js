@@ -147,7 +147,7 @@ class BranchService {
     }
 
     auditService.log({
-      pg_id: target_pg_id,
+      pg_id,
       branch_id,
       user_id: user?.id,
       user_name: user?.name,
@@ -368,14 +368,19 @@ class BranchService {
     if (data.total_rooms !== undefined) updatePayload.total_rooms = Number(data.total_rooms) || 0;
 
     if (data.branch_photo !== undefined) {
-      if (existing.branch_photo && existing.branch_photo !== data.branch_photo) {
+      const isNullPhoto = !data.branch_photo || data.branch_photo === 'null' || data.branch_photo === 'undefined';
+      const cleanPhoto = isNullPhoto ? null : data.branch_photo;
+      if (existing.branch_photo && existing.branch_photo !== cleanPhoto) {
         deleteBranchPhotoFile(existing.branch_photo);
       }
-      updatePayload.branch_photo = data.branch_photo;
+      updatePayload.branch_photo = cleanPhoto;
     }
 
     await db('branches').where({ id }).update(updatePayload);
     await this.syncBranchStats(id);
+
+    const logNewValues = { ...updatePayload };
+    delete logNewValues.updated_at;
 
     auditService.log({
       pg_id: existing.pg_id,
@@ -389,7 +394,7 @@ class BranchService {
       entity_id: id,
       description: `Updated branch ${existing.name}`,
       old_values: { name: existing.name, status: existing.status },
-      new_values: updatePayload,
+      new_values: logNewValues,
     });
 
     return await this.findById(id, { user });
