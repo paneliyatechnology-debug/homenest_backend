@@ -4,6 +4,7 @@ import { AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS, ROLES } from '../constants/index.js';
 import { buildFileUrl } from '../utils/url.js';
 import { deleteCommunityImageFile } from '../middlewares/upload.middleware.js';
+import { resolveFileUpdate } from '../utils/fileHelper.js';
 import socketService, { SOCKET_EVENTS } from './socket.service.js';
 
 /**
@@ -349,11 +350,17 @@ class CommunityService {
     if (body.category !== undefined) {
       updatePayload.category = body.category.toLowerCase().trim();
     }
-    if (file) {
-      if (post.image) {
-        deleteCommunityImageFile(post.image);
-      }
-      updatePayload.image = file.filename;
+    const imageField = body.image !== undefined ? body.image : body.photo;
+
+    const imageUpdate = resolveFileUpdate({
+      file,
+      fieldValue: imageField,
+      existingFilename: post.image,
+      deleteFn: deleteCommunityImageFile,
+    });
+
+    if (imageUpdate.shouldUpdate) {
+      updatePayload.image = imageUpdate.newFilename;
     }
 
     await db('community_posts').where({ id: postId }).update(updatePayload);
@@ -856,11 +863,17 @@ class CommunityService {
     if (body.status !== undefined) updatePayload.status = body.status.toLowerCase().trim();
     if (body.description !== undefined) updatePayload.description = body.description ? body.description.trim() : null;
 
-    if (file) {
-      if (event.image) {
-        deleteCommunityImageFile(event.image);
-      }
-      updatePayload.image = file.filename;
+    const imageField = body.image !== undefined ? body.image : body.photo;
+
+    const imageUpdate = resolveFileUpdate({
+      file,
+      fieldValue: imageField,
+      existingFilename: event.image,
+      deleteFn: deleteCommunityImageFile,
+    });
+
+    if (imageUpdate.shouldUpdate) {
+      updatePayload.image = imageUpdate.newFilename;
     }
 
     await db('community_events').where({ id: eventId }).update(updatePayload);

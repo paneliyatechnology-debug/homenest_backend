@@ -7,6 +7,7 @@ import auditService from './audit.service.js';
 import { AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS, ROLES, STAFF_ROLES, ALL_STAFF_ROLES, AUDIT_MODULES, AUDIT_ACTIONS } from '../constants/index.js';
 import { deleteUserPhotoFile, deleteDocumentFile } from '../middlewares/upload.middleware.js';
+import { resolveFileUpdate, isExplicitFileRemoval } from '../utils/fileHelper.js';
 import { buildFileUrl } from '../utils/url.js';
 import { syncBranchStats } from './branch.service.js';
 
@@ -303,6 +304,7 @@ const formatUserListItem = (user) => {
     updated_at: user.updated_at || null,
     deleted_at: user.deleted_at || null,
     role: user.role || ROLES.RESIDENT,
+    branch_id: user.branch_id ? Number(user.branch_id) : null,
     building_id: user.building_id ? Number(user.building_id) : null,
     subscription_plan: user.subscription_plan_id ? {
       id: Number(user.subscription_plan_id),
@@ -995,22 +997,44 @@ class UserService {
       }
     }
 
-    // If new profile photo provided, remove previous photo from disk
-    if (update_data.profile_photo && existing.profile_photo && update_data.profile_photo !== existing.profile_photo) {
-      deleteUserPhotoFile(existing.profile_photo);
-    }
+    // Resolve photo and document updates safely
+    const photoUpdate = resolveFileUpdate({
+      fieldValue: update_data.profile_photo !== undefined
+        ? update_data.profile_photo
+        : (update_data.photo !== undefined
+          ? update_data.photo
+          : (update_data.passport_photo !== undefined ? update_data.passport_photo : update_data.image)),
+      existingFilename: existing.profile_photo,
+      deleteFn: deleteUserPhotoFile,
+    });
+
     const prevAadhar = existing.documents?.aadhar_card || existing.aadhar_card;
-    if (update_data.aadhar_card && prevAadhar && update_data.aadhar_card !== prevAadhar) {
-      deleteDocumentFile(prevAadhar);
-    }
+    const aadharUpdate = resolveFileUpdate({
+      fieldValue: update_data.aadhar_card,
+      existingFilename: prevAadhar,
+      deleteFn: deleteDocumentFile,
+    });
+
     const prevAddressProof = existing.documents?.address_proof || existing.address_proof;
-    if (update_data.address_proof && prevAddressProof && update_data.address_proof !== prevAddressProof) {
-      deleteDocumentFile(prevAddressProof);
-    }
+    const addressProofUpdate = resolveFileUpdate({
+      fieldValue: update_data.address_proof,
+      existingFilename: prevAddressProof,
+      deleteFn: deleteDocumentFile,
+    });
+
     const prevCert = existing.documents?.education_certificate || existing.education_certificate;
-    if (update_data.education_certificate && prevCert && update_data.education_certificate !== prevCert) {
-      deleteDocumentFile(prevCert);
-    }
+    const certUpdate = resolveFileUpdate({
+      fieldValue: update_data.education_certificate,
+      existingFilename: prevCert,
+      deleteFn: deleteDocumentFile,
+    });
+
+    const prevSignature = existing.documents?.signature || existing.signature;
+    const signatureUpdate = resolveFileUpdate({
+      fieldValue: update_data.signature,
+      existingFilename: prevSignature && !prevSignature.startsWith('data:') ? prevSignature : null,
+      deleteFn: deleteDocumentFile,
+    });
 
     const allowed_updates = {
       ...(update_data.name !== undefined && update_data.name !== null && update_data.name !== '' && { name: update_data.name.trim() }),
@@ -1040,10 +1064,11 @@ class UserService {
       ...(update_data.nationality !== undefined && { nationality: update_data.nationality || 'Indian' }),
       ...(update_data.marital_status !== undefined && { marital_status: update_data.marital_status || 'single' }),
       ...(update_data.occupation !== undefined && { occupation: update_data.occupation || null }),
-      ...(update_data.profile_photo !== undefined && { profile_photo: (!update_data.profile_photo || update_data.profile_photo === 'null' || update_data.profile_photo === 'undefined') ? null : update_data.profile_photo }),
-      ...(update_data.aadhar_card !== undefined && { aadhar_card: (!update_data.aadhar_card || update_data.aadhar_card === 'null' || update_data.aadhar_card === 'undefined') ? null : update_data.aadhar_card }),
-      ...(update_data.address_proof !== undefined && { address_proof: (!update_data.address_proof || update_data.address_proof === 'null' || update_data.address_proof === 'undefined') ? null : update_data.address_proof }),
-      ...(update_data.education_certificate !== undefined && { education_certificate: (!update_data.education_certificate || update_data.education_certificate === 'null' || update_data.education_certificate === 'undefined') ? null : update_data.education_certificate }),
+      ...(photoUpdate.shouldUpdate && { profile_photo: photoUpdate.newFilename }),
+      ...(aadharUpdate.shouldUpdate && { aadhar_card: aadharUpdate.newFilename }),
+      ...(addressProofUpdate.shouldUpdate && { address_proof: addressProofUpdate.newFilename }),
+      ...(certUpdate.shouldUpdate && { education_certificate: certUpdate.newFilename }),
+      ...(signatureUpdate.shouldUpdate && { signature: signatureUpdate.newFilename }),
       ...(update_data.terms_accepted !== undefined && {
         terms_accepted: Boolean(
           update_data.terms_accepted === true ||
@@ -1058,7 +1083,6 @@ class UserService {
           update_data.terms_accepted === '1'
         ) ? db.fn.now() : null,
       }),
-      ...(update_data.signature !== undefined && { signature: update_data.signature }),
       ...(update_data.status !== undefined && {
         status: update_data.status,
       }),
@@ -1162,14 +1186,14 @@ class UserService {
     }
 
     auditService.log({
-      pg_id: existing_user.pg_id,
-      branch_id: existing_user.branch_id || update_data.branch_id,
+      pg_id: existing.pg_id,
+      branch_id: existing.branch_id || update_data.branch_id,
       module: AUDIT_MODULES.USER,
       action: AUDIT_ACTIONS.UPDATE,
       entity_type: 'user',
       entity_id: id,
-      description: `Updated profile for user ${existing_user.name}`,
-      old_values: { name: existing_user.name, email: existing_user.email, status: existing_user.status },
+      description: `Updated profile for user ${existing.name}`,
+      old_values: { name: existing.name, email: existing.email, status: existing.status },
       new_values: { name: update_data.name, email: update_data.email, status: update_data.status },
     });
 
@@ -1386,6 +1410,7 @@ class UserService {
         phone: user.phone || null,
         status: user.status,
         profile_photo: user.profile_photo || null,
+        profile_photo_url: buildFileUrl('users', user.profile_photo),
         photo: user.profile_photo || null,
         photo_url: buildFileUrl('users', user.profile_photo),
         branches,
@@ -1808,7 +1833,9 @@ class UserService {
         email,
         phone,
         status,
-        profile_photo: photoFilename,
+        profile_photo: photoFilename || null,
+        profile_photo_url: buildFileUrl('users', photoFilename),
+        photo: photoFilename || null,
         photo_url: buildFileUrl('users', photoFilename),
         branches: validBranches,
         branch_names: validBranches.map((b) => b.name).join(', '),
@@ -1899,13 +1926,14 @@ class UserService {
       }
     }
 
-    let photoFilename = staff.profile_photo;
-    if (file) {
-      if (staff.profile_photo) {
-        deleteUserPhotoFile(staff.profile_photo);
-      }
-      photoFilename = file.filename;
-    }
+    const staffPhotoUpdate = resolveFileUpdate({
+      file,
+      fieldValue: data.profile_photo !== undefined
+        ? data.profile_photo
+        : (data.photo !== undefined ? data.photo : data.image),
+      existingFilename: staff.profile_photo,
+      deleteFn: deleteUserPhotoFile,
+    });
 
     const updatePayload = {
       updated_at: db.fn.now(),
@@ -1920,8 +1948,8 @@ class UserService {
       const normalized = UserService.normalizeStaffRole(data.staff_role || data.role);
       if (normalized) updatePayload.staff_role = normalized;
     }
-    if (photoFilename !== staff.profile_photo) {
-      updatePayload.profile_photo = photoFilename;
+    if (staffPhotoUpdate.shouldUpdate) {
+      updatePayload.profile_photo = staffPhotoUpdate.newFilename;
     }
 
     await db.transaction(async (trx) => {

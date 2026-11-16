@@ -3,6 +3,7 @@ import { AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS, ROLES, AUDIT_MODULES, AUDIT_ACTIONS } from '../constants/index.js';
 import { buildFileUrl } from '../utils/url.js';
 import { deleteBranchPhotoFile } from '../middlewares/upload.middleware.js';
+import { resolveFileUpdate } from '../utils/fileHelper.js';
 import auditService from './audit.service.js';
 
 /**
@@ -367,13 +368,18 @@ class BranchService {
 
     if (data.total_rooms !== undefined) updatePayload.total_rooms = Number(data.total_rooms) || 0;
 
-    if (data.branch_photo !== undefined) {
-      const isNullPhoto = !data.branch_photo || data.branch_photo === 'null' || data.branch_photo === 'undefined';
-      const cleanPhoto = isNullPhoto ? null : data.branch_photo;
-      if (existing.branch_photo && existing.branch_photo !== cleanPhoto) {
-        deleteBranchPhotoFile(existing.branch_photo);
-      }
-      updatePayload.branch_photo = cleanPhoto;
+    const photoField = data.branch_photo !== undefined
+      ? data.branch_photo
+      : (data.photo !== undefined ? data.photo : data.image);
+
+    const photoUpdate = resolveFileUpdate({
+      fieldValue: photoField,
+      existingFilename: existing.branch_photo,
+      deleteFn: deleteBranchPhotoFile,
+    });
+
+    if (photoUpdate.shouldUpdate) {
+      updatePayload.branch_photo = photoUpdate.newFilename;
     }
 
     await db('branches').where({ id }).update(updatePayload);

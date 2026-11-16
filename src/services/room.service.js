@@ -3,6 +3,8 @@ import db from '../config/db.js';
 import { AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS, ROLES, AUDIT_MODULES, AUDIT_ACTIONS } from '../constants/index.js';
 import { buildFileUrl } from '../utils/url.js';
+import { deleteRoomImageFile } from '../middlewares/upload.middleware.js';
+import { resolveFileUpdate } from '../utils/fileHelper.js';
 import { syncBranchStats, decrementBranchRoomsOnDelete } from './branch.service.js';
 import socketService, { SOCKET_EVENTS } from './socket.service.js';
 import auditService from './audit.service.js';
@@ -392,7 +394,20 @@ export const update = async (id, data) => {
   if (input_branch_id !== undefined) update_data.branch_id = branch_id;
   if (capacity !== undefined) update_data.capacity = Number(capacity);
   if (size !== undefined) update_data.size = size;
-  if (image !== undefined) update_data.image = image;
+
+  const imageField = image !== undefined
+    ? image
+    : (data.room_image !== undefined ? data.room_image : data.photo);
+
+  const imageUpdate = resolveFileUpdate({
+    fieldValue: imageField,
+    existingFilename: room.image,
+    deleteFn: deleteRoomImageFile,
+  });
+
+  if (imageUpdate.shouldUpdate) {
+    update_data.image = imageUpdate.newFilename;
+  }
   if (status !== undefined) update_data.status = status;
 
   if (Object.keys(update_data).length > 0) {
@@ -407,6 +422,9 @@ export const update = async (id, data) => {
     await syncBranchStats(branch_id);
   }
 
+  const logNewValues = { ...update_data };
+  delete logNewValues.updated_at;
+
   auditService.log({
     pg_id: room.pg_id,
     branch_id: branch_id || room.branch_id,
@@ -416,7 +434,7 @@ export const update = async (id, data) => {
     entity_id: id,
     description: `Updated room ${room.room_no}`,
     old_values: { room_no: room.room_no, status: room.status, capacity: room.capacity },
-    new_values: update_data,
+    new_values: logNewValues,
   });
 
   return findById(id);

@@ -4,6 +4,7 @@ import { AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS, ROLES, AUDIT_MODULES, AUDIT_ACTIONS } from '../constants/index.js';
 import { buildFileUrl } from '../utils/url.js';
 import { deleteNoticeAttachmentFile } from '../middlewares/upload.middleware.js';
+import { isExplicitFileRemoval } from '../utils/fileHelper.js';
 import socketService, { SOCKET_EVENTS } from './socket.service.js';
 import auditService from './audit.service.js';
 
@@ -54,6 +55,7 @@ class NoticeService {
     const attachment = hasAttachment
       ? {
           file_name: row.attachment_original_name || row.attachment_name,
+          raw_file_name: row.attachment_name,
           file_url: buildFileUrl('notices', row.attachment_name),
           file_size: row.attachment_size ? `${(row.attachment_size / (1024 * 1024)).toFixed(1)} MB` : null,
           file_mime: row.attachment_mime || null,
@@ -598,18 +600,45 @@ class NoticeService {
       }
     }
 
-    // Handle attachment replacement
+    const prevRawAttachment = existing.attachment?.raw_file_name || existing.attachment_name;
+
+    // Handle attachment replacement or removal
     if (file) {
-      if (existing.attachment?.file_name) {
-        deleteNoticeAttachmentFile(existing.attachment.file_name);
+      if (prevRawAttachment) {
+        deleteNoticeAttachmentFile(prevRawAttachment);
       }
       updatePayload.attachment_name = file.filename;
       updatePayload.attachment_original_name = file.originalname;
       updatePayload.attachment_size = file.size;
       updatePayload.attachment_mime = file.mimetype;
+    } else if (
+      data.attachment !== undefined ||
+      data.file !== undefined ||
+      data.attachment_name !== undefined ||
+      data.document !== undefined
+    ) {
+      const attVal = data.attachment !== undefined
+        ? data.attachment
+        : (data.file !== undefined
+          ? data.file
+          : (data.attachment_name !== undefined ? data.attachment_name : data.document));
+
+      if (isExplicitFileRemoval(attVal)) {
+        if (prevRawAttachment) {
+          deleteNoticeAttachmentFile(prevRawAttachment);
+        }
+        updatePayload.attachment_name = null;
+        updatePayload.attachment_original_name = null;
+        updatePayload.attachment_size = null;
+        updatePayload.attachment_mime = null;
+      }
     }
 
     await db('notices').where({ id }).update(updatePayload);
+
+    const logNewValues = { ...updatePayload };
+    delete logNewValues.updated_at;
+    if (logNewValues.sent_at) delete logNewValues.sent_at;
 
     auditService.log({
       pg_id: existing.pg_id,
@@ -622,7 +651,7 @@ class NoticeService {
       entity_type: 'notice',
       entity_id: id,
       description: `Updated notice "${existing.title}"`,
-      new_values: updatePayload,
+      new_values: logNewValues,
     });
 
     return { id: Number(id) };
@@ -643,8 +672,9 @@ class NoticeService {
       updated_at: db.fn.now(),
     });
 
-    if (existing.attachment?.file_name) {
-      deleteNoticeAttachmentFile(existing.attachment.file_name);
+    const prevRawAttachment = existing.attachment?.raw_file_name || existing.attachment_name;
+    if (prevRawAttachment) {
+      deleteNoticeAttachmentFile(prevRawAttachment);
     }
 
     auditService.log({

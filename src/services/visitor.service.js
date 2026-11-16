@@ -8,6 +8,7 @@ import { HTTP_STATUS, ROLES, AUDIT_MODULES, AUDIT_ACTIONS } from '../constants/i
 import { buildFileUrl } from '../utils/url.js';
 import emailService from './email.service.js';
 import { deleteVisitorPhotoFile } from '../middlewares/upload.middleware.js';
+import { resolveFileUpdate } from '../utils/fileHelper.js';
 import socketService, { SOCKET_EVENTS } from './socket.service.js';
 import auditService from './audit.service.js';
 
@@ -594,11 +595,19 @@ class VisitorService {
       if (data.branch_id !== undefined) updatePayload.branch_id = Number(data.branch_id);
     }
 
-    if (file) {
-      if (existing.visitor_photo) {
-        deleteVisitorPhotoFile(existing.visitor_photo);
-      }
-      updatePayload.visitor_photo = file.filename;
+    const photoField = data.visitor_photo !== undefined
+      ? data.visitor_photo
+      : (data.photo !== undefined ? data.photo : data.image);
+
+    const photoUpdate = resolveFileUpdate({
+      file,
+      fieldValue: photoField,
+      existingFilename: existing.visitor_photo,
+      deleteFn: deleteVisitorPhotoFile,
+    });
+
+    if (photoUpdate.shouldUpdate) {
+      updatePayload.visitor_photo = photoUpdate.newFilename;
     }
 
     await db('visitors').where({ id }).update(updatePayload);

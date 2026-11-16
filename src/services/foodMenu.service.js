@@ -4,6 +4,7 @@ import { AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS, ROLES } from '../constants/index.js';
 import { buildFileUrl } from '../utils/url.js';
 import { deleteFoodMenuImageFile, deleteFoodFeedbackImageFile } from '../middlewares/upload.middleware.js';
+import { resolveFileUpdate } from '../utils/fileHelper.js';
 
 export const MEAL_TYPES = ['breakfast', 'lunch', 'dinner'];
 
@@ -449,11 +450,19 @@ class FoodMenuService {
       updatePayload.day_of_week = FoodMenuService.getDayOfWeekFromDate(formattedDate);
     }
 
-    if (file) {
-      if (item.image) {
-        deleteFoodMenuImageFile(item.image);
-      }
-      updatePayload.image = file.filename;
+    const imageField = data.image !== undefined
+      ? data.image
+      : (data.food_image !== undefined ? data.food_image : data.photo);
+
+    const imageUpdate = resolveFileUpdate({
+      file,
+      fieldValue: imageField,
+      existingFilename: item.image,
+      deleteFn: deleteFoodMenuImageFile,
+    });
+
+    if (imageUpdate.shouldUpdate) {
+      updatePayload.image = imageUpdate.newFilename;
     }
 
     await db('food_menus').where({ id }).update(updatePayload);
@@ -565,11 +574,19 @@ class FoodMenuService {
         updated_at: db.fn.now(),
       };
 
-      if (imageFilename) {
-        if (existing.image) {
-          deleteFoodFeedbackImageFile(existing.image);
-        }
-        updatePayload.image = imageFilename;
+      const fbImageField = data.image !== undefined
+        ? data.image
+        : (data.feedback_image !== undefined ? data.feedback_image : data.photo);
+
+      const fbImageUpdate = resolveFileUpdate({
+        file,
+        fieldValue: fbImageField,
+        existingFilename: existing.image,
+        deleteFn: deleteFoodFeedbackImageFile,
+      });
+
+      if (fbImageUpdate.shouldUpdate) {
+        updatePayload.image = fbImageUpdate.newFilename;
       }
 
       await db('food_feedback')
