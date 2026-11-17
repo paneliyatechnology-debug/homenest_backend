@@ -631,12 +631,24 @@ export const getBuildingsAndFloors = async (options = {}) => {
  */
 const resolveAdminPg = async (user) => {
   if (user.role === ROLES.SUPER_ADMIN) {
-    const pg = await db('pgs').whereNull('deleted_at').orderBy('id', 'asc').first();
+    let pg = null;
+    if (user.pg_id) {
+      pg = await db('pgs').where({ id: user.pg_id }).whereNull('deleted_at').first();
+    }
+    if (!pg) {
+      pg = await db('pgs').whereNull('deleted_at').orderBy('id', 'asc').first();
+    }
     if (!pg) throw new AppError('No PG property found', HTTP_STATUS.NOT_FOUND);
     return pg;
   }
 
-  const pg = await db('pgs').where({ owner_id: user.id }).whereNull('deleted_at').first();
+  let pg = null;
+  if (user.pg_id) {
+    pg = await db('pgs').where({ id: user.pg_id }).whereNull('deleted_at').first();
+  }
+  if (!pg) {
+    pg = await db('pgs').where({ owner_id: user.id }).whereNull('deleted_at').first();
+  }
   if (!pg) {
     throw new AppError('No active PG property found under your account', HTTP_STATUS.FORBIDDEN);
   }
@@ -867,32 +879,42 @@ export const createShift = async (data, user) => {
     created_at: moment().toISOString(),
   });
 
-  const updatedShift = await findShiftById(id, user);
-
-  // Real-time: Notify resident that shift request status was updated
-  socketService.emitToUser(request.resident.id, SOCKET_EVENTS.ROOM_SHIFT_STATUS_UPDATED, {
-    id,
-    status: status.toLowerCase(),
-    admin_notes: adminNotes,
-    reviewed_at: moment().toISOString(),
-  });
+  // Real-time: If created by admin, also notify resident
+  if (user.role !== ROLES.RESIDENT) {
+    socketService.emitToUser(residentId, SOCKET_EVENTS.ROOM_SHIFT_NEW, {
+      id,
+      resident_id: residentId,
+      current_room_id: currentRoomId,
+      requested_room_id: requestedRoomId,
+      reason,
+      status: initialStatus,
+      created_at: moment().toISOString(),
+    });
+  }
 
   auditService.log({
-    pg_id: request.resident?.pg_id,
-    branch_id: request.current_room?.branch_id,
+    pg_id: pgId,
+    branch_id: branchId,
     user_id: user?.id,
     user_name: user?.name,
     user_role: user?.role,
     module: AUDIT_MODULES.ROOM,
-    action: status.toLowerCase() === 'approved' ? AUDIT_ACTIONS.APPROVE : AUDIT_ACTIONS.REJECT,
+    action: AUDIT_ACTIONS.CREATE,
     entity_type: 'room_shift_request',
     entity_id: id,
-    description: `Room shift request #${id} ${status.toLowerCase()} for resident ${request.resident?.name}`,
-    old_values: { status: request.status },
-    new_values: { status: status.toLowerCase(), admin_notes: adminNotes },
+    description: `Submitted room shift request #${id} for resident #${residentId}`,
+    new_values: {
+      resident_id: residentId,
+      current_room_id: currentRoomId,
+      requested_room_id: requestedRoomId,
+      preferred_room_type: preferredRoomType,
+      reason,
+      status: initialStatus,
+    },
   });
 
-  return updatedShift;
+  const createdShift = await findShiftById(id, user);
+  return createdShift;
 };
 
 /**
