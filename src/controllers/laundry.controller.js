@@ -75,6 +75,18 @@ export const getLaundryStats = async (req, res, next) => {
 };
 
 /**
+ * Controller: Update laundry request details (edit form)
+ */
+export const updateLaundryRequest = async (req, res, next) => {
+  try {
+    const data = await laundryService.update(req.params.id, req.user, req.body);
+    return successAction(res, 'Laundry request updated successfully', data.id, HTTP_STATUS.OK);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
  * Controller: Update status of laundry request
  */
 export const updateLaundryStatus = async (req, res, next) => {
@@ -157,6 +169,7 @@ export default {
   getAllLaundryRequests,
   getLaundryRequestById,
   getLaundryStats,
+  updateLaundryRequest,
   updateLaundryStatus,
   assignStaff,
   deleteLaundryRequest,

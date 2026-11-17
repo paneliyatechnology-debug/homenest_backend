@@ -78,6 +78,98 @@ export const createLaundryRequestValidator = [
 ];
 
 /**
+ * Validator for updating a Laundry Request (Admin Web Form / Staff)
+ */
+export const updateLaundryRequestValidator = [
+  param('id')
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Laundry request ID must be a positive integer'),
+
+  body('resident_id')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Resident ID must be a valid positive integer'),
+
+  body('request_type')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isIn(LAUNDRY_REQUEST_TYPES)
+    .withMessage(`Request type must be one of: ${LAUNDRY_REQUEST_TYPES.join(', ')}`),
+
+  body('service_subtype')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Service subtype cannot exceed 100 characters'),
+
+  body('pickup_date')
+    .optional({ checkFalsy: true })
+    .isISO8601()
+    .withMessage('Pick up date must be a valid date in YYYY-MM-DD format'),
+
+  body('pickup_time')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage('Pick up time cannot exceed 50 characters'),
+
+  body('status')
+    .optional({ checkFalsy: true })
+    .trim()
+    .toLowerCase()
+    .isIn(LAUNDRY_STATUSES)
+    .withMessage(`Status must be one of: ${LAUNDRY_STATUSES.join(', ')}`),
+
+  body('items')
+    .optional({ checkFalsy: true })
+    .isArray()
+    .withMessage('Items must be an array of laundry items'),
+
+  body('items.*.name')
+    .optional({ checkFalsy: true })
+    .trim()
+    .notEmpty()
+    .withMessage('Item name is required'),
+
+  body('items.*.quantity')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 0 })
+    .withMessage('Item quantity must be a non-negative integer'),
+
+  body('items.*.rate')
+    .optional({ checkFalsy: true })
+    .toFloat()
+    .isFloat({ min: 0 })
+    .withMessage('Item rate must be a non-negative number'),
+
+  body('special_instructions')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Special instructions cannot exceed 500 characters'),
+
+  body('admin_notes')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 1000 })
+    .withMessage('Admin notes cannot exceed 1000 characters'),
+
+  body('assigned_to')
+    .optional({ nullable: true })
+    .custom((val) => {
+      if (val === null || val === '' || val === undefined) return true;
+      const num = Number(val);
+      if (!Number.isInteger(num) || num < 1) {
+        throw new Error('Assigned staff ID must be a positive integer');
+      }
+      return true;
+    }),
+];
+
+/**
  * Validator for updating status of a laundry request
  */
 export const updateLaundryStatusValidator = [
@@ -386,6 +478,7 @@ export default {
   LAUNDRY_REQUEST_TYPES,
   LAUNDRY_SUBTYPES,
   createLaundryRequestValidator,
+  updateLaundryRequestValidator,
   updateLaundryStatusValidator,
   assignStaffValidator,
   listLaundryRequestsQueryValidator,

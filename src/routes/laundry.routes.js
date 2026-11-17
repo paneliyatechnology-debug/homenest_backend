@@ -2,6 +2,7 @@ import { Router } from 'express';
 import laundryController from '../controllers/laundry.controller.js';
 import {
   createLaundryRequestValidator,
+  updateLaundryRequestValidator,
   updateLaundryStatusValidator,
   assignStaffValidator,
   listLaundryRequestsQueryValidator,
@@ -134,6 +135,18 @@ router.get(
   '/:id',
   validate(laundryIdParamValidator),
   laundryController.getLaundryRequestById
+);
+
+/**
+ * @route   PUT /api/v1/laundry/:id
+ * @desc    Update laundry request details (Web Admin Form)
+ * @access  Private (Admin / Super Admin / Staff / Branch Manager)
+ */
+router.put(
+  '/:id',
+  authorize(ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.STAFF, ROLES.BRANCH_MANAGER),
+  validate(updateLaundryRequestValidator),
+  laundryController.updateLaundryRequest
 );
 
 /**

@@ -793,6 +793,134 @@ export const getStats = async (user, query = {}) => {
 };
 
 /**
+ * Service: Update laundry request details (all fields / edit form)
+ */
+export const update = async (id, user, data) => {
+  return await db.transaction(async (trx) => {
+    const existing = await trx('laundry_requests')
+      .where({ id, deleted_at: null })
+      .first();
+
+    if (!existing) {
+      throw new AppError('Laundry request not found', HTTP_STATUS.NOT_FOUND);
+    }
+
+    const { isSuperAdmin, branchIds } = await resolveUserBranches(user, trx);
+    if (!isSuperAdmin && !branchIds.includes(existing.branch_id)) {
+      throw new AppError('Unauthorized access to laundry request', HTTP_STATUS.FORBIDDEN);
+    }
+
+    const updatePayload = {
+      updated_at: db.fn.now(),
+    };
+
+    if (data.status !== undefined && data.status !== null) {
+      updatePayload.status = data.status.toLowerCase();
+    }
+
+    if (data.request_type !== undefined) {
+      updatePayload.request_type = data.request_type;
+    }
+
+    if (data.service_subtype !== undefined) {
+      updatePayload.service_subtype = data.service_subtype;
+    }
+
+    if (data.pickup_date !== undefined) {
+      updatePayload.pickup_date = data.pickup_date;
+    }
+
+    if (data.pickup_time !== undefined) {
+      updatePayload.pickup_time = data.pickup_time;
+    }
+
+    if (data.special_instructions !== undefined) {
+      updatePayload.special_instructions = data.special_instructions;
+    }
+
+    if (data.admin_notes !== undefined) {
+      updatePayload.admin_notes = data.admin_notes;
+    }
+
+    if (data.assigned_to !== undefined) {
+      if (data.assigned_to && Number(data.assigned_to) > 0) {
+        const staffUser = await trx('users')
+          .where({ id: Number(data.assigned_to) })
+          .whereIn('role', [ROLES.STAFF, ROLES.ADMIN, ROLES.SUPER_ADMIN])
+          .whereNull('deleted_at')
+          .first();
+        if (!staffUser) {
+          throw new AppError('Assigned staff member not found', HTTP_STATUS.NOT_FOUND);
+        }
+        updatePayload.assigned_to = staffUser.id;
+      } else {
+        updatePayload.assigned_to = null;
+      }
+    }
+
+    if (data.items !== undefined && Array.isArray(data.items)) {
+      const catalogData = await getLaundryCatalog(user, { branch_id: existing.branch_id });
+      const catalogItems = catalogData.items || LAUNDRY_CATALOG;
+
+      let totalItemsCount = 0;
+      let totalAmount = 0.0;
+
+      const items = data.items.map((item) => {
+        const qty = parseInt(item.quantity, 10) || 0;
+        const catalogItem = catalogItems.find(
+          (c) => c.name.toLowerCase() === (item.name || '').trim().toLowerCase()
+        );
+        const rate = item.rate !== undefined ? parseFloat(item.rate) : (catalogItem ? catalogItem.rate : 20.0);
+        const itemTotal = qty * rate;
+
+        if (qty > 0) {
+          totalItemsCount += qty;
+          totalAmount += itemTotal;
+        }
+
+        return {
+          name: (item.name || 'Item').trim(),
+          rate,
+          total: itemTotal,
+          quantity: qty,
+        };
+      });
+
+      updatePayload.items = JSON.stringify(items);
+      updatePayload.total_items_count = totalItemsCount;
+      updatePayload.total_amount = totalAmount;
+    }
+
+    if (data.resident_id !== undefined && data.resident_id && user.role !== ROLES.RESIDENT) {
+      const resId = parseInt(data.resident_id, 10);
+      const residentUser = await trx('users')
+        .where({ id: resId, role: ROLES.RESIDENT })
+        .whereNull('deleted_at')
+        .first();
+      if (!residentUser) {
+        throw new AppError('Resident user not found', HTTP_STATUS.NOT_FOUND);
+      }
+      const activeStay = await trx('resident_pg_stays')
+        .where({ resident_id: resId, status: 'active' })
+        .whereNull('deleted_at')
+        .first();
+      if (!activeStay) {
+        throw new AppError('Selected resident does not have an active stay', HTTP_STATUS.BAD_REQUEST);
+      }
+      updatePayload.resident_id = resId;
+      updatePayload.branch_id = activeStay.branch_id;
+      updatePayload.room_id = activeStay.room_id || null;
+    }
+
+    await trx('laundry_requests')
+      .where({ id })
+      .update(updatePayload);
+
+    return await findById(id, user, trx);
+  });
+};
+
+/**
  * Service: Update status of laundry request (pending -> in_progress -> completed)
  */
 export const updateStatus = async (id, user, data) => {
@@ -1502,6 +1630,7 @@ export default {
   findAll,
   findById,
   getStats,
+  update,
   updateStatus,
   assignStaff,
   remove,
