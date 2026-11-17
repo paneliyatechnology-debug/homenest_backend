@@ -1,3 +1,4 @@
+import path from 'path';
 import db from '../config/db.js';
 import paymentService from '../services/payment.service.js';
 import { success, successAction, AppError } from '../utils/apiResponse.js';
@@ -296,12 +297,39 @@ export const deletePayment = async (req, res, next) => {
   }
 };
 
+/**
+ * Generate and retrieve / download official payment receipt PDF
+ * @route GET /api/v1/payments/:id/receipt
+ */
+export const getPaymentReceipt = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await paymentService.generateReceiptPdf(id, { user: req.user });
+
+    // Support direct file download/streaming via query ?download=true or ?stream=true or Accept: application/pdf
+    const isDownload = req.query.download === 'true' || req.query.stream === 'true' || req.headers.accept === 'application/pdf';
+    if (isDownload) {
+      const fullPath = path.isAbsolute(result.file_path)
+        ? result.file_path
+        : path.join(process.cwd(), result.file_path);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${result.filename}"`);
+      return res.sendFile(fullPath);
+    }
+
+    return success(res, 'Payment receipt generated successfully', result);
+  } catch (err) {
+    next(err);
+  }
+};
+
 export default {
   getPaymentStats,
   getOverviewStats,
   getAllPayments,
   getResidentOverview,
   getPaymentById,
+  getPaymentReceipt,
   initiateUpi,
   processPayment,
   createPayment,

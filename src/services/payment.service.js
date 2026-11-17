@@ -5,7 +5,7 @@ import path from 'path';
 import moment from 'moment';
 import db from '../config/db.js';
 import { AppError } from '../utils/apiResponse.js';
-import { HTTP_STATUS, AUDIT_MODULES, AUDIT_ACTIONS } from '../constants/index.js';
+import { HTTP_STATUS, ROLES, AUDIT_MODULES, AUDIT_ACTIONS } from '../constants/index.js';
 import { buildFileUrl } from '../utils/url.js';
 import QRCode from 'qrcode';
 import auditService from './audit.service.js';
@@ -1041,6 +1041,374 @@ class PaymentService {
       total_amount: totalBilled,
       total_paid: totalCollected,
       total_due: totalDue,
+    };
+  };
+
+  /**
+   * Helper function converting numerical INR amounts into professional written words
+   * e.g. 10000 -> "Ten Thousand Rupees Only"
+   * @param {number} amount
+   * @returns {string}
+   */
+  static numberToWordsINR = (amount) => {
+    const num = Math.floor(amount || 0);
+    const paise = Math.round(((amount || 0) - num) * 100);
+
+    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+      'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+    const convertTwoDigits = (n) => {
+      if (n === 0) return '';
+      if (n < 20) return ones[n];
+      return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + ones[n % 10] : '');
+    };
+
+    const convertThreeDigits = (n) => {
+      let str = '';
+      if (Math.floor(n / 100) > 0) {
+        str += ones[Math.floor(n / 100)] + ' Hundred ';
+      }
+      const remainder = n % 100;
+      if (remainder > 0) {
+        if (str !== '') str += 'and ';
+        str += convertTwoDigits(remainder);
+      }
+      return str.trim();
+    };
+
+    if (num === 0) {
+      return paise > 0 ? (convertTwoDigits(paise) + ' Paise Only') : 'Zero Rupees Only';
+    }
+
+    const crore = Math.floor(num / 10000000);
+    let remainder = num % 10000000;
+    const lakh = Math.floor(remainder / 100000);
+    remainder = remainder % 100000;
+    const thousand = Math.floor(remainder / 1000);
+    remainder = remainder % 1000;
+    const hundred = remainder;
+
+    let words = '';
+    if (crore > 0) words += convertTwoDigits(crore) + ' Crore ';
+    if (lakh > 0) words += convertTwoDigits(lakh) + ' Lakh ';
+    if (thousand > 0) words += convertTwoDigits(thousand) + ' Thousand ';
+    if (hundred > 0) words += convertThreeDigits(hundred) + ' ';
+
+    words = words.trim() + ' Rupees';
+    if (paise > 0) {
+      words += ' and ' + convertTwoDigits(paise) + ' Paise';
+    }
+    return words + ' Only';
+  };
+
+  /**
+   * Generate an official, professional single-page payment receipt PDF for a payment record
+   * @param {number|string} paymentId - Payment record ID
+   * @param {object} [options={}] - Optional context / user role check
+   * @returns {Promise<object>} { file_url, file_path, filename, receipt_no, payment_id, resident_name, amount, status }
+   */
+  generateReceiptPdf = async (paymentId, options = {}) => {
+    const payment = await this.findById(paymentId);
+    if (!payment) {
+      throw new AppError('Payment record not found', HTTP_STATUS.NOT_FOUND);
+    }
+
+    // Role check if user provided: Resident can only view their own payment; Admin must own the PG
+    if (options.user) {
+      const { user } = options;
+      if (user.role === ROLES.RESIDENT && payment.resident?.id !== user.id) {
+        throw new AppError('Access denied to this payment receipt', HTTP_STATUS.FORBIDDEN);
+      }
+    }
+
+    // Fetch PG facility & Branch details for official letterhead
+    const pg = await db('pgs').where({ id: payment.pg_id }).whereNull('deleted_at').first();
+    let branch = null;
+    if (payment.branch_id) {
+      branch = await db('branches').where({ id: payment.branch_id }).whereNull('deleted_at').first();
+    }
+
+    // Ensure official receipt number exists and is persisted
+    let receipt_no = payment.receipt_no;
+    if (!receipt_no) {
+      receipt_no = `RCPT-${moment(payment.created_at || Date.now()).format('YYYY')}-${String(payment.id).padStart(4, '0')}`;
+      await db('payments').where({ id: payment.id }).update({ receipt_no, updated_at: db.fn.now() });
+      payment.receipt_no = receipt_no;
+    }
+
+    const doc = new PDFDocument({
+      size: 'A4',
+      layout: 'portrait',
+      margins: { top: 30, bottom: 0, left: 30, right: 30 },
+      bufferPages: true,
+    });
+
+    const uploadDir = path.join(process.cwd(), 'uploads', 'receipts');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    const safeReceiptNo = String(receipt_no).replace(/[^a-zA-Z0-9_-]/g, '_');
+    const filename = `receipt-${safeReceiptNo}-${Date.now()}.pdf`;
+    const filePath = path.join(uploadDir, filename);
+    const writeStream = fs.createWriteStream(filePath);
+    doc.pipe(writeStream);
+
+    // Fonts setup
+    const robotoRegular = path.join(process.cwd(), 'node_modules/roboto-fontface/fonts/roboto/Roboto-Regular.woff');
+    const robotoBold = path.join(process.cwd(), 'node_modules/roboto-fontface/fonts/roboto/Roboto-Bold.woff');
+    const robotoMedium = path.join(process.cwd(), 'node_modules/roboto-fontface/fonts/roboto/Roboto-Medium.woff');
+
+    let fontRegular = 'Helvetica';
+    let fontBold = 'Helvetica-Bold';
+    let fontMedium = 'Helvetica-Bold';
+
+    if (fs.existsSync(robotoRegular) && fs.existsSync(robotoBold)) {
+      try {
+        doc.registerFont('Roboto', robotoRegular);
+        doc.registerFont('Roboto-Bold', robotoBold);
+        if (fs.existsSync(robotoMedium)) {
+          doc.registerFont('Roboto-Medium', robotoMedium);
+          fontMedium = 'Roboto-Medium';
+        }
+        fontRegular = 'Roboto';
+        fontBold = 'Roboto-Bold';
+      } catch (e) {
+        // Fallback to standard Helvetica
+      }
+    }
+
+    // Color Palette - Clean, Professional Slate & Brand Emerald
+    const brandPrimary = '#0F766E';
+    const brandDark = '#115E59';
+    const textDark = '#0F172A';
+    const textBody = '#334155';
+    const textMuted = '#64748B';
+    const borderSubtle = '#E2E8F0';
+    const bgRowAlt = '#F8FAFC';
+
+    const fmtCurr = (val) => Number(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const formatIST = (d) => d ? moment(d).format('DD MMM YYYY, hh:mm A') : '-';
+    const formatShortDate = (d) => d ? moment(d).format('DD MMM YYYY') : '-';
+
+    const pgName = pg?.name || payment.pg_name || 'HouseNest PG Facility';
+    const branchName = branch?.name || payment.branch_name || 'Main Branch';
+    const addressLine = [pg?.address, pg?.city, pg?.state, pg?.pincode ? `- ${pg.pincode}` : ''].filter(Boolean).join(', ') || 'Kalawad Road, Rajkot, Gujarat';
+    const contactLine = [pg?.phone ? `Tel: ${pg.phone}` : null, pg?.email ? `Email: ${pg.email}` : null].filter(Boolean).join('  |  ');
+
+    // Page boundaries (A4: 595.28 x 841.89, margin: 40)
+    const startX = 40;
+    const contentW = 515;
+    const rightEdge = startX + contentW; // 555
+
+    // 1. Header (Clean, elegant, no outer border frame)
+    let curY = 44;
+
+    // Left PG Details
+    doc.fillColor(brandDark).font(fontBold).fontSize(16).text(pgName, startX, curY, { width: 330, lineBreak: false });
+    doc.fillColor(brandPrimary).font(fontMedium).fontSize(8.5).text(`Branch: ${branchName} • Accommodation Services`, startX, curY + 20, { width: 330 });
+    doc.fillColor(textMuted).font(fontRegular).fontSize(7.5).text(addressLine, startX, curY + 33, { width: 330 });
+    if (contactLine) {
+      doc.fillColor(textMuted).font(fontRegular).fontSize(7.5).text(contactLine, startX, curY + 45, { width: 330 });
+    }
+
+    // Right Header: PAYMENT RECEIPT / SLIP
+    const rightMetaX = 370;
+    const rightMetaW = rightEdge - rightMetaX;
+    doc.fillColor(textDark).font(fontBold).fontSize(16).text('PAYMENT RECEIPT', rightMetaX, curY, { width: rightMetaW, align: 'right' });
+    doc.fillColor(textBody).font(fontMedium).fontSize(9).text(`Receipt #: ${receipt_no}`, rightMetaX, curY + 20, { width: rightMetaW, align: 'right' });
+    doc.fillColor(textMuted).font(fontRegular).fontSize(8).text(`Date: ${formatShortDate(payment.paid_at || payment.created_at)}`, rightMetaX, curY + 33, { width: rightMetaW, align: 'right' });
+
+    // Status Badge Pill
+    const statusStr = String(payment.status || 'paid').toUpperCase();
+    const badgeColors = {
+      PAID: { bg: '#DCFCE7', text: '#15803D' },
+      PENDING: { bg: '#FEF3C7', text: '#B45309' },
+      OVERDUE: { bg: '#FEE2E2', text: '#DC2626' },
+      REFUNDED: { bg: '#F1F5F9', text: '#475569' },
+    };
+    const badge = badgeColors[statusStr] || badgeColors.PAID;
+    const badgeW = 64;
+    const badgeH = 16;
+    const badgeX = rightEdge - badgeW;
+    const badgeY = curY + 47;
+    doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 4).fill(badge.bg);
+    doc.fillColor(badge.text).font(fontBold).fontSize(7.5).text(statusStr, badgeX, badgeY + 3.5, { width: badgeW, align: 'center', lineBreak: false });
+
+    // Clean Divider Line
+    curY = 118;
+    doc.moveTo(startX, curY).lineTo(rightEdge, curY).strokeColor(borderSubtle).lineWidth(1).stroke();
+
+    // 2. Resident & Stay Details vs Payment & Transaction Details (Clean 2-column layout)
+    curY = 132;
+    const colW = 248;
+    const colH = 92;
+    const rightColX = startX + colW + 19; // 307
+
+    // Left Column: Resident & Accommodation Details
+    doc.roundedRect(startX, curY, colW, colH, 4).strokeColor(borderSubtle).lineWidth(0.75).stroke();
+    doc.fillColor(brandDark).font(fontBold).fontSize(7.5).text('RECEIVED FROM / RESIDENT DETAILS', startX + 10, curY + 8);
+    doc.moveTo(startX + 10, curY + 20).lineTo(startX + colW - 10, curY + 20).strokeColor(borderSubtle).lineWidth(0.5).stroke();
+
+    const resident = payment.resident || {};
+    doc.fillColor(textDark).font(fontBold).fontSize(9.5).text(resident.name || 'Resident', startX + 10, curY + 25, { width: colW - 20, lineBreak: false });
+    doc.fillColor(textBody).font(fontRegular).fontSize(7.5).text(`Phone: ${resident.phone || '-'}`, startX + 10, curY + 38);
+    doc.fillColor(textBody).font(fontRegular).fontSize(7.5).text(`Email: ${resident.email || '-'}`, startX + 10, curY + 49);
+
+    const roomLine = `Room: ${payment.room_no || '-'} (${payment.room_type || '-'}) • Bed: ${payment.bed_number || '-'}`;
+    doc.fillColor(brandDark).font(fontMedium).fontSize(7.5).text(roomLine, startX + 10, curY + 61);
+    const bldgLine = `${payment.building_name || 'Building'} • ${payment.floor_name || 'Floor'}`;
+    doc.fillColor(textMuted).font(fontRegular).fontSize(7).text(bldgLine, startX + 10, curY + 73);
+
+    // Right Column: Payment & Transaction Details
+    doc.roundedRect(rightColX, curY, colW, colH, 4).strokeColor(borderSubtle).lineWidth(0.75).stroke();
+    doc.fillColor(brandDark).font(fontBold).fontSize(7.5).text('PAYMENT & TRANSACTION DETAILS', rightColX + 10, curY + 8);
+    doc.moveTo(rightColX + 10, curY + 20).lineTo(rightColX + colW - 10, curY + 20).strokeColor(borderSubtle).lineWidth(0.5).stroke();
+
+    const txnId = payment.transaction_id || `TXN${String(payment.id).padStart(6, '0')}`;
+    doc.fillColor(textDark).font(fontBold).fontSize(8.5).text(`Txn ID: ${txnId}`, rightColX + 10, curY + 25, { width: colW - 20, lineBreak: false });
+    const methodUpper = String(payment.payment_method || 'UPI').toUpperCase();
+    const methodDetail = payment.payment_method_details ? ` (${payment.payment_method_details})` : '';
+    doc.fillColor(textBody).font(fontRegular).fontSize(7.5).text(`Method: ${methodUpper}${methodDetail}`, rightColX + 10, curY + 38);
+    doc.fillColor(textBody).font(fontRegular).fontSize(7.5).text(`Paid At: ${formatIST(payment.paid_at || payment.created_at)}`, rightColX + 10, curY + 49);
+
+    const periodStr = (payment.billing_period?.start && payment.billing_period?.end)
+      ? `${formatShortDate(payment.billing_period.start)} - ${formatShortDate(payment.billing_period.end)}`
+      : (payment.due_date ? `Due: ${formatShortDate(payment.due_date)}` : '-');
+    doc.fillColor(textMuted).font(fontRegular).fontSize(7.5).text(`Period: ${periodStr}`, rightColX + 10, curY + 61);
+    if (payment.upi_id) {
+      doc.fillColor(textMuted).font(fontRegular).fontSize(7).text(`UPI Payee: ${payment.upi_id}`, rightColX + 10, curY + 73);
+    }
+
+    // 3. Particulars / Itemized Charges Table
+    const tableY = curY + colH + 16;
+    const tableHeaderH = 22;
+    const tblColWidths = [35, 235, 125, 120];
+    const tblColX = [
+      startX,
+      startX + tblColWidths[0],
+      startX + tblColWidths[0] + tblColWidths[1],
+      startX + tblColWidths[0] + tblColWidths[1] + tblColWidths[2],
+    ];
+
+    // Table Header Bar
+    doc.roundedRect(startX, tableY, contentW, tableHeaderH, 3).fill(brandDark);
+    doc.fillColor('#FFFFFF').font(fontBold).fontSize(7.5);
+    doc.text('Sr.', tblColX[0], tableY + 6.5, { width: tblColWidths[0], align: 'center' });
+    doc.text('Particulars / Description', tblColX[1] + 6, tableY + 6.5, { width: tblColWidths[1] - 12, align: 'left' });
+    doc.text('Billing Period', tblColX[2], tableY + 6.5, { width: tblColWidths[2], align: 'center' });
+    doc.text('Amount (INR)', tblColX[3] - 8, tableY + 6.5, { width: tblColWidths[3], align: 'right' });
+
+    // Itemized Rows from breakdown
+    const items = [];
+    const b = payment.breakdown || {};
+    if (b.rent > 0) items.push({ desc: 'Room Accommodation & Monthly Rent', period: periodStr, amount: b.rent });
+    if (b.security_deposit > 0 || b.deposit > 0) items.push({ desc: 'Refundable Security Deposit', period: 'One-Time Deposit', amount: b.security_deposit || b.deposit });
+    if (b.maintenance > 0) items.push({ desc: 'Facility Maintenance & Society Charges', period: periodStr, amount: b.maintenance });
+    if (b.electricity > 0) items.push({ desc: 'Electricity & Utility Charges', period: periodStr, amount: b.electricity });
+    if (b.other > 0) items.push({ desc: 'Other Amenities / Miscellaneous Charges', period: periodStr, amount: b.other });
+
+    if (items.length === 0) {
+      items.push({ desc: payment.title || 'Accommodation Fee Payment', period: periodStr, amount: payment.amount });
+    }
+
+    let rowY = tableY + tableHeaderH;
+    const rowH = 24;
+
+    items.forEach((it, idx) => {
+      if (idx % 2 === 1) {
+        doc.rect(startX, rowY, contentW, rowH).fill(bgRowAlt);
+      }
+      doc.moveTo(startX, rowY + rowH).lineTo(rightEdge, rowY + rowH).strokeColor(borderSubtle).lineWidth(0.5).stroke();
+
+      doc.fillColor(textDark).font(fontRegular).fontSize(7.5);
+      doc.text(String(idx + 1), tblColX[0], rowY + 7.5, { width: tblColWidths[0], align: 'center' });
+      doc.font(fontMedium).text(it.desc, tblColX[1] + 6, rowY + 7.5, { width: tblColWidths[1] - 12, align: 'left' });
+      doc.font(fontRegular).fillColor(textMuted).text(it.period, tblColX[2], rowY + 7.5, { width: tblColWidths[2], align: 'center' });
+      doc.font(fontBold).fillColor(textDark).text(fmtCurr(it.amount), tblColX[3] - 8, rowY + 7.5, { width: tblColWidths[3], align: 'right' });
+
+      rowY += rowH;
+    });
+
+    // 4. Amount in Words + Financial Summary (Clean Slip Style)
+    const summaryY = rowY + 16;
+    const wordsW = 280;
+    const totalsW = contentW - wordsW - 15; // 220
+    const totalsX = startX + wordsW + 15;  // 335
+    const summaryBoxH = 92;
+
+    // Left: Amount in Words + Remarks Card
+    doc.roundedRect(startX, summaryY, wordsW, summaryBoxH, 4).strokeColor(borderSubtle).lineWidth(0.75).stroke();
+    doc.fillColor(textMuted).font(fontBold).fontSize(7).text('AMOUNT IN WORDS', startX + 10, summaryY + 8);
+    doc.fillColor(brandDark).font(fontBold).fontSize(8.5).text(PaymentService.numberToWordsINR(payment.amount), startX + 10, summaryY + 20, { width: wordsW - 20 });
+
+    doc.moveTo(startX + 10, summaryY + 46).lineTo(startX + wordsW - 10, summaryY + 46).strokeColor(borderSubtle).lineWidth(0.5).stroke();
+    doc.fillColor(textMuted).font(fontBold).fontSize(7).text('REMARKS / PAYMENT NOTES', startX + 10, summaryY + 52);
+    const notesText = payment.notes || 'Full accommodation fee received in good order. Thank you for your payment.';
+    doc.fillColor(textBody).font(fontRegular).fontSize(7).text(notesText, startX + 10, summaryY + 64, { width: wordsW - 20, lineBreak: false });
+
+    // Right: Financial Summary Card
+    doc.roundedRect(totalsX, summaryY, totalsW, summaryBoxH, 4).strokeColor(borderSubtle).lineWidth(0.75).stroke();
+
+    let totLineY = summaryY + 9;
+    const drawTotalLine = (label, value, isBold = false, valColor = textDark, fontSize = 8) => {
+      doc.fillColor(textMuted).font(isBold ? fontBold : fontRegular).fontSize(fontSize).text(label, totalsX + 10, totLineY, { width: 90 });
+      doc.fillColor(valColor).font(isBold ? fontBold : fontRegular).fontSize(fontSize).text(`INR  ${value}`, totalsX + 100, totLineY, { width: totalsW - 110, align: 'right' });
+      totLineY += 16;
+    };
+
+    drawTotalLine('Subtotal:', fmtCurr(payment.amount));
+    drawTotalLine('Total Amount:', fmtCurr(payment.amount), true, textDark, 8.5);
+    doc.moveTo(totalsX + 10, totLineY - 2).lineTo(totalsX + totalsW - 10, totLineY - 2).strokeColor(borderSubtle).lineWidth(0.5).stroke();
+    drawTotalLine('Amount Paid:', fmtCurr(payment.paid_amount), true, '#15803D', 8.5);
+
+    const balance = Math.max(0, payment.amount - payment.paid_amount);
+    const balColor = balance > 0 ? '#DC2626' : '#15803D';
+    drawTotalLine('Balance Due:', fmtCurr(balance), true, balColor, 8);
+
+    // 5. Dual Signatures Section (Clean, standard payment slip signatures)
+    const sigY = summaryY + summaryBoxH + 45;
+    const sigLineW = 180;
+
+    // Left Signature: Resident / Payer Signature
+    const residentSigX = startX + 10;
+    doc.moveTo(residentSigX, sigY).lineTo(residentSigX + sigLineW, sigY).strokeColor(borderSubtle).lineWidth(0.75).stroke();
+    doc.fillColor(textBody).font(fontMedium).fontSize(8).text("Resident's Signature", residentSigX, sigY + 6, { width: sigLineW, align: 'center' });
+
+    // Right Signature: Authorized Signatory
+    const authSigX = rightEdge - sigLineW - 10;
+    doc.moveTo(authSigX, sigY).lineTo(authSigX + sigLineW, sigY).strokeColor(borderSubtle).lineWidth(0.75).stroke();
+    doc.fillColor(textDark).font(fontBold).fontSize(8).text('Authorized Signatory', authSigX, sigY + 6, { width: sigLineW, align: 'center' });
+    doc.fillColor(textMuted).font(fontRegular).fontSize(7).text(`For ${pgName}`, authSigX, sigY + 18, { width: sigLineW, align: 'center', lineBreak: false });
+
+    // 6. Computer Generated Disclaimer Notice
+    const disclaimerY = sigY + 45;
+    doc.fillColor(textMuted).font(fontRegular).fontSize(7).text('This is a computer-generated payment receipt and does not require a physical signature.', startX, disclaimerY, { width: contentW, align: 'center', lineBreak: false });
+
+    // 7. Footer Bar
+    const footerY = 770;
+    doc.moveTo(startX, footerY).lineTo(rightEdge, footerY).strokeColor(borderSubtle).lineWidth(0.5).stroke();
+    doc.fillColor(textMuted).font(fontRegular).fontSize(6.5).text('HomeNest Property Management • Official Payment Slip', startX, footerY + 6, { lineBreak: false });
+    doc.text(`Generated on: ${moment().format('DD/MM/YYYY, hh:mm A')} IST  •  Page 1 of 1`, startX, footerY + 6, { width: contentW, align: 'right', lineBreak: false });
+
+    doc.end();
+
+    await new Promise((resolve, reject) => {
+      writeStream.on('finish', resolve);
+      writeStream.on('error', reject);
+    });
+
+    const file_url = buildFileUrl('receipts', filename);
+
+    return {
+      file_url,
+      file_path: `uploads/receipts/${filename}`,
+      filename,
+      receipt_no,
+      payment_id: payment.id,
+      resident_name: payment.resident?.name,
+      amount: payment.amount,
+      status: payment.status,
     };
   };
 

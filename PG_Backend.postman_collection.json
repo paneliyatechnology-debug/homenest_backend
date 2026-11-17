@@ -4267,6 +4267,42 @@
           "response": []
         },
         {
+          "name": "Get Payment Receipt PDF",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payments/{{paymentId}}/receipt",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "{{paymentId}}",
+                "receipt"
+              ],
+              "query": [
+                {
+                  "key": "download",
+                  "value": "true",
+                  "disabled": true,
+                  "description": "Set to true to stream/download PDF file directly instead of JSON response"
+                }
+              ]
+            },
+            "description": "### GET /api/v1/payments/:id/receipt\nGenerates an official, professional single-page payment receipt PDF with high-resolution verification QR code, digital verified stamp, itemized charges breakdown, resident & stay details, amount in words, and authorized signatory.\n\n- Returns JSON with file_url, filename, receipt_no, payment_id, amount, status.\n- Optional: Pass ?download=true to directly stream/download the PDF file."
+          },
+          "response": []
+        },
+        {
           "name": "Update Payment",
           "request": {
             "method": "PUT",

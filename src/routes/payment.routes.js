@@ -93,6 +93,17 @@ router.delete(
 );
 
 /**
+ * @route   GET /api/v1/payments/:id/receipt
+ * @desc    Generate and download professional PDF payment receipt
+ * @access  Private (Admin / Super Admin / Resident)
+ */
+router.get(
+  '/:id/receipt',
+  validate(paymentIdParamValidator),
+  paymentController.getPaymentReceipt
+);
+
+/**
  * @route   GET /api/v1/payments/:id
  * @desc    Get payment invoice details by primary ID
  * @access  Private

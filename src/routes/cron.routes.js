@@ -28,13 +28,13 @@ cron.schedule(
 );
 
 /**
- * Scheduled Daily Task: Automated Payment Proof & Uploads Cleanup
- * Runs daily at 03:00 AM IST to purge orphaned upload files and temporary assets.
+ * Scheduled Daily Task: Automated Payment Proof, Receipts & Uploads Cleanup
+ * Runs daily at 03:00 AM IST to purge generated receipt PDFs, report exports, and temporary assets.
  */
 cron.schedule(
   '0 3 * * *',
   async () => {
-    console.log('[Cron] Executing scheduled daily payment uploads cleanup at 3:00 AM IST...');
+    console.log('[Cron] Executing scheduled daily payment receipts and uploads cleanup at 3:00 AM IST...');
     await cronController.cleanPaymentUploads();
   },
   { timezone: 'Asia/Kolkata' }
