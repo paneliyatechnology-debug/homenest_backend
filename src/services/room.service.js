@@ -1119,12 +1119,8 @@ const executeRoomTransfer = async (requestId, targetRoomId, stay, user, adminNot
 export const updateShiftStatus = async (id, data, user) => {
   const request = await findShiftById(id, user);
 
-  if (request.status !== 'pending') {
-    throw new AppError(`Room shift request has already been ${request.status}`, HTTP_STATUS.BAD_REQUEST);
-  }
-
   const newStatus = data.status.toLowerCase();
-  const adminNotes = data.admin_notes || null;
+  const adminNotes = data.admin_notes !== undefined ? data.admin_notes : (request.admin_notes || null);
   const targetRoomId = data.assigned_room_id ? Number(data.assigned_room_id) : (request.requested_room?.id || null);
 
   if (newStatus === 'approved') {
@@ -1151,8 +1147,21 @@ export const updateShiftStatus = async (id, data, user) => {
       throw new AppError('Active stay record for resident not found or already completed', HTTP_STATUS.BAD_REQUEST);
     }
 
-    await executeRoomTransfer(id, targetRoomId, stay, user, adminNotes);
-  } else {
+    // If already approved and resident is already in target room, simply update notes and reviewer
+    if (request.status === 'approved' && stay.room_id === targetRoomId) {
+      await db('room_shift_requests')
+        .where({ id })
+        .update({
+          requested_room_id: targetRoomId,
+          admin_notes: adminNotes,
+          reviewed_by: user.id,
+          reviewed_at: db.fn.now(),
+          updated_at: db.fn.now(),
+        });
+    } else {
+      await executeRoomTransfer(id, targetRoomId, stay, user, adminNotes);
+    }
+  } else if (newStatus === 'rejected') {
     // Rejection
     await db('room_shift_requests')
       .where({ id })
@@ -1163,6 +1172,15 @@ export const updateShiftStatus = async (id, data, user) => {
         reviewed_at: db.fn.now(),
         updated_at: db.fn.now(),
       });
+  } else {
+    // Pending
+    await db('room_shift_requests')
+      .where({ id })
+      .update({
+        status: 'pending',
+        admin_notes: adminNotes,
+        updated_at: db.fn.now(),
+      });
   }
 
   const updatedShift = await findShiftById(id, user);
@@ -1170,24 +1188,24 @@ export const updateShiftStatus = async (id, data, user) => {
   // Real-time: Notify resident that shift request status was updated
   socketService.emitToUser(request.resident.id, SOCKET_EVENTS.ROOM_SHIFT_STATUS_UPDATED, {
     id,
-    status: status.toLowerCase(),
+    status: newStatus,
     admin_notes: adminNotes,
     reviewed_at: moment().toISOString(),
   });
 
   auditService.log({
-    pg_id: request.resident?.pg_id,
-    branch_id: request.current_room?.branch_id,
+    pg_id: request.resident?.pg_id || request.pg_id,
+    branch_id: request.current_room?.branch_id || request.branch_id,
     user_id: user?.id,
     user_name: user?.name,
     user_role: user?.role,
     module: AUDIT_MODULES.ROOM,
-    action: status.toLowerCase() === 'approved' ? AUDIT_ACTIONS.APPROVE : AUDIT_ACTIONS.REJECT,
+    action: newStatus === 'approved' ? AUDIT_ACTIONS.APPROVE : AUDIT_ACTIONS.REJECT,
     entity_type: 'room_shift_request',
     entity_id: id,
-    description: `Room shift request #${id} ${status.toLowerCase()} for resident ${request.resident?.name}`,
+    description: `Room shift request #${id} ${newStatus} for resident ${request.resident?.name}`,
     old_values: { status: request.status },
-    new_values: { status: status.toLowerCase(), admin_notes: adminNotes },
+    new_values: { status: newStatus, admin_notes: adminNotes },
   });
 
   return updatedShift;
