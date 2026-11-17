@@ -139,9 +139,12 @@ class NoticeService {
     }
 
     if (user.role === ROLES.ADMIN || user.role === ROLES.STAFF || user.role === ROLES.BRANCH_MANAGER) {
-      let pg = await db('pgs').where({ owner_id: user.id }).whereNull('deleted_at').first();
-      if (!pg && user.pg_id) {
+      let pg = null;
+      if (user.pg_id) {
         pg = await db('pgs').where({ id: user.pg_id }).whereNull('deleted_at').first();
+      }
+      if (!pg) {
+        pg = await db('pgs').where({ owner_id: user.id }).whereNull('deleted_at').first();
       }
       if (!pg) {
         const staffBranch = await db('user_branches').where({ user_id: user.id }).first();
@@ -529,8 +532,8 @@ class NoticeService {
     }
 
     auditService.log({
-      pg_id: pgId,
-      branch_id: branchId,
+      pg_id: context.pg_id,
+      branch_id: targetBranchId || context.branch_id || null,
       user_id: user.id,
       user_name: user.name,
       user_role: user.role,
