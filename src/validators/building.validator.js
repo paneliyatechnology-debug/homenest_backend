@@ -2,6 +2,25 @@ import { body, param, query } from 'express-validator';
 import pgService from '../services/pg.service.js';
 import db from '../config/db.js';
 
+export const buildingStatsQueryValidator = [
+  query('branch_id')
+    .optional({ checkFalsy: true })
+    .custom((val) => {
+      if (val === 'all' || val === 'All') return true;
+      const num = Number(val);
+      if (!Number.isInteger(num) || num < 1) {
+        throw new Error('Branch ID must be a positive integer or "all"');
+      }
+      return true;
+    }),
+
+  query('pg_id')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('PG ID must be a valid integer'),
+];
+
 export const listBuildingsValidator = [
   query('pg_id')
     .optional({ checkFalsy: true })
@@ -72,6 +91,35 @@ export const createBuildingValidator = [
     .withMessage('Building name is required')
     .isLength({ min: 1, max: 100 })
     .withMessage('Building name must be between 1 and 100 characters'),
+
+  body('total_floors')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Total floors must be between 1 and 100'),
+
+  body('starting_floor')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 0, max: 1 })
+    .withMessage('Starting floor must be 0 (Ground) or 1'),
+
+  body('floors')
+    .optional()
+    .isArray()
+    .withMessage('Floors must be an array of floor definitions'),
+
+  body('floors.*.floor_number')
+    .optional()
+    .toInt()
+    .isInt({ min: 0, max: 100 })
+    .withMessage('Floor number must be between 0 and 100'),
+
+  body('floors.*.name')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Floor name must be between 1 and 100 characters'),
 ];
 
 export const updateBuildingValidator = [
@@ -81,9 +129,7 @@ export const updateBuildingValidator = [
     .withMessage('Building ID must be a valid positive integer'),
 
   body('branch_id')
-    .notEmpty()
-    .withMessage('Branch ID is required')
-    .bail()
+    .optional({ checkFalsy: true })
     .toInt()
     .isInt({ min: 1 })
     .withMessage('Branch ID must be a positive integer')
@@ -107,6 +153,35 @@ export const updateBuildingValidator = [
     .withMessage('Building name cannot be empty')
     .isLength({ min: 1, max: 100 })
     .withMessage('Building name must be between 1 and 100 characters'),
+
+  body('total_floors')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Total floors must be between 1 and 100'),
+
+  body('floors')
+    .optional()
+    .isArray()
+    .withMessage('Floors must be an array of floor definitions'),
+
+  body('floors.*.id')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Floor ID must be a positive integer'),
+
+  body('floors.*.floor_number')
+    .optional()
+    .toInt()
+    .isInt({ min: 0, max: 100 })
+    .withMessage('Floor number must be between 0 and 100'),
+
+  body('floors.*.name')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Floor name must be between 1 and 100 characters'),
 ];
 
 export const buildingIdParamValidator = [
@@ -117,6 +192,7 @@ export const buildingIdParamValidator = [
 ];
 
 export default {
+  buildingStatsQueryValidator,
   listBuildingsValidator,
   createBuildingValidator,
   updateBuildingValidator,

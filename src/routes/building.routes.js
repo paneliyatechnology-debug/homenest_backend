@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import buildingController from '../controllers/building.controller.js';
 import {
+  buildingStatsQueryValidator,
   listBuildingsValidator,
   createBuildingValidator,
   updateBuildingValidator,
@@ -16,8 +17,19 @@ const router = Router();
 router.use(authenticate);
 
 /**
+ * @route   GET /api/v1/buildings/stats
+ * @desc    Get KPI statistics for buildings (Total Buildings, Total Floors, Total Rooms, Occupied Rooms, Vacant Rooms)
+ * @access  Private
+ */
+router.get(
+  '/stats',
+  validate(buildingStatsQueryValidator),
+  buildingController.getBuildingStats
+);
+
+/**
  * @route   POST /api/v1/buildings
- * @desc    Create a new building for a PG facility
+ * @desc    Create a new building and assign its floors array in a single request
  * @access  Private (Admin / Super Admin)
  */
 router.post(
@@ -29,14 +41,14 @@ router.post(
 
 /**
  * @route   GET /api/v1/buildings
- * @desc    List all buildings with floor and room counts
+ * @desc    List all buildings with nested floors array and room counts
  * @access  Private
  */
 router.get('/', validate(listBuildingsValidator), buildingController.getAllBuildings);
 
 /**
  * @route   GET /api/v1/buildings/:id
- * @desc    Get building details with its list of floors
+ * @desc    Get building details with its nested floors array
  * @access  Private
  */
 router.get(
@@ -47,7 +59,7 @@ router.get(
 
 /**
  * @route   PUT /api/v1/buildings/:id
- * @desc    Update building details
+ * @desc    Update building details and synchronize its assigned floors array
  * @access  Private (Admin / Super Admin)
  */
 router.put(
@@ -59,7 +71,7 @@ router.put(
 
 /**
  * @route   DELETE /api/v1/buildings/:id
- * @desc    Soft delete building (cascades to floors if no active rooms)
+ * @desc    Soft delete building and its assigned floors
  * @access  Private (Admin / Super Admin)
  */
 router.delete(

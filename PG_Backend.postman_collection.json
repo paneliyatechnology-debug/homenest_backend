@@ -173,6 +173,11 @@
       "value": "1",
       "type": "string",
       "description": "Notice Identifier"
+    },
+    {
+      "key": "auditId",
+      "value": "1",
+      "type": "string"
     }
   ],
   "auth": {
@@ -1192,11 +1197,62 @@
       ]
     },
     {
-      "name": "04 Building Management",
-      "description": "Building blocks, wings, and towers under branches.",
+      "name": "04 Building & Floor Management",
+      "description": "### 04 Building & Floor Management\nUnified management of buildings and their assigned floors in HomeNest.\n- Floors are assigned and managed directly via the `floors` array in the Building API.\n- No separate floor CRUD endpoints: creating, updating, adding, or removing floors is performed entirely through `POST /buildings` and `PUT /buildings/:id`.\n- `GET /buildings` and `GET /buildings/:id` return each building with its full nested `floors` array.",
       "item": [
         {
-          "name": "Create Building",
+          "name": "Building Stats",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/buildings/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buildings",
+                "stats"
+              ],
+              "query": [
+                {
+                  "key": "branch_id",
+                  "value": "{{branchId}}",
+                  "disabled": true,
+                  "description": "Filter statistics by Branch ID or \"all\""
+                },
+                {
+                  "key": "pg_id",
+                  "value": "{{pgId}}",
+                  "disabled": true,
+                  "description": "Filter statistics by PG facility ID"
+                }
+              ]
+            },
+            "description": "### GET /api/v1/buildings/stats\nRetrieves summary KPI metrics and statistical counts for the Building & Floor module.\nPowers the top statistics cards in the Building module:\n- `total_buildings`: Total buildings / wings count.\n- `total_floors`: Total floors count assigned across buildings.\n- `total_rooms`: Total rooms configured in these buildings."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Building & Floors",
           "event": [
             {
               "listen": "test",
@@ -1204,7 +1260,10 @@
                 "exec": [
                   "const res = pm.response.json();",
                   "if (res.success && res.id) {",
-                  "    pm.collectionVariables.set('buildingId', res.id);",
+                  "    pm.collectionVariables.set(\"buildingId\", res.id);",
+                  "}",
+                  "if (res.success && res.data && Array.isArray(res.data.floors) && res.data.floors.length > 0) {",
+                  "    pm.collectionVariables.set(\"floorId\", res.data.floors[0].id);",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -1222,7 +1281,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"branch_id\": \"{{branchId}}\",\n  \"name\": \"Block A - Silver Wing\",\n  \"pg_id\": \"{{pgId}}\"\n}",
+              "raw": "{\n  \"branch_id\": \"{{branchId}}\",\n  \"name\": \"Block A - Silver Wing\",\n  \"floors\": [\n    {\n      \"floor_number\": 1,\n      \"name\": \"1st Floor\"\n    },\n    {\n      \"floor_number\": 2,\n      \"name\": \"2nd Floor\"\n    },\n    {\n      \"floor_number\": 3,\n      \"name\": \"3rd Floor\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1240,7 +1299,7 @@
                 "buildings"
               ]
             },
-            "description": "### Create Building\n\nCreates a new building in the specified branch under the PG facility.\n\n---\n#### Body (JSON):\n- `branch_id` [REQUIRED] Branch ID where the building is located.\n- `name` [REQUIRED] Building name / identifier (1-100 characters).\n- `pg_id` [OPTIONAL] PG facility ID (defaults to owner's PG facility)."
+            "description": "### Create Building & Floors (Unified)\n\nCreates a new building and assigns its floors array in a single API call.\n\n---\n#### Body (JSON):\n- `branch_id` [REQUIRED] Branch ID where the building is located.\n- `name` [REQUIRED] Building name (1-100 characters).\n- `floors` [OPTIONAL] Array of floor definitions: `[{ \"floor_number\": 1, \"name\": \"1st Floor\" }, { \"floor_number\": 2, \"name\": \"2nd Floor\" }]`.\n- `total_floors` [OPTIONAL] Number of floors (e.g. 3 -> auto-creates 1st Floor, 2nd Floor, 3rd Floor).\n- `starting_floor` [OPTIONAL] `0` (Ground Floor) or `1` (1st Floor). Default: `1`.\n- `pg_id` [OPTIONAL] PG facility ID."
           },
           "response": []
         },
@@ -1295,7 +1354,7 @@
                 }
               ]
             },
-            "description": "### List Buildings\n\nReturns all buildings with pagination and optional search filter.\n\n---\n#### Query Parameters:\n- `branch_id` [OPTIONAL] Filter buildings by Branch ID.\n- `search` [OPTIONAL] Search pattern for building name.\n- `page` [OPTIONAL] Page number (Default: 1).\n- `limit` [OPTIONAL] Number of items per page (Default: 10, Max: 100).\n- `pg_id` [OPTIONAL] PG facility ID."
+            "description": "### List Buildings\n\nReturns all buildings with pagination, search, and the nested `floors` array for each building.\n\n---\n#### Query Parameters:\n- `branch_id` [OPTIONAL] Filter buildings by Branch ID.\n- `search` [OPTIONAL] Search by building or branch name.\n- `page` [OPTIONAL] Page number (Default: 1).\n- `limit` [OPTIONAL] Items per page (Default: 10, Max: 100).\n- `pg_id` [OPTIONAL] PG facility ID."
           },
           "response": []
         },
@@ -1322,12 +1381,12 @@
                 "{{buildingId}}"
               ]
             },
-            "description": "### GET /api/v1/buildings/:id\nPrivate. Retrieves building details along with its list of floors and room count."
+            "description": "### GET /api/v1/buildings/:id\nRetrieves single building details with its nested `floors` array and room counts."
           },
           "response": []
         },
         {
-          "name": "Update Building",
+          "name": "Update Building & Floors",
           "request": {
             "method": "PUT",
             "header": [
@@ -1339,7 +1398,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"branch_id\": \"{{branchId}}\",\n  \"name\": \"North Wing Tower\"\n}",
+              "raw": "{\n  \"branch_id\": \"{{branchId}}\",\n  \"name\": \"Block A - Platinum Tower\",\n  \"floors\": [\n    {\n      \"id\": \"{{floorId}}\",\n      \"floor_number\": 1,\n      \"name\": \"1st Floor - Renovated\"\n    },\n    {\n      \"floor_number\": 2,\n      \"name\": \"2nd Floor\"\n    },\n    {\n      \"floor_number\": 3,\n      \"name\": \"3rd Floor\"\n    },\n    {\n      \"floor_number\": 4,\n      \"name\": \"4th Floor - Executive Lounge\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1358,7 +1417,7 @@
                 "{{buildingId}}"
               ]
             },
-            "description": "### Update Building\n\nUpdates building name or reassigns building to another branch.\n\n---\n#### Body (JSON):\n- `branch_id` [REQUIRED] Associated Branch ID.\n- `name` [OPTIONAL] New name for the building (1-100 characters)."
+            "description": "### Update Building & Floors (Unified)\n\nUpdates building details and synchronizes its assigned floors array.\n- Existing floors in the array with an `id` or matching `floor_number` are updated.\n- New floors in the array are created and assigned to the building.\n- Existing floors omitted from the array are removed (rejected if active rooms are assigned to them).\n\n---\n#### Body (JSON):\n- `name` [OPTIONAL] New name for the building.\n- `branch_id` [OPTIONAL] Reassign to another branch (cascades to rooms).\n- `floors` [OPTIONAL] Array of floor objects to sync: `[{ id?, floor_number, name }]`.\n- `total_floors` [OPTIONAL] Adjust total floor count."
           },
           "response": []
         },
@@ -1385,219 +1444,14 @@
                 "{{buildingId}}"
               ]
             },
-            "description": "### DELETE /api/v1/buildings/:id\nPrivate (Admin / Super Admin). Soft delete building. Prevented if active rooms exist."
+            "description": "### DELETE /api/v1/buildings/:id\nSoft deletes the building and all its assigned floors. Prevented if active rooms exist."
           },
           "response": []
         }
       ]
     },
     {
-      "name": "05 Floor Management",
-      "description": "Floor levels mapped within specific buildings.",
-      "item": [
-        {
-          "name": "Create Floor",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const res = pm.response.json();",
-                  "if (res.success && res.id) {",
-                  "    pm.collectionVariables.set('floorId', res.id);",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"building_id\": \"{{buildingId}}\",\n  \"floor_number\": 1,\n  \"name\": \"First Floor\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/floors",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "floors"
-              ]
-            },
-            "description": "### Create Floor\n\nAdds a new floor under a specific building.\n\n---\n#### Body (JSON):\n- `building_id` [REQUIRED] Building ID where the floor is created.\n- `floor_number` [REQUIRED] Integer floor number (e.g. 0 for Ground, 1 for 1st, 2 for 2nd).\n- `name` [OPTIONAL] Floor display name (e.g. \"Ground Floor\", \"1st Floor\")."
-          },
-          "response": []
-        },
-        {
-          "name": "List Floors",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/floors?building_id={{buildingId}}&pg_id={{pgId}}&page=1&limit=10&status=&search=",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "floors"
-              ],
-              "query": [
-                {
-                  "key": "building_id",
-                  "value": "{{buildingId}}",
-                  "description": "[OPTIONAL] Filter by Building ID"
-                },
-                {
-                  "key": "pg_id",
-                  "value": "{{pgId}}",
-                  "description": "[OPTIONAL] PG facility ID",
-                  "disabled": true
-                },
-                {
-                  "key": "page",
-                  "value": "1",
-                  "description": "[OPTIONAL] Page number (Default: 1)"
-                },
-                {
-                  "key": "limit",
-                  "value": "10",
-                  "description": "[OPTIONAL] Items per page (Default: 10)"
-                },
-                {
-                  "key": "search",
-                  "value": "",
-                  "description": "[OPTIONAL] Search by floor name"
-                },
-                {
-                  "key": "branch_id",
-                  "value": "{{branchId}}",
-                  "description": "[OPTIONAL] Filter by Branch ID",
-                  "disabled": true
-                }
-              ]
-            },
-            "description": "### List Floors\n\nRetrieves list of floors for a building with pagination.\n\n---\n#### Query Parameters:\n- `building_id` [OPTIONAL] Filter floors by Building ID.\n- `branch_id` [OPTIONAL] Filter floors by Branch ID.\n- `search` [OPTIONAL] Search by floor name.\n- `page` [OPTIONAL] Page number (Default: 1).\n- `limit` [OPTIONAL] Limit per page (Default: 10).\n- `pg_id` [OPTIONAL] PG facility ID."
-          },
-          "response": []
-        },
-        {
-          "name": "Get Floor",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/floors/{{floorId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "floors",
-                "{{floorId}}"
-              ]
-            },
-            "description": "### GET /api/v1/floors/:id\nPrivate. Retrieves floor details along with its list of rooms."
-          },
-          "response": []
-        },
-        {
-          "name": "Update Floor",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"floor_number\": 3,\n  \"name\": \"3rd Floor - Executive Suite\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/floors/{{floorId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "floors",
-                "{{floorId}}"
-              ]
-            },
-            "description": "### Update Floor\n\nUpdates floor number or floor display name.\n\n---\n#### Body (JSON):\n- `floor_number` [OPTIONAL] Integer floor number.\n- `name` [OPTIONAL] Floor display name (1-100 characters)."
-          },
-          "response": []
-        },
-        {
-          "name": "Delete Floor",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/floors/{{floorId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "floors",
-                "{{floorId}}"
-              ]
-            },
-            "description": "### DELETE /api/v1/floors/:id\nPrivate (Admin / Super Admin). Soft delete floor. Prevented if active rooms exist on this floor."
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "06 Room Management",
+      "name": "05 Room Management",
       "description": "Room inventory, bed allocations, room types, pricing, photos, and live occupancy statistics.",
       "item": [
         {
@@ -1998,7 +1852,7 @@
       ]
     },
     {
-      "name": "07 Room Shift Requests",
+      "name": "06 Room Shift Requests",
       "description": "Resident room relocation, room transfer requests, admin approval, and automated reallocation.",
       "item": [
         {
@@ -2257,7 +2111,7 @@
       ]
     },
     {
-      "name": "08 User & Resident Management",
+      "name": "07 User & Resident Management",
       "description": "Resident onboarding, user profiles, KYC documents, and account management.",
       "item": [
         {
@@ -3057,7 +2911,7 @@
       ]
     },
     {
-      "name": "09 Staff Management",
+      "name": "08 Staff Management",
       "description": "Operational staff management, branch assignments, duty roles, and staff KPI statistics.",
       "item": [
         {
@@ -3368,7 +3222,7 @@
       ]
     },
     {
-      "name": "10 Resident Stays",
+      "name": "09 Resident Stays",
       "description": "Multi-PG resident tenancy timelines, check-in history, active stays, and direct vacates.",
       "item": [
         {
@@ -3500,7 +3354,7 @@
       ]
     },
     {
-      "name": "11 Checkout & Refund Approvals",
+      "name": "10 Checkout & Refund Approvals",
       "description": "Resident departure clearance, NOC verification, security deposit refund approvals, and PDF export.",
       "item": [
         {
@@ -3872,7 +3726,7 @@
       ]
     },
     {
-      "name": "12 Tenancy Agreements",
+      "name": "11 Tenancy Agreements",
       "description": "Tenancy agreements, lease contracts, digital signing statuses, and agreement statistics.",
       "item": [
         {
@@ -3964,7 +3818,7 @@
                 "agreements"
               ]
             },
-            "description": "### Create New Agreement\n\nCreates a rental tenancy agreement for a resident.\n\n---\n#### Body (JSON):\n- `resident_id` [REQUIRED] Resident User ID.\n- `agreement_no` [REQUIRED] Unique agreement identifier (e.g. \"AGR-2026-001\").\n- `agreement_type` [REQUIRED] Tenure type (e.g. \"11 Months Standard\", \"6 Months Student\").\n- `start_date` [REQUIRED] Agreement commencement date (YYYY-MM-DD).\n- `end_date` [OPTIONAL] Agreement expiry date (YYYY-MM-DD).\n- `branch_id` [OPTIONAL] Branch ID.\n- `room_id` [OPTIONAL] Room ID.\n- `room_type` [OPTIONAL] Room sharing category.\n- `status` [OPTIONAL] `pending` | `signed` | `draft` | `expired` (Default: `pending`).\n- `pg_id` [OPTIONAL] PG facility ID."
+            "description": "### POST /api/v1/agreements\nCreates a new tenancy agreement for an active resident.\n- `branch_id`: Optional. Automatically resolves from the allocated room or resident stay if omitted or invalid to prevent foreign key errors.\n- `status`: \"signed\", \"pending\", \"draft\", or \"expired\"."
           },
           "response": []
         },
@@ -4140,7 +3994,7 @@
       ]
     },
     {
-      "name": "13 Payments & Billing",
+      "name": "12 Payments & Billing",
       "description": "Rent invoices, billing demands, NPCI UPI dynamic QR generation, online payment records, and reports.",
       "item": [
         {
@@ -4642,7 +4496,7 @@
       ]
     },
     {
-      "name": "14 Laundry Management",
+      "name": "13 Laundry Management",
       "description": "Laundry service catalog pricing, resident laundry requests, weight tracking, staff assignment, and dues billing.",
       "item": [
         {
@@ -5172,7 +5026,7 @@
       ]
     },
     {
-      "name": "15 Food Menu & Feedback",
+      "name": "14 Food Menu & Feedback",
       "description": "Daily meal plans (Breakfast, Lunch, Dinner), dish inclusions, resident star ratings, and meal feedback.",
       "item": [
         {
@@ -5679,7 +5533,7 @@
       ]
     },
     {
-      "name": "16 Complaint Management",
+      "name": "15 Complaint Management",
       "description": "Issue ticketing, 10 complaint categories, WiFi & room maintenance, staff assignment, resolution, and rating.",
       "item": [
         {
@@ -6038,7 +5892,7 @@
       ]
     },
     {
-      "name": "17 Visitor Management",
+      "name": "16 Visitor Management",
       "description": "Visitor pass generation, QR code scanning, security gate check-in/out logs, and visitor analytics.",
       "item": [
         {
@@ -6548,7 +6402,7 @@
       ]
     },
     {
-      "name": "18 Subscription Plans",
+      "name": "17 Subscription Plans",
       "item": [
         {
           "name": "Subscription Stats",
@@ -6810,7 +6664,7 @@
       ]
     },
     {
-      "name": "19 Notice Management",
+      "name": "18 Notice Management",
       "item": [
         {
           "name": "Notice Stats",
@@ -7259,7 +7113,7 @@
       ]
     },
     {
-      "name": "20 Dashboard",
+      "name": "19 Dashboard",
       "description": "Role-based Unified Dashboard Module:\n- Admin / Super Admin / Staff: Operations Dashboard\n- Resident: Resident Mobile Dashboard",
       "item": [
         {
@@ -7315,7 +7169,7 @@
       ]
     },
     {
-      "name": "21 Community",
+      "name": "20 Community",
       "description": "Resident Community & Social Hub Module:\n- Community Feed & Posts with Filter Pills (All, Updates, Events, Birthdays)\n- Post Creation with Optional Photo Upload & Community Guidelines\n- Likes & Comments on Posts\n- Community Events categorized into Ongoing, Upcoming, and Past\n- Upcoming Resident Birthdays",
       "item": [
         {
@@ -8080,7 +7934,7 @@
       ]
     },
     {
-      "name": "22 Audit Management",
+      "name": "21 Audit Management",
       "item": [
         {
           "name": "Audit Dashboard Stats",
@@ -8313,7 +8167,21 @@
             },
             "description": "### GET /api/v1/audits\nList paginated administrative activity logs with multi-field filtering matching the UI:\n- Modules: Residents, Rooms, Payments, etc.\n- Actions: Create, Update, Delete, etc.\n- Users: All or specific user name/ID\n- Date Range: e.g. 01 mar 2026 - 31 mar 2026\nTable fields returned: `sr_no`, `user`, `action`, `module`, `details`, `timestamp`, `ip_address`, `id`."
           },
-          "response": []
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && Array.isArray(res.data) && res.data.length > 0) {",
+                  "    pm.collectionVariables.set(\"auditId\", res.data[0].id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
           "name": "Get Activity Log Details",
@@ -8337,7 +8205,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/audits/1",
+              "raw": "{{baseUrl}}/api/v1/audits/{{auditId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -8345,7 +8213,7 @@
                 "api",
                 "v1",
                 "audits",
-                "1"
+                "{{auditId}}"
               ]
             },
             "description": "### GET /api/v1/audits/:id\nGet single audit log details by primary ID with full before/after values, IP address, user agent, branch, and actor details."
