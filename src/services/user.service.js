@@ -41,6 +41,107 @@ const calculateAge = (dob) => {
 };
 
 /**
+ * Helper to safely check if a value is non-empty after trimming
+ * @param {*} val
+ * @returns {boolean}
+ */
+const isNonEmpty = (val) => val !== null && val !== undefined && String(val).trim().length > 0;
+
+/**
+ * Check whether a resident has completed all required onboarding fields across the 5 wizard steps:
+ * 1. Personal Details (Image 1: 1 of 6):
+ *    - Full name *
+ *    - Date of birth *
+ *    - Gender *
+ *    - Phone number *
+ *    - Email address *
+ * 2. Current Address & Emergency Contact (Image 2: 2 of 6):
+ *    - Address Line 1 * (or address)
+ *    - City *
+ *    - State *
+ *    - Pincode *
+ *    - Emergency Contact Name *
+ *    - Emergency Contact Relationship *
+ *    - Emergency Contact Phone number *
+ * 3. Document Upload (Image 3: 3 of 6):
+ *    - Aadhar card *
+ *    - Passport size photo * (profile_photo)
+ *    - Address proof *
+ *    (education_certificate is optional)
+ * 4. Room & Bed Selection (Image 4: 4 of 6):
+ *    - Room & Bed assigned in stay (room_id & bed_number)
+ * 5. Agreement & Signature (Image 5: 5 of 6):
+ *    - Terms accepted * (true)
+ *    - Digital signature *
+ *
+ * @param {Object} user - User DB row
+ * @param {Object|null} stay - Active stay DB row
+ * @returns {boolean} true if all required fields are filled, otherwise false
+ */
+const checkResidentProfileCompletion = (user, stay = null) => {
+  if (!user) return false;
+
+  // 1. Personal Details (Image 1)
+  const hasName = isNonEmpty(user.name);
+  const hasDob = Boolean(user.date_of_birth && String(user.date_of_birth).trim() !== '' && String(user.date_of_birth) !== '0000-00-00');
+  const hasGender = isNonEmpty(user.gender);
+  const hasPhone = isNonEmpty(user.phone);
+  const hasEmail = isNonEmpty(user.email);
+
+  // 2. Current Address & Emergency Contact (Image 2)
+  const hasAddress = isNonEmpty(user.address_line_1) || isNonEmpty(user.address);
+  const hasCity = isNonEmpty(user.city);
+  const hasState = isNonEmpty(user.state);
+  const hasPincode = isNonEmpty(user.pincode);
+  const hasEmergencyName = isNonEmpty(user.emergency_contact_name);
+  const hasEmergencyRel = isNonEmpty(user.emergency_contact_relationship);
+  const hasEmergencyPhone = isNonEmpty(user.emergency_contact_phone);
+
+  // 3. Document Uploads (Image 3)
+  const hasAadhar = isNonEmpty(user.aadhar_card);
+  const hasPhoto = isNonEmpty(user.profile_photo);
+  const hasAddressProof = isNonEmpty(user.address_proof);
+
+  // 4. Room & Bed Selection (Image 4)
+  const effectiveStay = stay || (user.room_id ? user : null);
+  const hasRoom = Boolean(
+    effectiveStay &&
+    (effectiveStay.room_id || effectiveStay.room_no || user.room_id) &&
+    (effectiveStay.bed_number || user.bed_number)
+  );
+
+  // 5. Agreement & Signature (Image 5)
+  const hasTerms = Boolean(
+    user.terms_accepted === true ||
+    user.terms_accepted === 1 ||
+    user.terms_accepted === '1' ||
+    user.terms_accepted === 'true'
+  );
+  const hasSignature = isNonEmpty(user.signature);
+
+  return Boolean(
+    hasName &&
+    hasDob &&
+    hasGender &&
+    hasPhone &&
+    hasEmail &&
+    hasAddress &&
+    hasCity &&
+    hasState &&
+    hasPincode &&
+    hasEmergencyName &&
+    hasEmergencyRel &&
+    hasEmergencyPhone &&
+    hasAadhar &&
+    hasPhoto &&
+    hasAddressProof &&
+    hasRoom &&
+    hasTerms &&
+    hasSignature
+  );
+};
+
+/**
  * Format admin user profile cleanly without resident-only fields or duplicated groups
  * @param {Object} user - User record from DB
  * @param {Object} [options={}] - PG facility data
@@ -77,6 +178,7 @@ const formatAdminUser = (user, options = {}) => {
     profile_photo_url,
     status: user.status || 'active',
     role: user.role,
+    is_complete_profile: true,
     created_at: user.created_at,
     updated_at: user.updated_at,
 
@@ -142,6 +244,7 @@ const formatResidentUser = (user, options = {}) => {
 
   const stay = options.active_stay || (user.room_id ? user : null);
   const room_image_url = stay ? buildFileUrl('rooms', stay.room_image) : null;
+  const is_complete_profile = checkResidentProfileCompletion(user, stay);
 
   return {
     id: user.id,
@@ -153,6 +256,7 @@ const formatResidentUser = (user, options = {}) => {
     profile_photo_url,
     status: user.status || 'active',
     role: user.role || ROLES.RESIDENT,
+    is_complete_profile,
     created_at: user.created_at || null,
     updated_at: user.updated_at || null,
     deleted_at: user.deleted_at || null,
