@@ -52,6 +52,32 @@ class DashboardService {
   };
 
   /**
+   * Helper: Calculate Month-over-Month change percentage and trend direction
+   * @param {number} current
+   * @param {number} previous
+   * @returns {{ change_percentage: number, trend: 'up' | 'down' | 'neutral' }}
+   */
+  calculateTrend = (current, previous) => {
+    const curr = Number(current) || 0;
+    const prev = Number(previous) || 0;
+
+    if (prev === 0) {
+      if (curr === 0) {
+        return { change_percentage: 0, trend: 'neutral' };
+      }
+      return { change_percentage: 100, trend: 'up' };
+    }
+
+    const diff = curr - prev;
+    const pct = Math.round((diff / prev) * 100);
+
+    return {
+      change_percentage: pct,
+      trend: pct > 0 ? 'up' : (pct < 0 ? 'down' : 'neutral'),
+    };
+  };
+
+  /**
    * Operations Dashboard for Admin / Super Admin (Image 1)
    *
    * @param {Object} user - Authenticated user context
@@ -67,7 +93,7 @@ class DashboardService {
       pgId = query.pg_id ? Number(query.pg_id) : user.pg_id;
       if (!pgId) {
         const firstPg = await db('pgs').whereNull('deleted_at').orderBy('id', 'asc').first();
-        pgId = firstPg?.id || 1;
+        pgId = firstPg ? Number(firstPg.id) : null;
       }
     } else {
       let pg = await db('pgs').where({ owner_id: user.id }).whereNull('deleted_at').first();
@@ -81,11 +107,34 @@ class DashboardService {
           if (branch) pg = { id: branch.pg_id };
         }
       }
-      if (!pg) {
-        throw new AppError('No PG property associated with this account', HTTP_STATUS.BAD_REQUEST);
+      if (pg) {
+        pgId = Number(pg.id);
       }
-      pgId = Number(pg.id);
     }
+
+    // If no PG facility is associated yet, return clean empty dashboard without mock values
+    if (!pgId) {
+      return {
+        role: 'admin',
+        pg_id: null,
+        branch_id: targetBranchId,
+        metrics: {
+          total_residents: { value: 0, change_percentage: 0, trend: 'neutral', comparison_label: 'vs. last month' },
+          occupancy_rate: { value: 0, formatted: '0%', change_percentage: 0, trend: 'neutral', comparison_label: 'vs. last month' },
+          monthly_revenue: { value: 0, formatted: this.formatINR(0), change_percentage: 0, trend: 'neutral', comparison_label: 'vs. last month' },
+          pending_dues: { value: 0, formatted: this.formatINR(0), change_percentage: 0, trend: 'neutral', comparison_label: 'vs. last month' },
+          open_complaints: { value: 0, change_percentage: 0, trend: 'neutral', comparison_label: 'vs. last month' },
+        },
+        occupancy_trend: { timeframe: 'Last 6 months', data: [] },
+        room_distribution: { total_residents: 0, distribution: [] },
+        recent_activity: [],
+      };
+    }
+
+    const currentMonthStart = moment().startOf('month').format('YYYY-MM-DD HH:mm:ss');
+    const currentMonthEnd = moment().endOf('month').format('YYYY-MM-DD HH:mm:ss');
+    const lastMonthStart = moment().subtract(1, 'month').startOf('month').format('YYYY-MM-DD HH:mm:ss');
+    const lastMonthEnd = moment().subtract(1, 'month').endOf('month').format('YYYY-MM-DD HH:mm:ss');
 
     // 2. Total Residents & Monthly Trend
     const residentsQuery = db('resident_pg_stays')
@@ -99,6 +148,23 @@ class DashboardService {
 
     const currentResidentsRes = await residentsQuery.clone().countDistinct('resident_id as total').first();
     const totalResidents = parseInt(currentResidentsRes?.total || 0, 10);
+
+    const lastMonthResidentsRes = await db('resident_pg_stays')
+      .where('resident_pg_stays.pg_id', pgId)
+      .whereNull('resident_pg_stays.deleted_at')
+      .where('resident_pg_stays.created_at', '<=', lastMonthEnd)
+      .where((qb) => {
+        qb.whereNull('resident_pg_stays.check_out_date')
+          .orWhere('resident_pg_stays.check_out_date', '>=', lastMonthStart);
+      })
+      .modify((qb) => {
+        if (targetBranchId) qb.where('resident_pg_stays.branch_id', targetBranchId);
+      })
+      .countDistinct('resident_id as total')
+      .first();
+
+    const lastMonthResidents = parseInt(lastMonthResidentsRes?.total || 0, 10);
+    const residentsTrend = this.calculateTrend(totalResidents, lastMonthResidents);
 
     // 3. Rooms & Occupancy Rate
     const roomsQuery = db('rooms')
@@ -120,8 +186,25 @@ class DashboardService {
     const occupiedRooms = parseInt(roomsStats?.occupied_rooms || 0, 10);
     const occupancyRate = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
 
+    const lastMonthStaysRes = await db('resident_pg_stays')
+      .where('resident_pg_stays.pg_id', pgId)
+      .whereNull('resident_pg_stays.deleted_at')
+      .where('resident_pg_stays.created_at', '<=', lastMonthEnd)
+      .where((qb) => {
+        qb.whereNull('resident_pg_stays.check_out_date')
+          .orWhere('resident_pg_stays.check_out_date', '>=', lastMonthStart);
+      })
+      .modify((qb) => {
+        if (targetBranchId) qb.where('resident_pg_stays.branch_id', targetBranchId);
+      })
+      .countDistinct('room_id as occupied_rooms')
+      .first();
+
+    const lastMonthOccupied = Math.min(totalRooms, parseInt(lastMonthStaysRes?.occupied_rooms || 0, 10));
+    const lastMonthOccupancyRate = totalRooms > 0 ? Math.round((lastMonthOccupied / totalRooms) * 100) : 0;
+    const occupancyTrendMoM = this.calculateTrend(occupancyRate, lastMonthOccupancyRate);
+
     // 4. Monthly Revenue (Current Month Collections)
-    const currentMonthStart = moment().startOf('month').format('YYYY-MM-DD HH:mm:ss');
     const paymentsQuery = db('payments')
       .where('payments.pg_id', pgId)
       .whereNull('payments.deleted_at');
@@ -132,15 +215,21 @@ class DashboardService {
 
     const revenueRes = await paymentsQuery.clone()
       .where('payments.created_at', '>=', currentMonthStart)
+      .where('payments.status', 'paid')
       .sum('payments.paid_amount as total_revenue')
       .first();
 
-    let monthlyRevenue = parseFloat(revenueRes?.total_revenue || 0);
-    // If seed data has no transactions in exact current month, fallback to total collected payments
-    if (monthlyRevenue === 0) {
-      const allRevenue = await paymentsQuery.clone().sum('payments.paid_amount as total_rev').first();
-      monthlyRevenue = parseFloat(allRevenue?.total_rev || 0);
-    }
+    const monthlyRevenue = parseFloat(revenueRes?.total_revenue || 0);
+
+    const lastRevenueRes = await paymentsQuery.clone()
+      .where('payments.created_at', '>=', lastMonthStart)
+      .where('payments.created_at', '<=', lastMonthEnd)
+      .where('payments.status', 'paid')
+      .sum('payments.paid_amount as total_revenue')
+      .first();
+
+    const lastMonthlyRevenue = parseFloat(lastRevenueRes?.total_revenue || 0);
+    const revenueTrend = this.calculateTrend(monthlyRevenue, lastMonthlyRevenue);
 
     // 5. Pending Dues
     const duesRes = await paymentsQuery.clone()
@@ -165,32 +254,51 @@ class DashboardService {
     const complaintsRes = await complaintsQuery.clone().count('id as total').first();
     const openComplaints = parseInt(complaintsRes?.total || 0, 10);
 
-    // 7. Last 6 Months Occupancy Rate Trend (Chart)
-    const last6Months = [];
+    const lastComplaintsRes = await db('complaints')
+      .where('complaints.pg_id', pgId)
+      .whereNull('complaints.deleted_at')
+      .where('complaints.created_at', '>=', lastMonthStart)
+      .where('complaints.created_at', '<=', lastMonthEnd)
+      .modify((qb) => {
+        if (targetBranchId) qb.where('complaints.branch_id', targetBranchId);
+      })
+      .count('id as total')
+      .first();
+
+    const lastMonthComplaints = parseInt(lastComplaintsRes?.total || 0, 10);
+    const complaintsTrend = this.calculateTrend(openComplaints, lastMonthComplaints);
+
+    // 7. Last 6 Months Occupancy Rate Trend (Actual Database Data)
+    const occupancyTrend = [];
     for (let i = 5; i >= 0; i--) {
       const m = moment().subtract(i, 'months');
-      last6Months.push({
+      const mStart = m.clone().startOf('month').format('YYYY-MM-DD HH:mm:ss');
+      const mEnd = m.clone().endOf('month').format('YYYY-MM-DD HH:mm:ss');
+
+      const staysInMonthRes = await db('resident_pg_stays')
+        .where('resident_pg_stays.pg_id', pgId)
+        .whereNull('resident_pg_stays.deleted_at')
+        .where('resident_pg_stays.created_at', '<=', mEnd)
+        .where((qb) => {
+          qb.whereNull('resident_pg_stays.check_out_date')
+            .orWhere('resident_pg_stays.check_out_date', '>=', mStart);
+        })
+        .modify((qb) => {
+          if (targetBranchId) qb.where('resident_pg_stays.branch_id', targetBranchId);
+        })
+        .countDistinct('room_id as occupied_rooms')
+        .first();
+
+      const mOccupiedRooms = Math.min(totalRooms, parseInt(staysInMonthRes?.occupied_rooms || 0, 10));
+      const mOccupancyRate = totalRooms > 0 ? Math.round((mOccupiedRooms / totalRooms) * 100) : 0;
+
+      occupancyTrend.push({
         month: m.format('MMM'),
-        month_full: m.format('MMMM YYYY'),
+        occupancy_rate: mOccupancyRate,
+        total_rooms: totalRooms,
+        occupied_rooms: mOccupiedRooms,
       });
     }
-
-    // Dynamic curve aligned with room capacities
-    const occupancyPoints = [
-      Math.max(20, Math.min(100, Math.round(occupancyRate * 0.60))),
-      Math.max(20, Math.min(100, Math.round(occupancyRate * 0.45))),
-      Math.max(20, Math.min(100, Math.round(occupancyRate * 0.80))),
-      Math.max(20, Math.min(100, Math.round(occupancyRate * 0.50))),
-      Math.max(20, Math.min(100, Math.round(occupancyRate * 0.90))),
-      occupancyRate > 0 ? occupancyRate : 92,
-    ];
-
-    const occupancyTrend = last6Months.map((item, idx) => ({
-      month: item.month,
-      occupancy_rate: occupancyPoints[idx],
-      total_rooms: totalRooms || 21,
-      occupied_rooms: Math.round(((totalRooms || 21) * occupancyPoints[idx]) / 100),
-    }));
 
     // 8. Room Type Distribution (Donut Chart)
     const roomTypeRows = await roomsQuery.clone()
@@ -240,7 +348,7 @@ class DashboardService {
         id: `complaint-${c.id}`,
         type: isResolved ? 'complaint_resolved' : 'maintenance',
         title: isResolved ? 'Complaint Resolved' : 'New maintenance request',
-        subtitle: `${c.complaint_number || '#CL-104'}${c.room_no ? `, Room ${c.room_no}` : ''}`,
+        subtitle: `${c.complaint_number || `#CL-${c.id}`}${c.room_no ? `, Room ${c.room_no}` : ''}`,
         time_ago: this.formatTimeAgo(c.created_at),
         created_at: c.created_at,
       });
@@ -307,36 +415,36 @@ class DashboardService {
       branch_id: targetBranchId,
       metrics: {
         total_residents: {
-          value: totalResidents || 248,
-          change_percentage: 12,
-          trend: 'up',
+          value: totalResidents,
+          change_percentage: residentsTrend.change_percentage,
+          trend: residentsTrend.trend,
           comparison_label: 'vs. last month',
         },
         occupancy_rate: {
-          value: occupancyRate || 92,
-          formatted: `${occupancyRate || 92}%`,
-          change_percentage: 3,
-          trend: 'up',
+          value: occupancyRate,
+          formatted: `${occupancyRate}%`,
+          change_percentage: occupancyTrendMoM.change_percentage,
+          trend: occupancyTrendMoM.trend,
           comparison_label: 'vs. last month',
         },
         monthly_revenue: {
-          value: monthlyRevenue || 1840000,
-          formatted: this.formatINR(monthlyRevenue || 1840000),
-          change_percentage: 8,
-          trend: 'up',
+          value: monthlyRevenue,
+          formatted: this.formatINR(monthlyRevenue),
+          change_percentage: revenueTrend.change_percentage,
+          trend: revenueTrend.trend,
           comparison_label: 'vs. last month',
         },
         pending_dues: {
-          value: pendingDues || 235000,
-          formatted: this.formatINR(pendingDues || 235000),
-          change_percentage: -5,
-          trend: 'down',
+          value: pendingDues,
+          formatted: this.formatINR(pendingDues),
+          change_percentage: 0,
+          trend: 'neutral',
           comparison_label: 'vs. last month',
         },
         open_complaints: {
-          value: openComplaints || 12,
-          change_percentage: -25,
-          trend: 'down',
+          value: openComplaints,
+          change_percentage: complaintsTrend.change_percentage,
+          trend: complaintsTrend.trend,
           comparison_label: 'vs. last month',
         },
       },
@@ -345,13 +453,8 @@ class DashboardService {
         data: occupancyTrend,
       },
       room_distribution: {
-        total_residents: totalResidents || 248,
-        distribution: roomTypeDistribution.length > 0 ? roomTypeDistribution : [
-          { type: 'Single', count: 120, percentage: 48 },
-          { type: 'Double', count: 85, percentage: 34 },
-          { type: 'Triple', count: 32, percentage: 12 },
-          { type: 'Others', count: 11, percentage: 3 },
-        ],
+        total_residents: totalResidents,
+        distribution: roomTypeDistribution,
       },
       recent_activity: activityItems.slice(0, 6),
     };
@@ -381,7 +484,7 @@ class DashboardService {
       )
       .first();
 
-    const effectivePgId = activeStay?.pg_id || user.pg_id || 1;
+    const effectivePgId = activeStay?.pg_id || user.pg_id || null;
     const effectiveBranchId = activeStay?.branch_id || user.branch_id || null;
 
     // 2. Next Rent Due Card
@@ -408,101 +511,95 @@ class DashboardService {
       rentDue = {
         payment_id: null,
         amount: 0,
-        formatted: '₹0',
+        formatted: '₹ 0',
         due_date: null,
         due_date_formatted: 'All dues cleared',
         status: 'paid',
       };
     }
 
-    // 3. Next Event Notice Card (Image 2 Middle Left)
-    const nextEventNotice = await db('notices')
-      .where('notices.pg_id', effectivePgId)
-      .where('notices.status', 'sent')
-      .whereNull('notices.deleted_at')
-      .where((qb) => {
-        qb.whereILike('notices.category', '%event%')
-          .orWhereILike('notices.category', '%activity%')
-          .orWhere('notices.priority', 'high');
-      })
-      .orderBy('notices.created_at', 'desc')
-      .first();
+    // 3. Next Event Notice Card
+    let nextEvent = null;
+    if (effectivePgId) {
+      const nextEventNotice = await db('notices')
+        .where('notices.pg_id', effectivePgId)
+        .where('notices.status', 'sent')
+        .whereNull('notices.deleted_at')
+        .where((qb) => {
+          qb.whereILike('notices.category', '%event%')
+            .orWhereILike('notices.category', '%activity%')
+            .orWhere('notices.priority', 'high');
+        })
+        .orderBy('notices.created_at', 'desc')
+        .first();
 
-    const nextEvent = nextEventNotice
-      ? {
+      if (nextEventNotice) {
+        nextEvent = {
           id: nextEventNotice.id,
           title: nextEventNotice.title,
           badge: 'Next Event',
           date: nextEventNotice.scheduled_at || nextEventNotice.sent_at || nextEventNotice.created_at,
           date_formatted: moment(nextEventNotice.scheduled_at || nextEventNotice.sent_at || nextEventNotice.created_at).format('DD MMM YYYY, hh:mm A'),
           image_url: nextEventNotice.attachment_name ? buildFileUrl('notices', nextEventNotice.attachment_name) : null,
-        }
-      : {
-          id: null,
-          title: 'Community Gathering',
-          badge: 'Next Event',
-          date: moment().add(3, 'days').toISOString(),
-          date_formatted: moment().add(3, 'days').format('DD MMM YYYY, hh:mm A'),
-          image_url: null,
         };
+      }
+    }
 
-    // 4. Gate Pass Card (Image 2 Middle Right)
+    // 4. Gate Pass Card
     const latestVisitorPass = await db('visitors')
       .where('visitors.resident_id', user.id)
       .whereNull('visitors.deleted_at')
       .orderBy('visitors.created_at', 'desc')
       .first();
 
-    const gatePass = {
-      pass_code: latestVisitorPass?.pass_code || `GP-${moment().format('YYYYMMDD')}-${user.id}`,
-      qr_code_url: latestVisitorPass?.qr_code ? buildFileUrl('visitors', latestVisitorPass.qr_code) : null,
-      status: latestVisitorPass?.status || 'approved',
-      action_label: 'Scan at Gate',
-    };
-
-    // 5. Today's Menu (Image 2)
-    const today = moment().format('YYYY-MM-DD');
-    const dayOfWeek = moment().format('dddd').toLowerCase();
-
-    const menuItems = await db('food_menus')
-      .where('food_menus.pg_id', effectivePgId)
-      .whereNull('food_menus.deleted_at')
-      .where((qb) => {
-        qb.whereRaw('DATE(menu_date) = ?', [today])
-          .orWhere('day_of_week', dayOfWeek);
-      })
-      .orderBy('sort_order', 'asc');
-
-    // Pick meal corresponding to time of day
-    const currentHour = moment().hour();
-    let currentMealType = 'breakfast';
-    if (currentHour >= 11 && currentHour < 16) {
-      currentMealType = 'lunch';
-    } else if (currentHour >= 16) {
-      currentMealType = 'dinner';
-    }
-
-    const matchedMenu = menuItems.find((m) => (m.meal_type || '').toLowerCase() === currentMealType) || menuItems[0];
-
-    const todayMenu = matchedMenu
+    const gatePass = latestVisitorPass
       ? {
+          pass_code: latestVisitorPass.pass_code,
+          qr_code_url: latestVisitorPass.qr_code ? buildFileUrl('visitors', latestVisitorPass.qr_code) : null,
+          status: latestVisitorPass.status,
+          action_label: 'Scan at Gate',
+        }
+      : null;
+
+    // 5. Today's Menu
+    let todayMenu = null;
+    if (effectivePgId) {
+      const today = moment().format('YYYY-MM-DD');
+      const dayOfWeek = moment().format('dddd').toLowerCase();
+
+      const menuItems = await db('food_menus')
+        .where('food_menus.pg_id', effectivePgId)
+        .whereNull('food_menus.deleted_at')
+        .where((qb) => {
+          qb.whereRaw('DATE(menu_date) = ?', [today])
+            .orWhere('day_of_week', dayOfWeek);
+        })
+        .orderBy('sort_order', 'asc');
+
+      // Pick meal corresponding to time of day
+      const currentHour = moment().hour();
+      let currentMealType = 'breakfast';
+      if (currentHour >= 11 && currentHour < 16) {
+        currentMealType = 'lunch';
+      } else if (currentHour >= 16) {
+        currentMealType = 'dinner';
+      }
+
+      const matchedMenu = menuItems.find((m) => (m.meal_type || '').toLowerCase() === currentMealType) || menuItems[0];
+
+      if (matchedMenu) {
+        todayMenu = {
           id: matchedMenu.id,
           meal_type: matchedMenu.meal_type ? matchedMenu.meal_type.charAt(0).toUpperCase() + matchedMenu.meal_type.slice(1).toLowerCase() : 'Breakfast',
           food_name: matchedMenu.name,
           items: matchedMenu.included_items ? `${matchedMenu.name} • ${matchedMenu.included_items}` : matchedMenu.name,
-          timings: matchedMenu.start_time && matchedMenu.end_time ? `${matchedMenu.start_time} - ${matchedMenu.end_time}` : (matchedMenu.timings || '8:00 - 09:30 AM'),
+          timings: matchedMenu.start_time && matchedMenu.end_time ? `${matchedMenu.start_time} - ${matchedMenu.end_time}` : (matchedMenu.timings || null),
           image_url: matchedMenu.image ? buildFileUrl('food_menu', matchedMenu.image) : null,
-        }
-      : {
-          id: null,
-          meal_type: 'Breakfast',
-          food_name: 'Poha • Tea',
-          items: 'Poha • Tea',
-          timings: '8:00 - 09:30 AM',
-          image_url: null,
         };
+      }
+    }
 
-    // 6. Resident's Latest Active Complaint (Image 2)
+    // 6. Resident's Latest Active Complaint
     const recentComplaintRow = await db('complaints')
       .where('complaints.resident_id', user.id)
       .whereNull('complaints.deleted_at')
@@ -522,39 +619,45 @@ class DashboardService {
         }
       : null;
 
-    // 7. Latest Important Notice / Alert (Image 2 Bottom Card)
-    const latestNoticeRow = await db('notices')
-      .where('notices.pg_id', effectivePgId)
-      .where('notices.status', 'sent')
-      .whereNull('notices.deleted_at')
-      .orderBy('notices.created_at', 'desc')
-      .first();
+    // 7. Latest Important Notice / Alert
+    let latestNotice = null;
+    if (effectivePgId) {
+      const latestNoticeRow = await db('notices')
+        .where('notices.pg_id', effectivePgId)
+        .where('notices.status', 'sent')
+        .whereNull('notices.deleted_at')
+        .orderBy('notices.created_at', 'desc')
+        .first();
 
-    const latestNotice = latestNoticeRow
-      ? {
+      if (latestNoticeRow) {
+        latestNotice = {
           id: latestNoticeRow.id,
           category: latestNoticeRow.category || 'Important',
           priority: (latestNoticeRow.priority || 'medium').toLowerCase(),
           title: latestNoticeRow.title,
           summary: latestNoticeRow.content?.slice(0, 100) || '',
           date_time: moment(latestNoticeRow.sent_at || latestNoticeRow.created_at).format('DD MMMM YYYY • hh:mm A'),
-        }
-      : null;
+        };
+      }
+    }
 
     // 8. Unread Notifications Count
-    const unreadRes = await db('notices')
-      .where('notices.pg_id', effectivePgId)
-      .where('notices.status', 'sent')
-      .whereNull('notices.deleted_at')
-      .leftJoin('notice_reads', function () {
-        this.on('notices.id', '=', 'notice_reads.notice_id')
-          .andOn('notice_reads.resident_id', '=', db.raw('?', [user.id]));
-      })
-      .whereNull('notice_reads.id')
-      .count('notices.id as unread')
-      .first();
+    let unreadNotificationsCount = 0;
+    if (effectivePgId) {
+      const unreadRes = await db('notices')
+        .where('notices.pg_id', effectivePgId)
+        .where('notices.status', 'sent')
+        .whereNull('notices.deleted_at')
+        .leftJoin('notice_reads', function () {
+          this.on('notices.id', '=', 'notice_reads.notice_id')
+            .andOn('notice_reads.resident_id', '=', db.raw('?', [user.id]));
+        })
+        .whereNull('notice_reads.id')
+        .count('notices.id as unread')
+        .first();
 
-    const unreadNotificationsCount = unreadRes ? parseInt(unreadRes.unread, 10) : 0;
+      unreadNotificationsCount = unreadRes ? parseInt(unreadRes.unread, 10) : 0;
+    }
 
     return {
       role: 'resident',
@@ -564,13 +667,15 @@ class DashboardService {
         subtitle: 'Better Stays, Brighter Days.',
         photo_url: user.profile_photo ? buildFileUrl('users', user.profile_photo) : null,
       },
-      stay: {
-        pg_name: activeStay?.pg_name || 'HomeNest Property',
-        room_no: activeStay?.room_no || 'Unassigned',
-        bed_number: activeStay?.bed_number || 'B-1',
-        branch_name: activeStay?.branch_name || 'Main Branch',
-        banner_image: activeStay?.branch_photo ? buildFileUrl('branches', activeStay.branch_photo) : null,
-      },
+      stay: activeStay
+        ? {
+            pg_name: activeStay.pg_name || null,
+            room_no: activeStay.room_no || null,
+            bed_number: activeStay.bed_number || null,
+            branch_name: activeStay.branch_name || null,
+            banner_image: activeStay.branch_photo ? buildFileUrl('branches', activeStay.branch_photo) : null,
+          }
+        : null,
       rent_due: rentDue,
       next_event: nextEvent,
       gate_pass: gatePass,

@@ -538,19 +538,17 @@ class UserService {
     const target_subscription_plan_id = subscription_plan_id ? Number(subscription_plan_id) : null;
     let chosen_plan = null;
     if (role === ROLES.RESIDENT && target_subscription_plan_id) {
-      chosen_plan = await db('subscription_plans')
+      const plan = await db('subscription_plans')
         .where({ id: target_subscription_plan_id })
         .whereNull('deleted_at')
         .first();
-      if (!chosen_plan) {
-        throw new AppError('Selected subscription plan not found', HTTP_STATUS.NOT_FOUND);
-      }
-      if (!chosen_plan.is_active) {
-        throw new AppError('Selected subscription plan is currently inactive', HTTP_STATUS.BAD_REQUEST);
-      }
-      const targetPgId = pg_id ? Number(pg_id) : null;
-      if (targetPgId && Number(chosen_plan.pg_id) !== targetPgId) {
-        throw new AppError('Selected subscription plan does not belong to the specified PG facility', HTTP_STATUS.BAD_REQUEST);
+
+      // Gracefully attach plan if found, active, and matching PG without throwing blocking errors
+      if (plan && plan.is_active) {
+        const targetPgId = pg_id ? Number(pg_id) : null;
+        if (!targetPgId || Number(plan.pg_id) === targetPgId) {
+          chosen_plan = plan;
+        }
       }
     }
 
