@@ -176,6 +176,8 @@ const formatAdminUser = (user, options = {}) => {
     occupation: user.occupation || null,
     profile_photo: user.profile_photo || null,
     profile_photo_url,
+    agreement_file: user.agreement_file || null,
+    agreement_file_url: buildFileUrl('documents', user.agreement_file),
     status: user.status || 'active',
     role: user.role,
     is_complete_profile: true,
@@ -238,6 +240,7 @@ const formatResidentUser = (user, options = {}) => {
   const aadhar_card_url = buildFileUrl('documents', user.aadhar_card);
   const address_proof_url = buildFileUrl('documents', user.address_proof);
   const education_certificate_url = buildFileUrl('documents', user.education_certificate);
+  const agreement_file_url = buildFileUrl('documents', user.agreement_file);
   const signature_url = user.signature && !user.signature.startsWith('data:')
     ? buildFileUrl('documents', user.signature)
     : user.signature || null;
@@ -254,6 +257,8 @@ const formatResidentUser = (user, options = {}) => {
     gender: user.gender || null,
     profile_photo: user.profile_photo || null,
     profile_photo_url,
+    agreement_file: user.agreement_file || null,
+    agreement_file_url: buildFileUrl('documents', user.agreement_file),
     status: user.status || 'active',
     role: user.role || ROLES.RESIDENT,
     is_complete_profile,
@@ -352,6 +357,8 @@ const formatResidentUser = (user, options = {}) => {
       address_proof_url,
       education_certificate: user.education_certificate || null,
       education_certificate_url,
+      agreement_file: user.agreement_file || null,
+      agreement_file_url,
       signature: user.signature || null,
       signature_url,
       terms_accepted: Boolean(user.terms_accepted),
@@ -395,6 +402,8 @@ const formatUserListItem = (user) => {
     gender: user.gender || null,
     status: user.status || 'active',
     profile_photo_url: buildFileUrl('users', user.profile_photo),
+    agreement_file: user.agreement_file || null,
+    agreement_file_url: buildFileUrl('documents', user.agreement_file),
     room_no: user.room_no || null,
     room_type: user.room_type || null,
     building_name: user.building_name || null,
@@ -436,6 +445,7 @@ class UserService {
     'users.status',
     'users.role',
     'users.profile_photo',
+    'users.agreement_file',
     'users.created_at',
     'users.updated_at',
     'users.deleted_at',
@@ -610,6 +620,8 @@ class UserService {
       aadhar_card,
       address_proof,
       education_certificate,
+      agreement_file = null,
+      agreement = null,
       signature,
       terms_accepted,
       role = ROLES.RESIDENT,
@@ -675,15 +687,14 @@ class UserService {
 
     // If resident and room allocation is requested, validate upfront
     let target_room = null;
+    let target_pg_id = pg_id;
     if (role === ROLES.RESIDENT && (room_id || (room_no && pg_id))) {
       if (room_id) {
         target_room = await db('rooms').where({ id: room_id }).whereNull('deleted_at').first();
         if (!target_room) {
           throw new AppError('Room not found', HTTP_STATUS.NOT_FOUND);
         }
-        if (pg_id && Number(target_room.pg_id) !== Number(pg_id)) {
-          throw new AppError('Selected room does not belong to the specified PG facility', HTTP_STATUS.BAD_REQUEST);
-        }
+        target_pg_id = target_room.pg_id;
       } else if (room_no && pg_id) {
         target_room = await db('rooms').where({ pg_id, room_no }).whereNull('deleted_at').first();
         if (!target_room) {
@@ -724,6 +735,7 @@ class UserService {
         aadhar_card: aadhar_card || null,
         address_proof: address_proof || null,
         education_certificate: education_certificate || null,
+        agreement_file: agreement_file || agreement || null,
         signature: signature || null,
         terms_accepted: Boolean(
           terms_accepted === true ||
@@ -876,8 +888,9 @@ class UserService {
         }
       }
 
-      if (!allocatedPgName && pg_id) {
-        const directPg = await trx('pgs').where({ id: pg_id }).first();
+      const effectivePg = target_pg_id || pg_id;
+      if (!allocatedPgName && effectivePg) {
+        const directPg = await trx('pgs').where({ id: effectivePg }).first();
         if (directPg) {
           allocatedPgName = directPg.name;
         }
@@ -908,7 +921,7 @@ class UserService {
     }
 
     auditService.log({
-      pg_id: pg_id || user_data.pg_id,
+      pg_id: target_pg_id || pg_id || user_data.pg_id,
       branch_id: branch_id || user_data.branch_id,
       module: AUDIT_MODULES.USER,
       action: AUDIT_ACTIONS.CREATE,
@@ -1126,6 +1139,13 @@ class UserService {
       deleteFn: deleteDocumentFile,
     });
 
+    const prevAgreement = existing.documents?.agreement_file || existing.agreement_file;
+    const agreementFileUpdate = resolveFileUpdate({
+      fieldValue: update_data.agreement_file !== undefined ? update_data.agreement_file : update_data.agreement,
+      existingFilename: prevAgreement,
+      deleteFn: deleteDocumentFile,
+    });
+
     const prevSignature = existing.documents?.signature || existing.signature;
     const signatureUpdate = resolveFileUpdate({
       fieldValue: update_data.signature,
@@ -1165,6 +1185,7 @@ class UserService {
       ...(aadharUpdate.shouldUpdate && { aadhar_card: aadharUpdate.newFilename }),
       ...(addressProofUpdate.shouldUpdate && { address_proof: addressProofUpdate.newFilename }),
       ...(certUpdate.shouldUpdate && { education_certificate: certUpdate.newFilename }),
+      ...(agreementFileUpdate.shouldUpdate && { agreement_file: agreementFileUpdate.newFilename }),
       ...(signatureUpdate.shouldUpdate && { signature: signatureUpdate.newFilename }),
       ...(update_data.terms_accepted !== undefined && {
         terms_accepted: Boolean(
@@ -1212,10 +1233,8 @@ class UserService {
         if (!target_room) {
           throw new AppError('Room not found', HTTP_STATUS.NOT_FOUND);
         }
-        const effective_pg_id = update_data.pg_id || active_stay?.pg_id;
-        if (effective_pg_id && Number(target_room.pg_id) !== Number(effective_pg_id)) {
-          throw new AppError('Selected room does not belong to the specified PG facility', HTTP_STATUS.BAD_REQUEST);
-        }
+        // Room belongs to target_room.pg_id
+        const effective_pg_id = target_room.pg_id;
       }
 
       if (active_stay) {

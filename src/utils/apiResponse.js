@@ -113,7 +113,7 @@ export const successMessage = (res, message, statusCode = HTTP_STATUS.OK) => {
  * @param {number} [statusCode=200] - HTTP status code (201 for create, 200 for update/delete)
  * @returns {import('express').Response}
  */
-export const successAction = (res, message, id, statusCode = HTTP_STATUS.OK) => {
+export const successAction = (res, message, id, statusCode = HTTP_STATUS.OK, data = null) => {
   const resolvedId = (typeof id === 'object' && id !== null && id.id !== undefined)
     ? id.id
     : id;
@@ -127,11 +127,17 @@ export const successAction = (res, message, id, statusCode = HTTP_STATUS.OK) => 
     ? numericStatusCode
     : HTTP_STATUS.OK;
 
-  return res.status(finalStatusCode).json({
+  const payload = {
     success: true,
     message,
     id: normalizedId,
-  });
+  };
+
+  if (data !== null && data !== undefined) {
+    payload.data = formatResponseDates(data);
+  }
+
+  return res.status(finalStatusCode).json(payload);
 };
 
 /**

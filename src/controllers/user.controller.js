@@ -17,10 +17,12 @@ export const createUser = async (req, res, next) => {
       req.body.profile_photo = req.file.filename;
     }
 
-    const pg_id = req.body.pg_id ? Number(req.body.pg_id) : req.pg_id;
+    const is_admin = req.user?.role === ROLES.ADMIN;
+    const adminPgId = is_admin ? (req.pg_id || req.user?.pg?.id || req.user?.pg_id) : undefined;
+    const pg_id = adminPgId || (req.body.pg_id ? Number(req.body.pg_id) : req.pg_id);
     const branch_id = req.body.branch_id ? Number(req.body.branch_id) : undefined;
     const user = await userService.create({ ...req.body, pg_id, branch_id });
-    return successAction(res, 'User created successfully', user.id, HTTP_STATUS.CREATED);
+    return successAction(res, 'User created successfully', user.id, HTTP_STATUS.CREATED, user);
   } catch (err) {
     next(err);
   }
@@ -113,7 +115,7 @@ export const updateProfile = async (req, res, next) => {
     }
 
     const updated_user = await userService.update(req.user.id, req.body);
-    return successAction(res, 'Profile updated successfully', updated_user.id, HTTP_STATUS.OK);
+    return successAction(res, 'Profile updated successfully', updated_user.id, HTTP_STATUS.OK, updated_user);
   } catch (err) {
     next(err);
   }
@@ -131,7 +133,7 @@ export const updateUser = async (req, res, next) => {
     }
 
     const updated_user = await userService.update(id, req.body);
-    return successAction(res, 'User updated successfully', updated_user.id, HTTP_STATUS.OK);
+    return successAction(res, 'User updated successfully', updated_user.id, HTTP_STATUS.OK, updated_user);
   } catch (err) {
     next(err);
   }

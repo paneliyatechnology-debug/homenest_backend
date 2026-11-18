@@ -55,7 +55,7 @@ const rooms_storage = multer.diskStorage({
 // Users/Residents profile & documents storage
 const users_storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    if (['aadhar_card', 'address_proof', 'education_certificate', 'signature'].includes(file.fieldname)) {
+    if (['aadhar_card', 'address_proof', 'education_certificate', 'signature', 'agreement_file', 'agreement'].includes(file.fieldname)) {
       cb(null, documents_upload_dir);
     } else {
       cb(null, users_upload_dir);
@@ -63,7 +63,7 @@ const users_storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    const prefix = ['aadhar_card', 'address_proof', 'education_certificate', 'signature'].includes(file.fieldname)
+    const prefix = ['aadhar_card', 'address_proof', 'education_certificate', 'signature', 'agreement_file', 'agreement'].includes(file.fieldname)
       ? `doc-${file.fieldname}`
       : 'user';
     const unique_name = `${prefix}-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
@@ -159,6 +159,8 @@ export const handleUserPhotoUpload = (req, res, next) => {
       { name: 'address_proof', maxCount: 1 },
       { name: 'education_certificate', maxCount: 1 },
       { name: 'signature', maxCount: 1 },
+      { name: 'agreement_file', maxCount: 1 },
+      { name: 'agreement', maxCount: 1 },
     ])(req, res, (err) => {
       if (err) {
         if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
@@ -191,6 +193,11 @@ export const handleUserPhotoUpload = (req, res, next) => {
       }
       if (req.files?.signature?.[0]) {
         req.body.signature = req.files.signature[0].filename;
+      }
+      if (req.files?.agreement_file?.[0]) {
+        req.body.agreement_file = req.files.agreement_file[0].filename;
+      } else if (req.files?.agreement?.[0]) {
+        req.body.agreement_file = req.files.agreement[0].filename;
       }
 
       next();

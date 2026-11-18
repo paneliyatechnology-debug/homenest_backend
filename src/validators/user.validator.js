@@ -52,7 +52,14 @@ export const roomAllocationValidators = [
     .toInt()
     .isInt({ min: 1 })
     .withMessage('PG ID must be a valid integer')
-    .custom(async (pg_id) => {
+    .custom(async (pg_id, { req }) => {
+      const adminPgId = req.user?.role === ROLES.ADMIN
+        ? (req.pg_id || req.user?.pg?.id || req.user?.pg_id)
+        : null;
+      if (adminPgId) {
+        req.body.pg_id = adminPgId;
+        return true;
+      }
       const pg = await db('pgs').where({ id: pg_id }).whereNull('deleted_at').first();
       if (!pg) {
         throw new Error('PG facility not found');
@@ -70,9 +77,27 @@ export const roomAllocationValidators = [
       if (!room) {
         throw new Error('Room not found');
       }
-      const targetPgId = req.body?.pg_id ? Number(req.body.pg_id) : (req.pg_id ? Number(req.pg_id) : null);
-      if (targetPgId && Number(room.pg_id) !== targetPgId) {
-        throw new Error('Selected room does not belong to the specified PG facility');
+
+      // If user is Admin, their PG is strictly their owned/authorized PG
+      const adminPgId = req.user?.role === ROLES.ADMIN
+        ? (req.pg_id || req.user?.pg?.id || req.user?.pg_id)
+        : null;
+
+      if (adminPgId && Number(room.pg_id) !== Number(adminPgId)) {
+        throw new Error('Selected room does not belong to your PG facility');
+      }
+
+      // If super_admin provided a pg_id, verify against it
+      if (req.user?.role === ROLES.SUPER_ADMIN && req.body?.pg_id) {
+        if (Number(room.pg_id) !== Number(req.body.pg_id)) {
+          throw new Error('Selected room does not belong to the specified PG facility');
+        }
+      }
+
+      // Sync authentic PG & branch from the room onto request
+      req.body.pg_id = room.pg_id;
+      if (room.branch_id && !req.body.branch_id) {
+        req.body.branch_id = room.branch_id;
       }
       return true;
     }),
@@ -82,7 +107,9 @@ export const roomAllocationValidators = [
     .trim()
     .custom(async (room_no, { req }) => {
       if (req.body?.room_id) return true;
-      const targetPgId = req.body?.pg_id ? Number(req.body.pg_id) : (req.pg_id ? Number(req.pg_id) : null);
+      const targetPgId = req.user?.role === ROLES.ADMIN
+        ? (req.pg_id || req.user?.pg?.id || req.user?.pg_id)
+        : (req.body?.pg_id ? Number(req.body.pg_id) : (req.pg_id ? Number(req.pg_id) : null));
       if (targetPgId && room_no) {
         const room = await db('rooms').where({ pg_id: targetPgId, room_no }).whereNull('deleted_at').first();
         if (!room) {
@@ -252,6 +279,12 @@ export const createUserValidator = [
   body('education_certificate')
     .optional({ checkFalsy: true }),
 
+  body('agreement_file')
+    .optional({ checkFalsy: true }),
+
+  body('agreement')
+    .optional({ checkFalsy: true }),
+
   body('profile_photo')
     .optional({ checkFalsy: true }),
 
@@ -382,6 +415,12 @@ export const updateUserValidator = [
     .optional({ checkFalsy: true }),
 
   body('education_certificate')
+    .optional({ checkFalsy: true }),
+
+  body('agreement_file')
+    .optional({ checkFalsy: true }),
+
+  body('agreement')
     .optional({ checkFalsy: true }),
 
   body('profile_photo')
@@ -547,6 +586,12 @@ export const updateProfileValidator = [
     .optional({ checkFalsy: true }),
 
   body('education_certificate')
+    .optional({ checkFalsy: true }),
+
+  body('agreement_file')
+    .optional({ checkFalsy: true }),
+
+  body('agreement')
     .optional({ checkFalsy: true }),
 
   // Section 4: Agreement & Signature

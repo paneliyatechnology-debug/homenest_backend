@@ -914,7 +914,7 @@
                 "me"
               ]
             },
-            "description": "### Get Current User Profile (GET /api/v1/auth/me)\n\nRetrieves the currently authenticated user profile.\n\n---\n#### Response Highlights:\n- **`is_complete_profile` (Boolean)**: Returns `true` if all required onboarding profile fields (Personal Details, Address & Emergency Contact, Document Uploads, Room Selection, and Agreement & Signature) are filled; returns `false` if any required field is missing.\n- For Admin / Super Admin accounts, `is_complete_profile` returns `true`.\n- Contains structured `personal_info`, `contact_info`, `room_info`, and `documents`."
+            "description": "### Get Current User Profile (GET /api/v1/auth/me)\n\nRetrieves the currently authenticated user profile.\n\n---\n#### Response Highlights:\n- **`is_complete_profile` (Boolean)**: Returns `true` if all required onboarding profile fields (Personal Details, Address & Emergency Contact, Document Uploads, Room Selection, and Agreement & Signature) are filled; returns `false` if any required field is missing.\n- For Admin / Super Admin accounts, `is_complete_profile` returns `true`.\n- Contains structured `personal_info`, `contact_info`, `room_info`, and `documents` (including `agreement_file` and `agreement_file_url`)."
           },
           "response": []
         }
@@ -2403,6 +2403,12 @@
                   "value": "true",
                   "type": "text",
                   "description": "[OPTIONAL] Terms accepted indicator (true | false)"
+                },
+                {
+                  "key": "agreement_file",
+                  "type": "file",
+                  "src": "",
+                  "description": "Optional resident agreement document file (PDF, JPG, PNG, max 5MB)"
                 }
               ]
             },
@@ -2702,6 +2708,12 @@
                   "value": "Software Engineer",
                   "type": "text",
                   "description": "[OPTIONAL] Occupation"
+                },
+                {
+                  "key": "agreement_file",
+                  "type": "file",
+                  "src": "",
+                  "description": "Optional resident agreement document file (PDF, JPG, PNG, max 5MB)"
                 }
               ]
             },
@@ -2717,7 +2729,7 @@
                 "profile"
               ]
             },
-            "description": "### Update Profile (Resident / Admin)\n\nUpdates currently logged-in user profile.\n- **Resident role**: Validates all onboarding fields (personal, address, documents, agreement, signature).\n- **Response**: Returns updated profile including `is_complete_profile: true/false` reflecting current completion status.\n\n---\n#### Form Fields:\n- **Personal Details**: `name`, `date_of_birth`, `gender`, `phone`, `email`, `nationality`, `marital_status`, `occupation`.\n- **Address & Emergency**: `address_line_1`, `address`, `city`, `state`, `pincode`, `emergency_contact_name`, `emergency_contact_relationship`, `emergency_contact_phone`.\n- **Documents (Files)**: `profile_photo`, `aadhar_card`, `address_proof`, `education_certificate`.\n- **Agreement & Signature**: `terms_accepted` (`true` / `false`), `signature` (File / Data URL)."
+            "description": "### Update Profile (Resident / Admin)\n\nUpdates currently logged-in user profile.\n- **Resident role**: Validates all onboarding fields (personal, address, documents, agreement, signature).\n- **Response**: Returns updated profile including `is_complete_profile: true/false` reflecting current completion status.\n\n---\n#### Form Fields:\n- **Personal Details**: `name`, `date_of_birth`, `gender`, `phone`, `email`, `nationality`, `marital_status`, `occupation`.\n- **Address & Emergency**: `address_line_1`, `address`, `city`, `state`, `pincode`, `emergency_contact_name`, `emergency_contact_relationship`, `emergency_contact_phone`.\n- **Documents (Files)**: `profile_photo`, `aadhar_card`, `address_proof`, `education_certificate`, `agreement_file` (Optional Agreement Document).\n- **Agreement & Signature**: `terms_accepted` (`true` / `false`), `signature` (File / Data URL)."
           },
           "response": []
         },
@@ -2744,7 +2756,7 @@
                 "{{userId}}"
               ]
             },
-            "description": "### GET /api/v1/users/:id\nProtected (Any authenticated user). Retrieves comprehensive resident/user details matching the Admin Resident Profile portal:\n- **Overview**: Personal info (name, DOB, calculated age, gender, nationality, marital status, occupation)\n- **Room Information**: Room number, room type, capacity, building name, floor number/name, bed number, monthly rent, security deposit, check-in date, expected check-out, current status\n- **Contact Information**: Phone, email, emergency contact person & relationship, emergency phone, residential address, city, state, pincode, location display\n- **Documents**: URLs and filenames for Aadhar card, passport size photo, address proof, education certificate, digital signature, and terms & conditions agreement timestamp\n- **Stays**: Complete history of stays across PG facilities."
+            "description": "### GET /api/v1/users/:id\nProtected (Any authenticated user). Retrieves comprehensive resident/user details matching the Admin Resident Profile portal:\n- **Overview**: Personal info (name, DOB, calculated age, gender, nationality, marital status, occupation)\n- **Room Information**: Room number, room type, capacity, building name, floor number/name, bed number, monthly rent, security deposit, check-in date, expected check-out, current status\n- **Contact Information**: Phone, email, emergency contact person & relationship, emergency phone, residential address, city, state, pincode, location display\n- **Documents**: URLs and filenames for Aadhar card, passport size photo, address proof, education certificate, agreement document (agreement_file_url), digital signature, and terms & conditions agreement timestamp\n- **Stays**: Complete history of stays across PG facilities."
           },
           "response": []
         },
@@ -2911,6 +2923,12 @@
                   "type": "file",
                   "src": [],
                   "description": "Optional file or text. Digital signature."
+                },
+                {
+                  "key": "agreement_file",
+                  "type": "file",
+                  "src": "",
+                  "description": "Optional resident agreement document file (PDF, JPG, PNG, max 5MB)"
                 }
               ]
             },
