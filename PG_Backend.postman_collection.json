@@ -327,7 +327,7 @@
                   "key": "password",
                   "value": "OwnerPassword@123",
                   "type": "text",
-                  "description": "[REQUIRED] Password (min 6 characters)"
+                  "description": "[OPTIONAL] Secure account password (min 6 characters). If omitted, a secure random password is generated and sent via welcome email."
                 },
                 {
                   "key": "phone",
@@ -371,12 +371,6 @@
                   "value": "9876543221",
                   "type": "text",
                   "description": "[REQUIRED] Official PG contact phone (10 digits)"
-                },
-                {
-                  "key": "pg_email",
-                  "value": "sunshine@housenest.com",
-                  "type": "text",
-                  "description": "[OPTIONAL] Official PG email address"
                 },
                 {
                   "key": "pg_address",
@@ -477,7 +471,7 @@
                 "register-pg"
               ]
             },
-            "description": "### Register PG Owner & Facility\n\nOnboards a new PG Owner account and atomically registers their initial PG facility and primary branch.\nSupports **multipart/form-data** with optional files (`profile_photo` and `logo`).\n\n---\n#### Form Fields:\n- **Owner Account**:\n  - `name` [REQUIRED] Full name of PG owner (2-100 characters).\n  - `email` [REQUIRED] Email address (used for owner login).\n  - `password` [REQUIRED] Secure account password (minimum 6 characters).\n  - `phone` [OPTIONAL] 10-digit mobile number.\n  - `gender` [OPTIONAL] `male` | `female` | `other`.\n  - `address` [OPTIONAL] Owner's personal address.\n  - `profile_photo` [OPTIONAL - File] Owner avatar image (JPG, PNG, WebP, max 5MB).\n- **PG Facility Details**:\n  - `pg_name` [REQUIRED] Name of the PG establishment (e.g., \"HomeNest Luxury PG\").\n  - `pg_type` [REQUIRED] `boys` | `girls` | `co-ed`.\n  - `pg_phone` [REQUIRED] Primary phone number for the PG facility.\n  - `pg_email` [OPTIONAL] Official PG email (defaults to owner email if omitted).\n  - `pg_address` [REQUIRED] Street address of the PG facility.\n  - `pg_city` [REQUIRED] City location.\n  - `pg_state` [REQUIRED] State location.\n  - `pg_pincode` [REQUIRED] 6-digit Indian PIN code.\n  - `total_rooms` [OPTIONAL] Total number of rooms in initial branch (Default: 10).\n  - `total_beds` [OPTIONAL] Total bed capacity in initial branch.\n  - `amenities` [OPTIONAL] JSON string or comma-separated list (e.g. `[\"WiFi\", \"AC\", \"Laundry\", \"Daily Cleaning\", \"Meals\"]`).\n  - `rules` [OPTIONAL] House rules text for residents.\n  - `logo` [OPTIONAL - File] PG facility branding logo (JPG, PNG, WebP, max 5MB).\n- **PG Bank & Settlement Details**:\n  - `pg_upi_id` [OPTIONAL] UPI VPA ID for digital payments (e.g. `pgowner@okhdfcbank`).\n  - `pg_bank_name` [OPTIONAL] Beneficiary Bank Name (e.g. \"HDFC Bank\").\n  - `pg_account_number` [OPTIONAL] Bank account number.\n  - `pg_ifsc_code` [OPTIONAL] 11-digit IFSC code.\n  - `pg_account_holder_name` [OPTIONAL] Beneficiary name as per bank records."
+            "description": "### Register PG Owner & Facility\n\nOnboards a new PG Owner account and atomically registers their initial PG facility and primary branch.\nSupports **multipart/form-data** with optional files (`profile_photo` and `logo`).\n\n---\n#### Form Fields:\n- **Owner Account**:\n  - `name` [REQUIRED] Full name of PG owner (2-100 characters).\n  - `email` [REQUIRED] Email address (used for owner login).\n  - `password` [OPTIONAL] Secure account password (minimum 6 characters). If omitted, a secure random password is generated and sent via welcome email.\n  - `phone` [OPTIONAL] 10-digit mobile number.\n  - `gender` [OPTIONAL] `male` | `female` | `other`.\n  - `address` [OPTIONAL] Owner's personal address.\n  - `profile_photo` [OPTIONAL - File] Owner avatar image (JPG, PNG, WebP, max 5MB).\n- **PG Facility Details**:\n  - `pg_name` [REQUIRED] Name of the PG establishment (e.g., \"HomeNest Luxury PG\").\n  - `pg_type` [REQUIRED] `boys` | `girls` | `co-ed`.\n  - `pg_phone` [REQUIRED] Primary phone number for the PG facility.\n  - `pg_address` [REQUIRED] Street address of the PG facility.\n  - `pg_city` [REQUIRED] City location.\n  - `pg_state` [REQUIRED] State location.\n  - `pg_pincode` [REQUIRED] 6-digit Indian PIN code.\n  - `total_rooms` [OPTIONAL] Total number of rooms in initial branch (Default: 10).\n  - `total_beds` [OPTIONAL] Total bed capacity in initial branch.\n  - `amenities` [OPTIONAL] JSON string or comma-separated list (e.g. `[\"WiFi\", \"AC\", \"Laundry\", \"Daily Cleaning\", \"Meals\"]`).\n  - `rules` [OPTIONAL] House rules text for residents.\n  - `logo` [OPTIONAL - File] PG facility branding logo (JPG, PNG, WebP, max 5MB).\n- **PG Bank & Settlement Details**:\n  - `pg_upi_id` [OPTIONAL] UPI VPA ID for digital payments (e.g. `pgowner@okhdfcbank`).\n  - `pg_bank_name` [OPTIONAL] Beneficiary Bank Name (e.g. \"HDFC Bank\").\n  - `pg_account_number` [OPTIONAL] Bank account number.\n  - `pg_ifsc_code` [OPTIONAL] 11-digit IFSC code.\n  - `pg_account_holder_name` [OPTIONAL] Beneficiary name as per bank records."
           },
           "response": []
         },

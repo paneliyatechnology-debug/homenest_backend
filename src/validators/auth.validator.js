@@ -47,10 +47,9 @@ export const registerOwnerWithPgValidator = [
     }),
 
   body('password')
-    .notEmpty()
-    .withMessage('Owner password is required')
+    .optional({ checkFalsy: true })
     .isLength({ min: 6 })
-    .withMessage('Owner password must be at least 6 characters long'),
+    .withMessage('Owner password must be at least 6 characters long if provided'),
 
   body('phone')
     .trim()
@@ -98,12 +97,6 @@ export const registerOwnerWithPgValidator = [
     .trim()
     .matches(/^(\+91[\-\s]?)?[6-9]\d{9}$/)
     .withMessage('Please provide a valid 10-digit PG contact phone number'),
-
-  body('pg_email')
-    .optional({ checkFalsy: true })
-    .trim()
-    .isEmail()
-    .withMessage('Please provide a valid PG contact email'),
 
   body('pg_address')
     .trim()
