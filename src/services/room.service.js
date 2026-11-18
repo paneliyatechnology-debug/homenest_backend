@@ -102,15 +102,14 @@ export const create = async (data) => {
     if (defaultBranch) branch_id = defaultBranch.id;
   }
 
-  // Enforce unique room number within the same branch among active rooms
-  const roomFilter = branch_id ? { branch_id, room_no } : { pg_id, room_no };
+  // Enforce unique room number on the same floor among active rooms (duplicates allowed across different floors)
   const existing_room = await db('rooms')
-    .where(roomFilter)
+    .where({ floor_id, room_no })
     .whereNull('deleted_at')
     .first();
   if (existing_room) {
     throw new AppError(
-      `Room '${room_no}' already exists in this branch`,
+      `Room '${room_no}' already exists on this floor`,
       HTTP_STATUS.CONFLICT
     );
   }
@@ -370,17 +369,20 @@ export const update = async (id, data) => {
 
   const branch_id = input_branch_id !== undefined ? Number(input_branch_id) : room.branch_id;
 
-  // Enforce unique room number in branch if room number was modified
-  if (room_no && (room_no !== room.room_no || branch_id !== room.branch_id)) {
-    const filter = branch_id ? { branch_id, room_no } : { pg_id: room.pg_id, room_no };
+  // Enforce unique room number on the same floor if room_no or floor_id was modified
+  if (
+    (room_no !== undefined && room_no !== room.room_no) ||
+    (input_floor_id !== undefined && targetFloorId !== room.floor_id)
+  ) {
+    const checkRoomNo = room_no !== undefined ? room_no : room.room_no;
     const duplicate = await db('rooms')
-      .where(filter)
+      .where({ floor_id: targetFloorId, room_no: checkRoomNo })
       .whereNot('id', id)
       .whereNull('deleted_at')
       .first();
     if (duplicate) {
       throw new AppError(
-        `Room '${room_no}' already exists in this branch`,
+        `Room '${checkRoomNo}' already exists on this floor`,
         HTTP_STATUS.CONFLICT
       );
     }
@@ -548,6 +550,9 @@ export const getBuildingsAndFloors = async (options = {}) => {
     .join('pgs', (join) => {
       join.on('buildings.pg_id', '=', 'pgs.id').andOnNull('pgs.deleted_at');
     })
+    .leftJoin('branches', (join) => {
+      join.on('buildings.branch_id', '=', 'branches.id').andOnNull('branches.deleted_at');
+    })
     .modify((qb) => {
       if (owner_id) {
         qb.where('pgs.owner_id', owner_id);
@@ -562,6 +567,8 @@ export const getBuildingsAndFloors = async (options = {}) => {
     .select(
       'buildings.id as building_id',
       'buildings.name as building_name',
+      'buildings.branch_id',
+      'branches.name as branch_name',
       'buildings.pg_id',
       'pgs.name as pg_name'
     )
@@ -612,6 +619,8 @@ export const getBuildingsAndFloors = async (options = {}) => {
     return {
       building_id: b.building_id,
       building_name: b.building_name,
+      branch_id: b.branch_id,
+      branch_name: b.branch_name,
       floors: floor_numbers,
       floor_details: bFloors,
       total_floors: bFloors.length,

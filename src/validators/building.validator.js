@@ -90,7 +90,20 @@ export const createBuildingValidator = [
     .notEmpty()
     .withMessage('Building name is required')
     .isLength({ min: 1, max: 100 })
-    .withMessage('Building name must be between 1 and 100 characters'),
+    .withMessage('Building name must be between 1 and 100 characters')
+    .custom(async (name, { req }) => {
+      const branch_id = req.body.branch_id;
+      if (!branch_id) return true;
+      const existing = await db('buildings')
+        .where({ branch_id: Number(branch_id) })
+        .whereRaw('LOWER(TRIM(name)) = ?', [String(name).trim().toLowerCase()])
+        .whereNull('deleted_at')
+        .first();
+      if (existing) {
+        throw new Error(`Building '${name.trim()}' already exists in this branch`);
+      }
+      return true;
+    }),
 
   body('total_floors')
     .optional({ checkFalsy: true })
@@ -107,7 +120,32 @@ export const createBuildingValidator = [
   body('floors')
     .optional()
     .isArray()
-    .withMessage('Floors must be an array of floor definitions'),
+    .withMessage('Floors must be an array of floor definitions')
+    .custom((floors) => {
+      if (!Array.isArray(floors)) return true;
+      const seenNames = new Set();
+      const seenNumbers = new Set();
+      for (const f of floors) {
+        if (!f || typeof f !== 'object') continue;
+        if (f.name && String(f.name).trim()) {
+          const norm = String(f.name).trim().toLowerCase();
+          if (seenNames.has(norm)) {
+            throw new Error(`Floor name '${String(f.name).trim()}' cannot be duplicated in the same building`);
+          }
+          seenNames.add(norm);
+        }
+        if (f.floor_number !== undefined && f.floor_number !== null && f.floor_number !== '') {
+          const num = Number(f.floor_number);
+          if (!isNaN(num)) {
+            if (seenNumbers.has(num)) {
+              throw new Error(`Floor number '${num}' cannot be duplicated in the same building`);
+            }
+            seenNumbers.add(num);
+          }
+        }
+      }
+      return true;
+    }),
 
   body('floors.*.floor_number')
     .optional()
@@ -152,7 +190,23 @@ export const updateBuildingValidator = [
     .notEmpty()
     .withMessage('Building name cannot be empty')
     .isLength({ min: 1, max: 100 })
-    .withMessage('Building name must be between 1 and 100 characters'),
+    .withMessage('Building name must be between 1 and 100 characters')
+    .custom(async (name, { req }) => {
+      const buildingId = req.params.id;
+      const currentBuilding = await db('buildings').where({ id: buildingId }).whereNull('deleted_at').first();
+      if (!currentBuilding) return true;
+      const branch_id = req.body.branch_id !== undefined ? Number(req.body.branch_id) : currentBuilding.branch_id;
+      const existing = await db('buildings')
+        .where({ branch_id })
+        .whereRaw('LOWER(TRIM(name)) = ?', [String(name).trim().toLowerCase()])
+        .whereNull('deleted_at')
+        .whereNot({ id: buildingId })
+        .first();
+      if (existing) {
+        throw new Error(`Building '${name.trim()}' already exists in this branch`);
+      }
+      return true;
+    }),
 
   body('total_floors')
     .optional({ checkFalsy: true })
@@ -163,7 +217,32 @@ export const updateBuildingValidator = [
   body('floors')
     .optional()
     .isArray()
-    .withMessage('Floors must be an array of floor definitions'),
+    .withMessage('Floors must be an array of floor definitions')
+    .custom((floors) => {
+      if (!Array.isArray(floors)) return true;
+      const seenNames = new Set();
+      const seenNumbers = new Set();
+      for (const f of floors) {
+        if (!f || typeof f !== 'object') continue;
+        if (f.name && String(f.name).trim()) {
+          const norm = String(f.name).trim().toLowerCase();
+          if (seenNames.has(norm)) {
+            throw new Error(`Floor name '${String(f.name).trim()}' cannot be duplicated in the same building`);
+          }
+          seenNames.add(norm);
+        }
+        if (f.floor_number !== undefined && f.floor_number !== null && f.floor_number !== '') {
+          const num = Number(f.floor_number);
+          if (!isNaN(num)) {
+            if (seenNumbers.has(num)) {
+              throw new Error(`Floor number '${num}' cannot be duplicated in the same building`);
+            }
+            seenNumbers.add(num);
+          }
+        }
+      }
+      return true;
+    }),
 
   body('floors.*.id')
     .optional({ checkFalsy: true })

@@ -901,7 +901,7 @@ class UserService {
         pgName: allocatedPgName,
         roomNo: allocatedRoomNo,
         bedNumber: allocatedBedNumber,
-        loginUrl: `${config.frontendUrl}/login`,
+        loginUrl: `${config.frontendUrl}`,
 
         dueAmount: allocatedTotalDue > 0 ? allocatedTotalDue : null,
         rentAmount: allocatedRentVal,

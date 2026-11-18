@@ -116,15 +116,16 @@ export class BuildingService {
       throw new AppError('PG facility not found', HTTP_STATUS.NOT_FOUND);
     }
 
-    // Enforce unique building name within the target branch
+    // Enforce unique building name within the target branch (duplicates allowed across different branches)
     const existing = await db('buildings')
-      .where({ branch_id, name: String(name).trim() })
+      .where({ branch_id })
+      .whereRaw('LOWER(TRIM(name)) = ?', [String(name).trim().toLowerCase()])
       .whereNull('deleted_at')
       .first();
 
     if (existing) {
       throw new AppError(
-        `Building '${name}' already exists in this branch`,
+        `Building '${name.trim()}' already exists in this branch`,
         HTTP_STATUS.CONFLICT
       );
     }
@@ -157,6 +158,30 @@ export class BuildingService {
         floor_number: 1,
         name: '1st Floor',
       });
+    }
+
+    // Enforce unique floor names and floor numbers within this building (duplicates allowed across different buildings)
+    const seenFloorNames = new Set();
+    const seenFloorNumbers = new Set();
+    for (const f of floorsToInsert) {
+      const norm = String(f.name).trim().toLowerCase();
+      if (seenFloorNames.has(norm)) {
+        throw new AppError(
+          `Floor name '${f.name}' cannot be duplicated in the same building`,
+          HTTP_STATUS.CONFLICT
+        );
+      }
+      seenFloorNames.add(norm);
+
+      if (f.floor_number !== undefined && f.floor_number !== null) {
+        if (seenFloorNumbers.has(f.floor_number)) {
+          throw new AppError(
+            `Floor number '${f.floor_number}' cannot be duplicated in the same building`,
+            HTTP_STATUS.CONFLICT
+          );
+        }
+        seenFloorNumbers.add(f.floor_number);
+      }
     }
 
     const createdBuildingId = await db.transaction(async (trx) => {
@@ -440,7 +465,8 @@ export class BuildingService {
     ) {
       const checkName = name ? name.trim() : building.name;
       const existing = await db('buildings')
-        .where({ branch_id: targetBranchId, name: checkName })
+        .where({ branch_id: targetBranchId })
+        .whereRaw('LOWER(TRIM(name)) = ?', [checkName.toLowerCase()])
         .whereNull('deleted_at')
         .whereNot({ id })
         .first();
@@ -452,6 +478,38 @@ export class BuildingService {
         );
       }
       if (name) update_payload.name = name.trim();
+    }
+
+    // Validate floor names and numbers within this building if floors array is passed
+    if (Array.isArray(floors)) {
+      const seenFloorNames = new Set();
+      const seenFloorNumbers = new Set();
+      for (const f of floors) {
+        if (!f || typeof f !== 'object') continue;
+        const fNum = f.floor_number !== undefined && f.floor_number !== null ? Number(f.floor_number) : null;
+        const fName = f.name && String(f.name).trim() ? String(f.name).trim() : (fNum !== null ? getFloorName(fNum) : null);
+
+        if (fName) {
+          const norm = fName.toLowerCase();
+          if (seenFloorNames.has(norm)) {
+            throw new AppError(
+              `Floor name '${fName}' cannot be duplicated in the same building`,
+              HTTP_STATUS.CONFLICT
+            );
+          }
+          seenFloorNames.add(norm);
+        }
+
+        if (fNum !== null && !isNaN(fNum)) {
+          if (seenFloorNumbers.has(fNum)) {
+            throw new AppError(
+              `Floor number '${fNum}' cannot be duplicated in the same building`,
+              HTTP_STATUS.CONFLICT
+            );
+          }
+          seenFloorNumbers.add(fNum);
+        }
+      }
     }
 
     await db.transaction(async (trx) => {
