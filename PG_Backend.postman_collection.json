@@ -1950,6 +1950,59 @@
           "response": []
         },
         {
+          "name": "Edit Shift Request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var res = pm.response.json();",
+                  "    console.log(\"Updated room shift:\", res);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resident_id\": 3,\n  \"reason\": \"Need a quieter room for study\",\n  \"preferred_room_type\": \"Double Sharing\",\n  \"requested_room_id\": 2,\n  \"expected_move_date\": \"2026-11-20\",\n  \"additional_notes\": \"Updated notes: Prefer higher floor near garden\",\n  \"status\": \"pending\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/rooms/shifts/{{shiftId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rooms",
+                "shifts",
+                "{{shiftId}}"
+              ]
+            },
+            "description": "### Edit Room Shift Request (PUT /api/v1/rooms/shifts/:id)\n\nEdit an existing room shift request. Accepts the same payload fields as the create request:\n\n- `reason` (string, 2-150 chars)\n- `preferred_room_type` (string: Double Sharing, Single, etc.)\n- `requested_room_id` / `preferred_room_id` (integer ID of target room)\n- `expected_move_date` (date in YYYY-MM-DD)\n- `additional_notes` / `notes` (string max 500 chars)\n- `resident_id` (integer, editable by admin)\n- `status` (pending, approved, rejected - editable by admin)\n\n*Note: Residents can edit their own shift requests while they are in pending status.*"
+          },
+          "response": []
+        },
+        {
           "name": "List Shift Requests",
           "request": {
             "method": "GET",

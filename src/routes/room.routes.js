@@ -5,6 +5,7 @@ import {
   updateRoomValidator,
   roomIdParamValidator,
   createRoomShiftValidator,
+  updateRoomShiftValidator,
   updateRoomShiftStatusValidator,
   listRoomShiftsQueryValidator,
   roomShiftStatsQueryValidator,
@@ -67,6 +68,17 @@ router.get(
   '/shifts/:id',
   validate(roomShiftIdParamValidator),
   roomController.getRoomShiftById
+);
+
+/**
+ * @route   PUT /api/v1/rooms/shifts/:id
+ * @desc    Edit / update an existing room shift request
+ * @access  Private (Resident / Admin / Super Admin)
+ */
+router.put(
+  '/shifts/:id',
+  validate(updateRoomShiftValidator),
+  roomController.updateRoomShift
 );
 
 /**

@@ -268,6 +268,80 @@ export const createRoomShiftValidator = [
 ];
 
 /**
+ * Validator for updating/editing an existing room shift request
+ */
+export const updateRoomShiftValidator = [
+  param('id')
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Room shift request ID must be a positive integer'),
+
+  body('resident_id')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Resident ID must be a valid positive integer'),
+
+  body('reason')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ min: 2, max: 150 })
+    .withMessage('Reason must be between 2 and 150 characters'),
+
+  body('preferred_room_type')
+    .optional({ checkFalsy: true })
+    .trim(),
+
+  body('requested_room_id')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Requested room ID must be a positive integer'),
+
+  body('preferred_room_id')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Preferred room ID must be a positive integer'),
+
+  body('expected_move_date')
+    .optional({ checkFalsy: true })
+    .isISO8601()
+    .withMessage('Expected move date must be a valid date in YYYY-MM-DD format'),
+
+  body('additional_notes')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Additional notes cannot exceed 500 characters'),
+
+  body('notes')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Notes cannot exceed 500 characters'),
+
+  body('status')
+    .optional({ checkFalsy: true })
+    .trim()
+    .toLowerCase()
+    .isIn(SHIFT_STATUSES)
+    .withMessage(`Status must be one of: ${SHIFT_STATUSES.join(', ')}`),
+
+  body('current_room_id')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Current room ID must be a positive integer'),
+
+  body('branch_id')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Branch ID must be a positive integer'),
+];
+
+/**
  * Validator for updating status of a room shift request (Approve / Reject)
  */
 export const updateRoomShiftStatusValidator = [
@@ -367,6 +441,7 @@ export default {
   roomIdParamValidator,
   SHIFT_STATUSES,
   createRoomShiftValidator,
+  updateRoomShiftValidator,
   updateRoomShiftStatusValidator,
   listRoomShiftsQueryValidator,
   roomShiftStatsQueryValidator,

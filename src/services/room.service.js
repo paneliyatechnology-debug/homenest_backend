@@ -695,7 +695,7 @@ const formatRoomShift = (row) => {
     reason: row.reason,
     additional_notes: row.additional_notes || null,
     notes: row.additional_notes || null,
-    expected_move_date: row.expected_move_date ? String(row.expected_move_date).split('T')[0] : null,
+    expected_move_date: row.expected_move_date ? moment(row.expected_move_date).format('YYYY-MM-DD') : null,
     status: row.status,
     reviewed_by: row.reviewed_by ? Number(row.reviewed_by) : null,
     reviewer_name: row.reviewer_name || null,
@@ -1212,6 +1212,158 @@ export const updateShiftStatus = async (id, data, user) => {
 };
 
 /**
+ * Update / Edit an existing room shift request
+ * Accepts same fields as createShift (reason, preferred_room_type, requested_room_id, expected_move_date, notes, status, resident_id)
+ *
+ * @param {number|string} id - Shift request ID
+ * @param {Object} data - Update payload
+ * @param {Object} user - Authenticated user context
+ * @returns {Promise<Object>} Updated room shift request record
+ */
+export const updateShift = async (id, data, user) => {
+  const existing = await findShiftById(id, user);
+
+  if (user.role === ROLES.RESIDENT) {
+    if (existing.status !== 'pending') {
+      throw new AppError('Cannot edit a room shift request that is already processed', HTTP_STATUS.BAD_REQUEST);
+    }
+  }
+
+  let pgId = existing.pg_id;
+  let branchId = existing.branch_id;
+  let residentId = existing.resident?.id || existing.resident_id;
+  let currentRoomId = existing.current_room?.id || existing.current_room_id;
+  let stayId = existing.stay_id;
+
+  // Admin changing resident
+  if (user.role !== ROLES.RESIDENT && data.resident_id && Number(data.resident_id) !== residentId) {
+    const newResidentId = Number(data.resident_id);
+    const resident = await db('users')
+      .where({ id: newResidentId, role: ROLES.RESIDENT })
+      .whereNull('deleted_at')
+      .first();
+
+    if (!resident) {
+      throw new AppError('Resident not found', HTTP_STATUS.NOT_FOUND);
+    }
+
+    const activeStay = await db('resident_pg_stays')
+      .where({ resident_id: newResidentId, status: 'active' })
+      .whereNull('deleted_at')
+      .orderBy('id', 'desc')
+      .first();
+
+    if (!activeStay) {
+      throw new AppError('Selected resident does not have an active stay record in any branch', HTTP_STATUS.BAD_REQUEST);
+    }
+
+    residentId = newResidentId;
+    pgId = activeStay.pg_id;
+    branchId = activeStay.branch_id;
+    currentRoomId = activeStay.room_id;
+    stayId = activeStay.id;
+  }
+
+  // Resolve requested room ID
+  let requestedRoomId;
+  if (data.requested_room_id !== undefined) {
+    requestedRoomId = data.requested_room_id ? Number(data.requested_room_id) : null;
+  } else if (data.preferred_room_id !== undefined) {
+    requestedRoomId = data.preferred_room_id ? Number(data.preferred_room_id) : null;
+  } else {
+    requestedRoomId = existing.requested_room?.id || existing.requested_room_id || null;
+  }
+
+  if (requestedRoomId && requestedRoomId === currentRoomId) {
+    throw new AppError('Requested room cannot be the same as the resident current room', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  if (requestedRoomId && requestedRoomId !== (existing.requested_room?.id || existing.requested_room_id)) {
+    const requestedRoom = await db('rooms')
+      .where({ id: requestedRoomId, branch_id: branchId })
+      .whereNull('deleted_at')
+      .first();
+
+    if (!requestedRoom) {
+      throw new AppError('Requested room not found in the resident branch', HTTP_STATUS.NOT_FOUND);
+    }
+  }
+
+  const updatePayload = {
+    updated_at: db.fn.now(),
+  };
+
+  if (user.role !== ROLES.RESIDENT && data.resident_id && Number(data.resident_id) !== residentId) {
+    updatePayload.pg_id = pgId;
+    updatePayload.branch_id = branchId;
+    updatePayload.stay_id = stayId;
+    updatePayload.resident_id = residentId;
+    updatePayload.current_room_id = currentRoomId;
+  }
+
+  if (data.reason !== undefined) {
+    updatePayload.reason = data.reason ? data.reason.trim() : null;
+  }
+  if (data.preferred_room_type !== undefined) {
+    updatePayload.preferred_room_type = data.preferred_room_type || 'Double Sharing';
+  }
+  if (data.requested_room_id !== undefined || data.preferred_room_id !== undefined) {
+    updatePayload.requested_room_id = requestedRoomId;
+  }
+  if (data.additional_notes !== undefined || data.notes !== undefined) {
+    updatePayload.additional_notes = data.additional_notes || data.notes || null;
+  }
+  if (data.expected_move_date !== undefined) {
+    updatePayload.expected_move_date = data.expected_move_date
+      ? moment(data.expected_move_date).format('YYYY-MM-DD')
+      : null;
+  }
+
+  // Administrative submission: status may be preset or changed directly
+  if (user.role !== ROLES.RESIDENT && data.status) {
+    const requestedStatus = data.status.toLowerCase().trim();
+    if (['pending', 'approved', 'rejected'].includes(requestedStatus)) {
+      updatePayload.status = requestedStatus;
+      if (requestedStatus !== 'pending') {
+        updatePayload.reviewed_by = user.id;
+        updatePayload.reviewed_at = db.fn.now();
+      }
+    }
+  }
+
+  await db('room_shift_requests').where({ id }).update(updatePayload);
+
+  const logNewValues = { ...updatePayload };
+  delete logNewValues.updated_at;
+  delete logNewValues.reviewed_at;
+
+  auditService.log({
+    pg_id: pgId,
+    branch_id: branchId,
+    user_id: user?.id,
+    user_name: user?.name,
+    user_role: user?.role,
+    module: AUDIT_MODULES.ROOM,
+    action: AUDIT_ACTIONS.UPDATE,
+    entity_type: 'room_shift_request',
+    entity_id: id,
+    description: `Updated room shift request #${id} for resident #${residentId}`,
+    old_values: {
+      resident_id: existing.resident?.id || existing.resident_id,
+      current_room_id: existing.current_room?.id || existing.current_room_id,
+      requested_room_id: existing.requested_room?.id || existing.requested_room_id,
+      preferred_room_type: existing.preferred_room_type,
+      reason: existing.reason,
+      status: existing.status,
+    },
+    new_values: logNewValues,
+  });
+
+  const updatedShift = await findShiftById(id, user);
+  return updatedShift;
+};
+
+/**
  * Delete / Cancel Room Shift Request
  * @param {number} id - Shift request ID
  * @param {Object} user - Logged in user
@@ -1247,6 +1399,7 @@ export default {
   findAllShifts,
   findShiftById,
   getShiftStats,
+  updateShift,
   updateShiftStatus,
   deleteShift,
 };

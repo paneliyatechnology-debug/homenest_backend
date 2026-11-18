@@ -255,6 +255,19 @@ export const getRoomShiftById = async (req, res, next) => {
 };
 
 /**
+ * Update / Edit an existing room shift request
+ */
+export const updateRoomShift = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await roomService.updateShift(Number(id), req.body, req.user);
+    return successAction(res, 'Room shift request updated successfully', result.id, HTTP_STATUS.OK);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
  * Update room shift request status (Admin Approve / Reject)
  */
 export const updateRoomShiftStatus = async (req, res, next) => {
@@ -295,6 +308,7 @@ export default {
   getAllRoomShifts,
   getRoomShiftStats,
   getRoomShiftById,
+  updateRoomShift,
   updateRoomShiftStatus,
   deleteRoomShift,
 };
