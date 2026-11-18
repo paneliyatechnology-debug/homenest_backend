@@ -43,12 +43,6 @@
       "description": "User ID. Saved from Login, Create User, or List Users."
     },
     {
-      "key": "agreementId",
-      "value": "1",
-      "type": "string",
-      "description": "Agreement record ID. Saved from Create Agreement response."
-    },
-    {
       "key": "stayId",
       "value": "1",
       "type": "string",
@@ -2750,7 +2744,7 @@
                 "{{userId}}"
               ]
             },
-            "description": "### GET /api/v1/users/:id\nProtected (Any authenticated user). Retrieves comprehensive resident/user details matching the Admin Resident Profile portal:\n- **Overview**: Personal info (name, DOB, calculated age, gender, nationality, marital status, occupation)\n- **Room Information**: Room number, room type, capacity, building name, floor number/name, bed number, monthly rent, security deposit, check-in date, expected check-out, current status\n- **Contact Information**: Phone, email, emergency contact person & relationship, emergency phone, residential address, city, state, pincode, location display\n- **Documents**: URLs and filenames for Aadhar card, passport size photo, address proof, education certificate, digital signature, and terms & conditions agreement timestamp\n- **Agreements & Stays**: Complete history of tenancy agreements and stays across PG facilities."
+            "description": "### GET /api/v1/users/:id\nProtected (Any authenticated user). Retrieves comprehensive resident/user details matching the Admin Resident Profile portal:\n- **Overview**: Personal info (name, DOB, calculated age, gender, nationality, marital status, occupation)\n- **Room Information**: Room number, room type, capacity, building name, floor number/name, bed number, monthly rent, security deposit, check-in date, expected check-out, current status\n- **Contact Information**: Phone, email, emergency contact person & relationship, emergency phone, residential address, city, state, pincode, location display\n- **Documents**: URLs and filenames for Aadhar card, passport size photo, address proof, education certificate, digital signature, and terms & conditions agreement timestamp\n- **Stays**: Complete history of stays across PG facilities."
           },
           "response": []
         },
@@ -3781,275 +3775,7 @@
       ]
     },
     {
-      "name": "11 Tenancy Agreements",
-      "description": "Tenancy agreements, lease contracts, digital signing statuses, and agreement statistics.",
-      "item": [
-        {
-          "name": "Agreement Stats",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/agreements/stats?pg_id={{pgId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "agreements",
-                "stats"
-              ],
-              "query": [
-                {
-                  "key": "pg_id",
-                  "value": "{{pgId}}",
-                  "description": "Optional. Filter agreement statistics by PG facility branch ID.",
-                  "disabled": true
-                },
-                {
-                  "key": "agreement_type",
-                  "value": "rental",
-                  "description": "Optional. Filter agreement statistics by agreement type (e.g. 'rental', '11_months').",
-                  "disabled": true
-                }
-              ]
-            },
-            "description": "### GET /api/v1/agreements/stats\nProtected. Returns top KPI statistical counts for agreements matching the dashboard cards: Total Agreements (`total_agreements`), `draft`, `pending_sign`, `signed`, and `expired`. Supports optional branch (`pg_id`) and `agreement_type` filtering."
-          },
-          "response": []
-        },
-        {
-          "name": "Create Agreement",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const body = pm.response.json();",
-                  "if (body && body.id) pm.collectionVariables.set('agreementId', String(body.id));"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"resident_id\": \"{{residentId}}\",\n  \"agreement_no\": \"AGR-2026-001\",\n  \"agreement_type\": \"11 Months Standard\",\n  \"start_date\": \"2026-11-01\",\n  \"end_date\": \"2027-09-30\",\n  \"branch_id\": \"{{branchId}}\",\n  \"room_id\": \"{{roomId}}\",\n  \"room_type\": \"Double Sharing\",\n  \"status\": \"pending\",\n  \"pg_id\": \"{{pgId}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/agreements",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "agreements"
-              ]
-            },
-            "description": "### POST /api/v1/agreements\nCreates a new tenancy agreement for an active resident.\n- `branch_id`: Optional. Automatically resolves from the allocated room or resident stay if omitted or invalid to prevent foreign key errors.\n- `status`: \"signed\", \"pending\", \"draft\", or \"expired\"."
-          },
-          "response": []
-        },
-        {
-          "name": "List Agreements",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/agreements?page=1&limit=10&status=&agreement_type=&search=&resident_id=&pg_id={{pgId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "agreements"
-              ],
-              "query": [
-                {
-                  "key": "page",
-                  "value": "1",
-                  "description": "[OPTIONAL] Page number (Default: 1)"
-                },
-                {
-                  "key": "limit",
-                  "value": "10",
-                  "description": "[OPTIONAL] Items per page (Default: 10)"
-                },
-                {
-                  "key": "status",
-                  "value": "",
-                  "description": "[OPTIONAL] pending | signed | draft | expired",
-                  "disabled": true
-                },
-                {
-                  "key": "agreement_type",
-                  "value": "",
-                  "description": "Optional. Filter by duration type.",
-                  "disabled": true
-                },
-                {
-                  "key": "search",
-                  "value": "",
-                  "description": "[OPTIONAL] Search by agreement number or resident name",
-                  "disabled": true
-                },
-                {
-                  "key": "resident_id",
-                  "value": "",
-                  "description": "[OPTIONAL] Filter by resident ID",
-                  "disabled": true
-                },
-                {
-                  "key": "pg_id",
-                  "value": "{{pgId}}",
-                  "description": "[OPTIONAL] PG facility ID",
-                  "disabled": true
-                },
-                {
-                  "key": "branch_id",
-                  "value": "{{branchId}}",
-                  "description": "[OPTIONAL] Filter by Branch ID",
-                  "disabled": true
-                }
-              ]
-            },
-            "description": "### GET /api/v1/agreements\nProtected. Paginated agreement records directory with joined resident and room details. Scoped automatically to the token's `pg_id`."
-          },
-          "response": []
-        },
-        {
-          "name": "Get Agreement",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/agreements/{{agreementId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "agreements",
-                "{{agreementId}}"
-              ]
-            },
-            "description": "### GET /api/v1/agreements/:id\nProtected. Retrieves agreement record with resident and room information."
-          },
-          "response": []
-        },
-        {
-          "name": "Update Agreement",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"status\": \"signed\",\n  \"agreement_type\": \"11_months\",\n  \"end_date\": \"2027-08-31\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/agreements/{{agreementId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "agreements",
-                "{{agreementId}}"
-              ]
-            },
-            "description": "### Update Rental Agreement\nUpdates details, duration, room allocation, or status of an existing agreement.\n\n#### Path Parameters:\n- `id` **[REQUIRED]**: Agreement ID.\n\n#### Request Body (JSON):\n- `branch_id` **[OPTIONAL]**: Branch ID.\n- `agreement_no` **[OPTIONAL]**: Unique agreement number (2-100 characters).\n- `room_id` **[OPTIONAL]**: Assigned Room ID.\n- `room_type` **[OPTIONAL]**: Room type (e.g., single, double, triple).\n- `agreement_type` **[OPTIONAL]**: Agreement contract type (e.g., `rental`, `lease`, `hostel`).\n- `start_date` **[OPTIONAL]**: Agreement start date in `YYYY-MM-DD` format.\n- `end_date` **[OPTIONAL]**: Agreement expiry date in `YYYY-MM-DD` format.\n- `status` **[OPTIONAL]**: Enum: `signed`, `pending`, `draft`, `expired`.\n\n#### Permissions:\n- Admin / Super Admin only."
-          },
-          "response": []
-        },
-        {
-          "name": "Delete Agreement",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/agreements/{{agreementId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "agreements",
-                "{{agreementId}}"
-              ]
-            },
-            "description": "### DELETE /api/v1/agreements/:id\nProtected (Admin / Super Admin). Soft-deletes an agreement record."
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "12 Payments & Billing",
+      "name": "11 Payments & Billing",
       "description": "Rent invoices, billing demands, NPCI UPI dynamic QR generation, online payment records, and reports.",
       "item": [
         {
@@ -4587,7 +4313,7 @@
       ]
     },
     {
-      "name": "13 Laundry Management",
+      "name": "12 Laundry Management",
       "description": "Laundry service catalog pricing, resident laundry requests, weight tracking, staff assignment, and dues billing.",
       "item": [
         {
@@ -5117,7 +4843,7 @@
       ]
     },
     {
-      "name": "14 Food Menu & Feedback",
+      "name": "13 Food Menu & Feedback",
       "description": "Daily meal plans (Breakfast, Lunch, Dinner), dish inclusions, resident star ratings, and meal feedback.",
       "item": [
         {
@@ -5624,7 +5350,7 @@
       ]
     },
     {
-      "name": "15 Complaint Management",
+      "name": "14 Complaint Management",
       "description": "Issue ticketing, 10 complaint categories, WiFi & room maintenance, staff assignment, resolution, and rating.",
       "item": [
         {
@@ -5983,7 +5709,7 @@
       ]
     },
     {
-      "name": "16 Visitor Management",
+      "name": "15 Visitor Management",
       "description": "Visitor pass generation, QR code scanning, security gate check-in/out logs, and visitor analytics.",
       "item": [
         {
@@ -6493,7 +6219,7 @@
       ]
     },
     {
-      "name": "17 Subscription Plans",
+      "name": "16 Subscription Plans",
       "item": [
         {
           "name": "Subscription Stats",
@@ -6755,7 +6481,7 @@
       ]
     },
     {
-      "name": "18 Notice Management",
+      "name": "17 Notice Management",
       "item": [
         {
           "name": "Notice Stats",
@@ -7204,7 +6930,7 @@
       ]
     },
     {
-      "name": "19 Dashboard",
+      "name": "18 Dashboard",
       "description": "Role-based Unified Dashboard Module:\n- Admin / Super Admin / Staff: Operations Dashboard\n- Resident: Resident Mobile Dashboard",
       "item": [
         {
@@ -7260,7 +6986,7 @@
       ]
     },
     {
-      "name": "20 Community",
+      "name": "19 Community",
       "description": "Resident Community & Social Hub Module:\n- Community Feed & Posts with Filter Pills (All, Updates, Events, Birthdays)\n- Post Creation with Optional Photo Upload & Community Guidelines\n- Likes & Comments on Posts\n- Community Events categorized into Ongoing, Upcoming, and Past\n- Upcoming Resident Birthdays",
       "item": [
         {
@@ -8025,7 +7751,7 @@
       ]
     },
     {
-      "name": "21 Audit Management",
+      "name": "20 Audit Management",
       "item": [
         {
           "name": "Audit Dashboard Stats",

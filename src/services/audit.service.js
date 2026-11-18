@@ -25,7 +25,6 @@ const MODULE_DISPLAY_MAP = {
   BRANCH: 'Branch Management',
   BUILDING: 'Buildings',
   FLOOR: 'Floors',
-  AGREEMENT: 'Agreements',
   COMMUNITY: 'Community',
   LAUNDRY: 'Laundry',
 };
@@ -210,7 +209,6 @@ class AuditService {
     if (lower.includes('branch')) return 'BRANCH';
     if (lower.includes('building')) return 'BUILDING';
     if (lower.includes('floor')) return 'FLOOR';
-    if (lower.includes('agreement')) return 'AGREEMENT';
     if (lower.includes('laundry')) return 'LAUNDRY';
     if (lower.includes('auth')) return 'AUTH';
     return String(mod).trim().toUpperCase();

@@ -223,7 +223,7 @@ const formatAdminUser = (user, options = {}) => {
  * Format resident user record into structured domain sections
  * Eliminates root-level duplication of room, stay, document, pg, and address columns.
  * @param {Object} user - User record from DB
- * @param {Object} [options={}] - Additional joined data (active_stay, agreements)
+ * @param {Object} [options={}] - Additional joined data (active_stay, pending_payment, subscription_plan)
  * @returns {Object} Formatted resident user object
  */
 const formatResidentUser = (user, options = {}) => {
@@ -358,7 +358,6 @@ const formatResidentUser = (user, options = {}) => {
       terms_accepted_at: user.terms_accepted_at || null,
     },
 
-    agreements: options.agreements || [],
     due_amount: options.pending_payment ? Number(options.pending_payment.amount) : 0,
     payment_info: options.pending_payment ? {
       payment_id: options.pending_payment.id,
@@ -521,8 +520,8 @@ class UserService {
       return formatAdminUser(raw_user, { pg: primary_pg });
     }
 
-    // Role is resident: fetch active stay details, agreements, and current pending payment in parallel
-    const [active_stay, agreements, pending_payment] = await Promise.all([
+    // Role is resident: fetch active stay details and current pending payment in parallel
+    const [active_stay, pending_payment] = await Promise.all([
       db('resident_pg_stays')
         .where({ 'resident_pg_stays.resident_id': id, 'resident_pg_stays.status': 'active' })
         .whereNull('resident_pg_stays.deleted_at')
@@ -558,10 +557,6 @@ class UserService {
           'resident_pg_stays.notes as stay_notes'
         )
         .first(),
-      db('agreements')
-        .where({ resident_id: id })
-        .whereNull('deleted_at')
-        .orderBy('id', 'desc'),
       db('payments')
         .where({ resident_id: id })
         .whereIn('status', ['pending', 'overdue'])
@@ -590,7 +585,7 @@ class UserService {
       }
     }
 
-    return formatResidentUser(raw_user, { active_stay, agreements, pending_payment, subscription_plan });
+    return formatResidentUser(raw_user, { active_stay, pending_payment, subscription_plan });
   };
   /**
    * Create a new user record (Resident, Admin, Super Admin).
@@ -1339,21 +1334,12 @@ class UserService {
       }
     }
 
-    // Soft delete associated active stays and agreements
+    // Soft delete associated active stays
     await db('resident_pg_stays')
       .where({ resident_id: id })
       .whereNull('deleted_at')
       .update({
         status: 'completed',
-        deleted_at: db.fn.now(),
-        updated_at: db.fn.now(),
-      });
-
-    await db('agreements')
-      .where({ resident_id: id })
-      .whereNull('deleted_at')
-      .update({
-        status: 'expired',
         deleted_at: db.fn.now(),
         updated_at: db.fn.now(),
       });

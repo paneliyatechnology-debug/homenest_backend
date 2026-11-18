@@ -12,7 +12,6 @@ export const seed = async (knex) => {
   // Clear existing entries in correct order due to foreign keys
   await knex('visitors').del();
   await knex('payments').del();
-  await knex('agreements').del();
   await knex('resident_pg_stays').del();
   await knex('rooms').del();
   await knex('floors').del();
@@ -442,40 +441,6 @@ export const seed = async (knex) => {
       refund_reason: 'Deposit refunded after room checkout',
       refunded_at: '2025-12-05 10:32:00',
       paid_at: '2025-12-05 10:32:00',
-      created_at: knex.fn.now(),
-      updated_at: knex.fn.now(),
-    },
-  ]);
-
-  // Insert seed agreement records
-  await knex('agreements').insert([
-    {
-      id: 1,
-      agreement_no: 'AGR-2026-001',
-      resident_id: 3, // Riya Sharma
-      pg_id: 1,
-      branch_id: 1,
-      room_id: 2, // Room A-202
-      room_type: 'single',
-      agreement_type: 'rental',
-      start_date: '2026-09-01',
-      end_date: '2027-08-31',
-      status: 'signed',
-      created_at: knex.fn.now(),
-      updated_at: knex.fn.now(),
-    },
-    {
-      id: 2,
-      agreement_no: 'AGR-2026-002',
-      resident_id: 3, // Riya Sharma
-      pg_id: 1,
-      branch_id: 1,
-      room_id: 1, // Room A-201
-      room_type: 'single',
-      agreement_type: 'rental',
-      start_date: '2026-08-01',
-      end_date: '2026-08-31',
-      status: 'expired',
       created_at: knex.fn.now(),
       updated_at: knex.fn.now(),
     },
