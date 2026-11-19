@@ -1,9 +1,6 @@
 import { body, param, query } from 'express-validator';
 
 export const COMPLAINT_STATUSES = ['OPEN', 'IN_PROGRESS', 'RESOLVED'];
-export const COMPLAINT_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'];
-export const WIFI_ISSUE_TYPES = ['NO_CONNECTION', 'SLOW_SPEED', 'INTERMITTENT_CONNECTION', 'OTHER'];
-export const WIFI_DEVICE_TYPES = ['MOBILE', 'LAPTOP', 'TABLET', 'SMART_TV', 'OTHER'];
 
 /**
  * Validator for creating a complaint
@@ -34,41 +31,6 @@ export const createComplaintValidator = [
     .trim()
     .isLength({ max: 150 })
     .withMessage('Title cannot exceed 150 characters'),
-
-  body('priority')
-    .optional({ checkFalsy: true })
-    .trim()
-    .toUpperCase()
-    .isIn(COMPLAINT_PRIORITIES)
-    .withMessage(`Priority must be one of: ${COMPLAINT_PRIORITIES.join(', ')}`),
-
-  body('issue_type')
-    .optional({ checkFalsy: true })
-    .trim()
-    .toUpperCase()
-    .isIn(WIFI_ISSUE_TYPES)
-    .withMessage(`Issue type must be one of: ${WIFI_ISSUE_TYPES.join(', ')}`),
-
-  body('device_type')
-    .optional({ checkFalsy: true })
-    .trim()
-    .toUpperCase()
-    .customSanitizer((val) => {
-      if (typeof val === 'string') {
-        return val.trim().replace(/\s+/g, '_').toUpperCase();
-      }
-      return val;
-    })
-    .isIn(WIFI_DEVICE_TYPES)
-    .withMessage(`Device type must be one of: ${WIFI_DEVICE_TYPES.join(', ')}`),
-
-  body('notify_updates')
-    .optional()
-    .customSanitizer((val) => {
-      if (val === 'true' || val === true || val === 1 || val === '1') return true;
-      if (val === 'false' || val === false || val === 0 || val === '0') return false;
-      return Boolean(val);
-    }),
 ];
 
 /**
@@ -102,13 +64,6 @@ export const listComplaintsQueryValidator = [
     .optional({ checkFalsy: true })
     .trim()
     .toLowerCase(),
-
-  query('priority')
-    .optional({ checkFalsy: true })
-    .trim()
-    .toUpperCase()
-    .isIn(['ALL', ...COMPLAINT_PRIORITIES])
-    .withMessage(`Priority filter must be ALL or one of: ${COMPLAINT_PRIORITIES.join(', ')}`),
 
   query('branch_id')
     .optional({ checkFalsy: true })
@@ -234,9 +189,6 @@ export const submitComplaintFeedbackValidator = [
 
 export default {
   COMPLAINT_STATUSES,
-  COMPLAINT_PRIORITIES,
-  WIFI_ISSUE_TYPES,
-  WIFI_DEVICE_TYPES,
   createComplaintValidator,
   complaintIdParamValidator,
   listComplaintsQueryValidator,

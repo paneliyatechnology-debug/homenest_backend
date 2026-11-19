@@ -31,7 +31,7 @@ router.get(
 
 /**
  * @route   GET /api/v1/complaints/stats
- * @desc    Get complaint KPIs/statistics (total, open, in_progress, resolved, overdue, by priority)
+ * @desc    Get complaint KPIs/statistics (total, open, in_progress, resolved, overdue)
  * @access  Private (Admin / Super Admin)
  */
 router.get(

@@ -5416,7 +5416,7 @@
                 }
               ]
             },
-            "description": "Returns real-time complaint KPIs: total, open, in_progress, resolved, overdue count, and priority counts"
+            "description": "Returns real-time complaint KPIs: total, open, in_progress, resolved, overdue count"
           },
           "response": []
         },
@@ -5426,7 +5426,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/complaints?status=all&priority=all&page=1&limit=10",
+              "raw": "{{baseUrl}}/api/v1/complaints?status=all&page=1&limit=10",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -5445,11 +5445,6 @@
                   "key": "category_id",
                   "value": "",
                   "description": "Filter by Category ID"
-                },
-                {
-                  "key": "priority",
-                  "value": "all",
-                  "description": "all | LOW | MEDIUM | HIGH"
                 },
                 {
                   "key": "search",
@@ -5519,34 +5514,10 @@
                   "description": "[OPTIONAL] Room ID where resident stays. If omitted, backend automatically defaults to resident's active assigned room."
                 },
                 {
-                  "key": "priority",
-                  "value": "MEDIUM",
-                  "type": "text",
-                  "description": "[OPTIONAL] Priority: LOW | MEDIUM | HIGH (Default: MEDIUM)"
-                },
-                {
                   "key": "title",
                   "value": "Cleaning Request",
                   "type": "text",
                   "description": "[OPTIONAL] Short summary or title for the complaint (Max 150 characters)"
-                },
-                {
-                  "key": "notify_updates",
-                  "value": "true",
-                  "type": "text",
-                  "description": "[OPTIONAL] Boolean true/false to receive notification updates on status change (Default: true)"
-                },
-                {
-                  "key": "issue_type",
-                  "value": "INTERMITTENT_CONNECTION",
-                  "type": "text",
-                  "description": "[OPTIONAL - WiFi Category Only] Subtype: NO_CONNECTION | SLOW_SPEED | INTERMITTENT_CONNECTION | OTHER"
-                },
-                {
-                  "key": "device_type",
-                  "value": "LAPTOP",
-                  "type": "text",
-                  "description": "[OPTIONAL - WiFi Category Only] Subtype: MOBILE | LAPTOP | TABLET | SMART_TV | OTHER"
                 },
                 {
                   "key": "attachments",
@@ -5567,7 +5538,7 @@
                 "complaints"
               ]
             },
-            "description": "### Resident - Create / Report Issue (Unified Complaint API)\n\nA single unified endpoint for residents to report issues and register complaints across all property categories.\nSupports both **multipart/form-data** (with image attachments) and **application/json** (for text-only complaints).\n\n---\n\n#### Request Details:\n- **Method**: `POST`\n- **URL**: `{{baseUrl}}/api/v1/complaints`\n- **Authentication**: Bearer Access Token (`Resident` role)\n- **Content-Type**: `multipart/form-data` (recommended) or `application/json`\n\n---\n\n#### Form Fields Reference:\n\n| Field Name | Type | Requirement | Default | Description / Allowed Values |\n| :--- | :---: | :---: | :---: | :--- |\n| **`category_id`** | Integer / String | **REQUIRED** | - | Predefined category identifier (1 to 10). See category reference list below. |\n| **`description`** | String | **REQUIRED** | - | Detailed description of the problem (Min: 5, Max: 500 characters). |\n| **`location_id`** | Integer | Optional | Resident Room | Room ID where the issue is located. If omitted or null, backend automatically defaults to the resident's active room. |\n| **`priority`** | String | Optional | `MEDIUM` | Priority level: `LOW` \\| `MEDIUM` \\| `HIGH`. |\n| **`title`** | String | Optional | Auto-derived | Short summary or title for the complaint (Max: 150 characters). |\n| **`notify_updates`** | Boolean / String | Optional | `true` | Whether resident wants notification alerts when complaint status changes or notes are logged (`true` / `false`). |\n| **`issue_type`** | String | Optional (WiFi) | - | Specific subtype for WiFi/Network complaints: `NO_CONNECTION`, `SLOW_SPEED`, `INTERMITTENT_CONNECTION`, `OTHER`. |\n| **`device_type`** | String | Optional (WiFi) | - | Device affected: `MOBILE`, `LAPTOP`, `TABLET`, `SMART_TV`, `OTHER`. |\n| **`attachments`** | File (Array) | Optional | - | Multiple image files (up to 5 images, Max 5MB each). Allowed formats: JPG, PNG, WebP. Form field name can also be `images` or `photos`. |\n\n---\n\n#### Category IDs Reference List:\n- `1` - **Cleaning** (Room, corridor, washroom cleanliness)\n- `2` - **AC** (Cooling issues, remote, power, servicing)\n- `3` - **WiFi** (Supports category-specific `issue_type` and `device_type` fields)\n- `4` - **Water** (Supply, geyser/hot water, drinking water)\n- `5` - **Food** (Mess quality, hygiene, timing)\n- `6` - **Electricity** (Switches, lights, fans, power sockets)\n- `7` - **Furniture** (Bed, study table, chair, wardrobe/cupboard)\n- `8` - **Plumbing** (Tap leaks, flush, drainage, pipe blockage)\n- `9` - **Appliances** (Washing machine, refrigerator, induction/microwave)\n- `10` - **Other** (General issues)\n\n---\n\n#### WiFi Specific Subtypes Guide:\n- When `category_id = 3` (WiFi), you can optionally pass:\n  - **`issue_type`**: `NO_CONNECTION` | `SLOW_SPEED` | `INTERMITTENT_CONNECTION` | `OTHER`\n  - **`device_type`**: `MOBILE` | `LAPTOP` | `TABLET` | `SMART_TV` | `OTHER`\n- For other categories, these fields are optional/ignored and do not cause validation errors.\n\n---\n\n#### Backend Business Rules:\n1. **Access Validation**: Authenticated resident can only file complaints for their own assigned room/stay. Cross-room attempts return `403 Forbidden`.\n2. **Auto Reference Number**: Generates unique reference code (e.g., `CMP-202611-0025`).\n3. **Initial Status**: Always initializes status to `OPEN` with initial timeline event `CREATED`.\n4. **Postman Variables**: Auto-saves `{{complaintId}}` and `{{complaint_id}}` for subsequent status, details, updates, and feedback requests."
+            "description": "### Resident - Create / Report Issue (Unified Complaint API)\n\nA single unified endpoint for residents to report issues and register complaints across all property categories.\nSupports both **multipart/form-data** (with image attachments) and **application/json** (for text-only complaints).\n\n---\n\n#### Request Details:\n- **Method**: `POST`\n- **URL**: `{{baseUrl}}/api/v1/complaints`\n- **Authentication**: Bearer Access Token (`Resident` role)\n- **Content-Type**: `multipart/form-data` (recommended) or `application/json`\n\n---\n\n#### Form Fields Reference:\n\n| Field Name | Type | Requirement | Default | Description / Allowed Values |\n| :--- | :---: | :---: | :---: | :--- |\n| **`category_id`** | Integer / String | **REQUIRED** | - | Predefined category identifier (1 to 10). See category reference list below. |\n| **`description`** | String | **REQUIRED** | - | Detailed description of the problem (Min: 5, Max: 500 characters). |\n| **`location_id`** | Integer | Optional | Resident Room | Room ID where the issue is located. If omitted or null, backend automatically defaults to the resident's active room. |\n| **`title`** | String | Optional | Auto-derived | Short summary or title for the complaint (Max: 150 characters). |\n| **`attachments`** | File (Array) | Optional | - | Multiple image files (up to 5 images, Max 5MB each). Allowed formats: JPG, PNG, WebP. Form field name can also be `images` or `photos`. |\n\n---\n\n#### Category IDs Reference List:\n- `1` - **Cleaning** (Room, corridor, washroom cleanliness)\n- `2` - **AC** (Cooling issues, remote, power, servicing)\n- `4` - **Water** (Supply, geyser/hot water, drinking water)\n- `5` - **Food** (Mess quality, hygiene, timing)\n- `6` - **Electricity** (Switches, lights, fans, power sockets)\n- `7` - **Furniture** (Bed, study table, chair, wardrobe/cupboard)\n- `8` - **Plumbing** (Tap leaks, flush, drainage, pipe blockage)\n- `9` - **Appliances** (Washing machine, refrigerator, induction/microwave)\n- `10` - **Other** (General issues)\n\n---\n\n#### Backend Business Rules:\n1. **Access Validation**: Authenticated resident can only file complaints for their own assigned room/stay. Cross-room attempts return `403 Forbidden`.\n2. **Auto Reference Number**: Generates unique reference code (e.g., `CMP-202611-0025`).\n3. **Initial Status**: Always initializes status to `OPEN` with initial timeline event `CREATED`.\n4. **Postman Variables**: Auto-saves `{{complaintId}}` and `{{complaint_id}}` for subsequent status, details, updates, and feedback requests."
           },
           "response": []
         },

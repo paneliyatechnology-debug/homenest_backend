@@ -180,11 +180,11 @@ class ComplaintService {
       description: c.description,
       ...(c.key === 'wifi'
         ? {
-            wifi_options: {
-              issue_types: ['NO_CONNECTION', 'SLOW_SPEED', 'INTERMITTENT_CONNECTION', 'OTHER'],
-              device_types: ['MOBILE', 'LAPTOP', 'TABLET', 'SMART_TV', 'OTHER'],
-            },
-          }
+          wifi_options: {
+            issue_types: ['NO_CONNECTION', 'SLOW_SPEED', 'INTERMITTENT_CONNECTION', 'OTHER'],
+            device_types: ['MOBILE', 'LAPTOP', 'TABLET', 'SMART_TV', 'OTHER'],
+          },
+        }
         : {}),
     }));
   };
@@ -304,6 +304,7 @@ class ComplaintService {
         complaint_id: newId,
         event_type: 'CREATED',
         description: `Complaint created by ${user.name || 'Resident'} (${priority} priority)`,
+        description: `Complaint created by ${user.name || 'Resident'}`,
         new_value: 'OPEN',
         performed_by: user.id,
       });
@@ -335,6 +336,7 @@ class ComplaintService {
       entity_id: complaintId,
       description: `Complaint #${complaintNumber} created: ${data.title ? data.title.trim() : category.name}`,
       new_values: { complaint_number: complaintNumber, title: data.title, priority, room_id: targetRoomId },
+      new_values: { complaint_number: complaintNumber, title: data.title, room_id: targetRoomId },
     });
 
     return {
@@ -404,11 +406,6 @@ class ComplaintService {
           qb.where('complaints.category_id', parseInt(category_id, 10));
         } else if (category && category.toLowerCase() !== 'all') {
           qb.where('cat.key', category.toLowerCase());
-        }
-
-        // Priority Filter
-        if (priority && priority.toUpperCase() !== 'ALL') {
-          qb.where('complaints.priority', priority.toUpperCase());
         }
 
         // Date Range
@@ -502,19 +499,16 @@ class ComplaintService {
         name: r.resident_name,
         phone: r.resident_phone,
       },
-      priority: r.priority,
       status: r.status,
       is_overdue: ComplaintService.isOverdue(r),
       due_date: r.due_date,
       assigned_to: r.assigned_to
         ? {
-            id: r.assigned_to,
-            name: r.assigned_to_name,
-            phone: r.assigned_to_phone,
-          }
+          id: r.assigned_to,
+          name: r.assigned_to_name,
+          phone: r.assigned_to_phone,
+        }
         : null,
-      issue_type: r.issue_type,
-      device_type: r.device_type,
       attachments: attachmentsByComplaintId[r.id] || [],
       created_at: r.created_at,
       updated_at: r.updated_at,
@@ -608,7 +602,6 @@ class ComplaintService {
       complaint_number: complaint.complaint_number,
       title: complaint.title,
       description: complaint.description,
-      priority: complaint.priority,
       status: complaint.status,
       is_overdue: ComplaintService.isOverdue(complaint),
       category: {
@@ -633,18 +626,15 @@ class ComplaintService {
       },
       assigned_to: complaint.assigned_to
         ? {
-            id: complaint.assigned_to,
-            name: complaint.assigned_to_name,
-            phone: complaint.assigned_to_phone,
-            email: complaint.assigned_to_email,
-          }
+          id: complaint.assigned_to,
+          name: complaint.assigned_to_name,
+          phone: complaint.assigned_to_phone,
+          email: complaint.assigned_to_email,
+        }
         : null,
       due_date: complaint.due_date,
       resolution_notes: complaint.resolution_notes,
       resolved_at: complaint.resolved_at,
-      issue_type: complaint.issue_type,
-      device_type: complaint.device_type,
-      notify_updates: Boolean(complaint.notify_updates),
       attachments: attachments.map((att) => ({
         id: att.id,
         file_name: att.file_name,
@@ -668,11 +658,11 @@ class ComplaintService {
       })),
       feedback: feedback
         ? {
-            id: feedback.id,
-            rating: feedback.rating,
-            comments: feedback.comments,
-            created_at: feedback.created_at,
-          }
+          id: feedback.id,
+          rating: feedback.rating,
+          comments: feedback.comments,
+          created_at: feedback.created_at,
+        }
         : null,
       created_at: complaint.created_at,
       updated_at: complaint.updated_at,
@@ -700,21 +690,6 @@ class ComplaintService {
       )
       .first();
 
-    // Priority breakdown
-    const priorityCounts = await base.clone()
-      .select(
-        'priority',
-        db.raw('COUNT(id) as count')
-      )
-      .groupBy('priority');
-
-    const priorities = { LOW: 0, MEDIUM: 0, HIGH: 0 };
-    priorityCounts.forEach((p) => {
-      if (priorities[p.priority] !== undefined) {
-        priorities[p.priority] = parseInt(p.count, 10);
-      }
-    });
-
     const totalCount = parseInt(counts?.total_complaints || 0, 10);
     const openCount = parseInt(counts?.open_complaints || 0, 10);
     const inProgressCount = parseInt(counts?.in_progress_complaints || 0, 10);
@@ -734,7 +709,6 @@ class ComplaintService {
       resolved_complaints: resolvedCount,
       overdue: overdueCount,
       overdue_complaints: overdueCount,
-      priorities,
     };
   };
 
