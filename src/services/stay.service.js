@@ -493,8 +493,18 @@ class StayService {
   createCheckoutRequest = async (user, data) => {
     let targetResidentId = user.id;
 
-    if (user.role !== ROLES.RESIDENT && data.resident_id) {
+    if (user.role !== ROLES.RESIDENT) {
+      if (!data.resident_id) {
+        throw new AppError('Resident ID is required when creating a checkout request as an administrator', HTTP_STATUS.BAD_REQUEST);
+      }
       targetResidentId = parseInt(data.resident_id, 10);
+      const resident = await db('users').where({ id: targetResidentId }).whereNull('deleted_at').first();
+      if (!resident) {
+        throw new AppError('Resident not found', HTTP_STATUS.NOT_FOUND);
+      }
+    } else {
+      // Resident role: Always derive ID from authenticated token
+      targetResidentId = user.id;
     }
 
     // 1. Resolve active stay
@@ -515,7 +525,7 @@ class StayService {
     // Tenancy guard
     if (user.role !== ROLES.RESIDENT && user.role !== ROLES.SUPER_ADMIN) {
       const context = await resolveUserBranches(user);
-      if (!context.branchIds.includes(stay.branch_id)) {
+      if (context.branchIds && !context.branchIds.includes(stay.branch_id)) {
         throw new AppError('Access denied to resident stay outside your managed branches', HTTP_STATUS.FORBIDDEN);
       }
     }
@@ -592,6 +602,23 @@ class StayService {
       reason: data.reason.trim(),
       created_at: moment().toISOString(),
     });
+
+    // If an administrator submitted on behalf of a resident, also notify the resident
+    if (user.role !== ROLES.RESIDENT) {
+      socketService.emitToUser(targetResidentId, SOCKET_EVENTS.CHECKOUT_NEW, {
+        id: insertId,
+        resident_id: targetResidentId,
+        room_id: stay.room_id,
+        departure_date: data.departure_date,
+        reason: data.reason.trim(),
+        created_at: moment().toISOString(),
+      });
+    }
+
+    try {
+      socketService.emitStatsUpdated(stay.pg_id, SOCKET_EVENTS.CHECKOUT_STATS_UPDATED);
+      socketService.emitStatsUpdated(stay.pg_id, SOCKET_EVENTS.DASHBOARD_STATS_UPDATED);
+    } catch (e) {}
 
     auditService.log({
       pg_id: stay.pg_id,
