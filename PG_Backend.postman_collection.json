@@ -6968,7 +6968,7 @@
                 }
               ]
             },
-            "description": "### GET /api/v1/dashboard\nReturns role-tailored dashboard data based on JWT token.\n- Admin / Super Admin: Operations Dashboard (Resident counts, Occupancy rate, Monthly revenue, Pending dues, Open complaints, 6-month occupancy curve, room type donut distribution, recent activity feed).\n- Resident: Resident Dashboard (Stay overview, next rent due, next event, gate pass QR code, quick actions, today's meal menu, latest complaint card, latest notice banner, unread notification count)."
+            "description": "### GET /api/v1/dashboard\nReturns role-tailored dashboard data based on JWT token.\n- Admin / Super Admin: Operations Dashboard (Resident counts, Occupancy rate, Monthly revenue, Pending dues, Open complaints, 6-month occupancy curve, room type donut distribution, recent activity feed).\n- Resident: Resident Dashboard (Stay overview, next rent due, next event, gate pass QR code, today's full day menu array [`today_menu`] ordered chronologically, latest complaint card, latest notice banner, unread notification count)."
           },
           "response": []
         }

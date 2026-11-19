@@ -41,17 +41,6 @@ class DashboardService {
   };
 
   /**
-   * Helper: Dynamic time-of-day greeting (Morning, Afternoon, Evening)
-   * @returns {string} Salutation string
-   */
-  getSalutation = () => {
-    const hour = moment().hour();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
-  };
-
-  /**
    * Helper: Calculate Month-over-Month change percentage and trend direction
    * @param {number} current
    * @param {number} previous
@@ -485,7 +474,6 @@ class DashboardService {
         'resident_pg_stays.*',
         'pgs.name as pg_name',
         'branches.name as branch_name',
-        'branches.branch_photo',
         'rooms.room_no'
       )
       .first();
@@ -567,42 +555,94 @@ class DashboardService {
         }
       : null;
 
-    // 5. Today's Menu
-    let todayMenu = null;
+    // 5. Today's Full Day Menu Array
+    let todayMenus = [];
+
     if (effectivePgId) {
-      const today = moment().format('YYYY-MM-DD');
-      const dayOfWeek = moment().format('dddd').toLowerCase();
+      const todayDate = moment().utcOffset('+05:30').format('YYYY-MM-DD');
+      const todayDayOfWeek = moment().utcOffset('+05:30').format('dddd').toLowerCase();
 
-      const menuItems = await db('food_menus')
-        .where('food_menus.pg_id', effectivePgId)
-        .whereNull('food_menus.deleted_at')
-        .where((qb) => {
-          qb.whereRaw('DATE(menu_date) = ?', [today])
-            .orWhere('day_of_week', dayOfWeek);
-        })
-        .orderBy('sort_order', 'asc');
+      // Helper query for active food menus
+      const fetchMenus = async (filterBranchId = null, filterDateOnly = false) => {
+        let qb = db('food_menus')
+          .where('food_menus.pg_id', effectivePgId)
+          .whereNull('food_menus.deleted_at')
+          .where('food_menus.is_active', 1);
 
-      // Pick meal corresponding to time of day
-      const currentHour = moment().hour();
-      let currentMealType = 'breakfast';
-      if (currentHour >= 11 && currentHour < 16) {
-        currentMealType = 'lunch';
-      } else if (currentHour >= 16) {
-        currentMealType = 'dinner';
+        if (filterBranchId) {
+          qb = qb.where('food_menus.branch_id', filterBranchId);
+        }
+
+        if (filterDateOnly) {
+          qb = qb.whereRaw('DATE(food_menus.menu_date) = ?', [todayDate]);
+        } else {
+          qb = qb.where((inner) => {
+            inner.whereRaw('DATE(food_menus.menu_date) = ?', [todayDate])
+              .orWhere('food_menus.day_of_week', todayDayOfWeek);
+          });
+        }
+
+        return await qb.orderBy('food_menus.sort_order', 'asc').orderBy('food_menus.id', 'asc');
+      };
+
+      // 1. Try branch-specific menu for today's exact date
+      let rawMenuItems = [];
+      if (effectiveBranchId) {
+        rawMenuItems = await fetchMenus(effectiveBranchId, true);
+        // 2. If no exact date for branch, try branch-specific day_of_week fallback
+        if (rawMenuItems.length === 0) {
+          rawMenuItems = await fetchMenus(effectiveBranchId, false);
+        }
       }
 
-      const matchedMenu = menuItems.find((m) => (m.meal_type || '').toLowerCase() === currentMealType) || menuItems[0];
+      // 3. If no branch-specific menu found, try PG-wide exact date
+      if (rawMenuItems.length === 0) {
+        rawMenuItems = await fetchMenus(null, true);
+      }
 
-      if (matchedMenu) {
-        todayMenu = {
-          id: matchedMenu.id,
-          meal_type: matchedMenu.meal_type ? matchedMenu.meal_type.charAt(0).toUpperCase() + matchedMenu.meal_type.slice(1).toLowerCase() : 'Breakfast',
-          food_name: matchedMenu.name,
-          items: matchedMenu.included_items ? `${matchedMenu.name} • ${matchedMenu.included_items}` : matchedMenu.name,
-          timings: matchedMenu.start_time && matchedMenu.end_time ? `${matchedMenu.start_time} - ${matchedMenu.end_time}` : (matchedMenu.timings || null),
-          image_url: matchedMenu.image ? buildFileUrl('food_menu', matchedMenu.image) : null,
+      // 4. If no PG-wide exact date found, try PG-wide day_of_week fallback
+      if (rawMenuItems.length === 0) {
+        rawMenuItems = await fetchMenus(null, false);
+      }
+
+      // Sort meals chronologically (Breakfast -> Lunch -> Snacks -> Dinner)
+      const MEAL_ORDER = { breakfast: 1, lunch: 2, snacks: 3, dinner: 4 };
+      rawMenuItems.sort((a, b) => {
+        const orderA = (a.sort_order && a.sort_order > 0)
+          ? a.sort_order
+          : (MEAL_ORDER[(a.meal_type || '').toLowerCase()] || 99);
+        const orderB = (b.sort_order && b.sort_order > 0)
+          ? b.sort_order
+          : (MEAL_ORDER[(b.meal_type || '').toLowerCase()] || 99);
+        if (orderA !== orderB) return orderA - orderB;
+        return a.id - b.id;
+      });
+
+      todayMenus = rawMenuItems.map((m) => {
+        const mealTypeTitle = m.meal_type
+          ? m.meal_type.charAt(0).toUpperCase() + m.meal_type.slice(1).toLowerCase()
+          : 'Meal';
+
+        return {
+          id: m.id,
+          branch_id: m.branch_id,
+          meal_type: mealTypeTitle,
+          raw_meal_type: (m.meal_type || '').toLowerCase(),
+          food_name: m.name,
+          name: m.name,
+          description: m.description || null,
+          items: m.included_items ? `${m.name} • ${m.included_items}` : m.name,
+          included_items: m.included_items || null,
+          start_time: m.start_time || null,
+          end_time: m.end_time || null,
+          timings: m.start_time && m.end_time ? `${m.start_time} - ${m.end_time}` : (m.timings || null),
+          image: m.image || null,
+          image_url: m.image ? buildFileUrl('food_menu', m.image) : null,
+          day_of_week: m.day_of_week || null,
+          menu_date: m.menu_date ? moment(m.menu_date).format('YYYY-MM-DD') : null,
+          is_active: Boolean(m.is_active !== undefined ? m.is_active : true),
         };
-      }
+      });
     }
 
     // 6. Resident's Latest Active Complaint
@@ -667,31 +707,18 @@ class DashboardService {
 
     return {
       role: 'resident',
-      greeting: {
-        salutation: this.getSalutation(),
-        resident_name: user.name || 'Resident',
-        subtitle: 'Better Stays, Brighter Days.',
-        photo_url: user.profile_photo ? buildFileUrl('users', user.profile_photo) : null,
-      },
       stay: activeStay
         ? {
             pg_name: activeStay.pg_name || null,
             room_no: activeStay.room_no || null,
             bed_number: activeStay.bed_number || null,
             branch_name: activeStay.branch_name || null,
-            banner_image: activeStay.branch_photo ? buildFileUrl('branches', activeStay.branch_photo) : null,
           }
         : null,
       rent_due: rentDue,
       next_event: nextEvent,
       gate_pass: gatePass,
-      quick_actions: [
-        { key: 'pay_rent', label: 'Pay Rent', icon: 'document' },
-        { key: 'report_issue', label: 'Report Issue', icon: 'alert' },
-        { key: 'visitors', label: 'Visitors', icon: 'users' },
-        { key: 'digital_id', label: 'Digital ID', icon: 'id-card' },
-      ],
-      today_menu: todayMenu,
+      today_menu: todayMenus,
       recent_complaint: recentComplaint,
       latest_notice: latestNotice,
       unread_notifications_count: unreadNotificationsCount,
