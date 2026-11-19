@@ -303,6 +303,8 @@ class ComplaintService {
       resident_id: residentId,
       created_at: moment().toISOString(),
     });
+    socketService.emitStatsUpdated(targetPgId, SOCKET_EVENTS.COMPLAINT_STATS_UPDATED, { complaint_id: complaintId });
+    socketService.emitStatsUpdated(targetPgId, SOCKET_EVENTS.DASHBOARD_STATS_UPDATED);
 
     auditService.log({
       pg_id: targetPgId,
@@ -858,6 +860,8 @@ class ComplaintService {
       status: newStatus,
       updated_at: moment().toISOString(),
     });
+    socketService.emitStatsUpdated(complaint.pg_id, SOCKET_EVENTS.COMPLAINT_STATS_UPDATED, { complaint_id: id });
+    socketService.emitStatsUpdated(complaint.pg_id, SOCKET_EVENTS.DASHBOARD_STATS_UPDATED);
 
     auditService.log({
       pg_id: complaint.pg_id,

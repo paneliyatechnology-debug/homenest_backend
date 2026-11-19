@@ -13,16 +13,19 @@ export const SOCKET_EVENTS = {
 
   // Notices & Announcements
   NOTICE_NEW: 'notice:new',
+  NOTICE_STATS_UPDATED: 'notice:stats_updated',
 
   // Complaints & Maintenance
   COMPLAINT_NEW: 'complaint:new',
   COMPLAINT_STATUS_UPDATED: 'complaint:status_updated',
   COMPLAINT_ACTIVITY: 'complaint:activity',
+  COMPLAINT_STATS_UPDATED: 'complaint:stats_updated',
 
   // Visitors & Gate Access
   VISITOR_NEW: 'visitor:new',
   VISITOR_STATUS_UPDATED: 'visitor:status_updated',
   VISITOR_ENTRY: 'visitor:entry',
+  VISITOR_STATS_UPDATED: 'visitor:stats_updated',
 
   // Community Feed & Social
   COMMUNITY_POST_NEW: 'community:post_new',
@@ -30,9 +33,41 @@ export const SOCKET_EVENTS = {
   COMMUNITY_COMMENT_NEW: 'community:comment_new',
   COMMUNITY_EVENT_UPDATED: 'community:event_updated',
 
-  // Room Shift & Checkout Requests
+  // Rooms & Inventory
+  ROOM_NEW: 'room:new',
+  ROOM_UPDATED: 'room:updated',
+  ROOM_DELETED: 'room:deleted',
+  ROOM_STATS_UPDATED: 'room:stats_updated',
   ROOM_SHIFT_NEW: 'room_shift:new',
   ROOM_SHIFT_STATUS_UPDATED: 'room_shift:status_updated',
+
+  // Payments & Finance
+  PAYMENT_NEW: 'payment:new',
+  PAYMENT_STATUS_UPDATED: 'payment:status_updated',
+  PAYMENT_STATS_UPDATED: 'payment:stats_updated',
+
+  // Residents & Staff (Users)
+  USER_NEW: 'user:new',
+  USER_UPDATED: 'user:updated',
+  USER_STATUS_UPDATED: 'user:status_updated',
+  RESIDENT_STATS_UPDATED: 'resident:stats_updated',
+  STAFF_STATS_UPDATED: 'staff:stats_updated',
+
+  // Branches
+  BRANCH_STATS_UPDATED: 'branch:stats_updated',
+
+  // Buildings & Floors
+  BUILDING_STATS_UPDATED: 'building:stats_updated',
+
+  // Laundry
+  LAUNDRY_NEW: 'laundry:new',
+  LAUNDRY_STATUS_UPDATED: 'laundry:status_updated',
+  LAUNDRY_STATS_UPDATED: 'laundry:stats_updated',
+
+  // Subscriptions
+  SUBSCRIPTION_STATS_UPDATED: 'subscription:stats_updated',
+
+  // Room Shift & Checkout Requests
   CHECKOUT_NEW: 'checkout:new',
   CHECKOUT_STATUS_UPDATED: 'checkout:status_updated',
 
@@ -306,6 +341,30 @@ class SocketService {
       this.io.emit(event, payload);
     } catch (err) {
       console.warn(`[Socket Warning] emitToAll failed:`, err.message);
+    }
+  };
+
+  /**
+   * Helper: Emit stats update event for a specific module to PG Admins and PG Room
+   *
+   * @param {number|string} pgId
+   * @param {string} event
+   * @param {Object} [payload]
+   */
+  emitStatsUpdated = (pgId, event, payload = {}) => {
+    if (!this.io || !event) return;
+    try {
+      const data = {
+        pg_id: pgId ? Number(pgId) : null,
+        timestamp: new Date().toISOString(),
+        ...payload,
+      };
+      this.emitToPgAdmins(pgId, event, data);
+      if (pgId) {
+        this.emitToPg(pgId, event, data);
+      }
+    } catch (err) {
+      console.warn(`[Socket Warning] emitStatsUpdated failed:`, err.message);
     }
   };
 }

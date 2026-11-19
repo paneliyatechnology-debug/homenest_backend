@@ -142,6 +142,15 @@ export const create = async (data) => {
     new_values: { room_no, room_type, building_id, floor_id, capacity, status },
   });
 
+  // Real-time: Notify admins, update room stats, building stats, branch stats, and operations dashboard
+  try {
+    socketService.emitStatsUpdated(pg_id, SOCKET_EVENTS.ROOM_STATS_UPDATED, { room_id: id });
+    socketService.emitStatsUpdated(pg_id, SOCKET_EVENTS.BUILDING_STATS_UPDATED);
+    if (branch_id) socketService.emitStatsUpdated(pg_id, SOCKET_EVENTS.BRANCH_STATS_UPDATED, { branch_id });
+    socketService.emitStatsUpdated(pg_id, SOCKET_EVENTS.DASHBOARD_STATS_UPDATED);
+    socketService.emitToPgAdmins(pg_id, SOCKET_EVENTS.ROOM_NEW, { id, room_no, room_type, status });
+  } catch (e) {}
+
   return findById(id);
 };
 
@@ -439,6 +448,13 @@ export const update = async (id, data) => {
     new_values: logNewValues,
   });
 
+  // Real-time: Update room stats and dashboard
+  try {
+    socketService.emitStatsUpdated(room.pg_id, SOCKET_EVENTS.ROOM_STATS_UPDATED, { room_id: id });
+    socketService.emitStatsUpdated(room.pg_id, SOCKET_EVENTS.DASHBOARD_STATS_UPDATED);
+    socketService.emitToPgAdmins(room.pg_id, SOCKET_EVENTS.ROOM_UPDATED, { id, room_no: room.room_no, status: logNewValues.status || room.status });
+  } catch (e) {}
+
   return findById(id);
 };
 
@@ -491,6 +507,15 @@ export const remove = async (id) => {
     description: `Deleted room ${room.room_no}`,
     old_values: { room_no: room.room_no, branch_id: room.branch_id },
   });
+
+  // Real-time: Update stats and dashboard
+  try {
+    socketService.emitStatsUpdated(room.pg_id, SOCKET_EVENTS.ROOM_STATS_UPDATED, { room_id: id, deleted: true });
+    socketService.emitStatsUpdated(room.pg_id, SOCKET_EVENTS.BUILDING_STATS_UPDATED);
+    if (room.branch_id) socketService.emitStatsUpdated(room.pg_id, SOCKET_EVENTS.BRANCH_STATS_UPDATED, { branch_id: room.branch_id });
+    socketService.emitStatsUpdated(room.pg_id, SOCKET_EVENTS.DASHBOARD_STATS_UPDATED);
+    socketService.emitToPgAdmins(room.pg_id, SOCKET_EVENTS.ROOM_DELETED, { id, room_no: room.room_no });
+  } catch (e) {}
 
   return true;
 };
@@ -887,6 +912,7 @@ export const createShift = async (data, user) => {
     reason,
     created_at: moment().toISOString(),
   });
+  socketService.emitStatsUpdated(pgId, SOCKET_EVENTS.ROOM_STATS_UPDATED);
 
   // Real-time: If created by admin, also notify resident
   if (user.role !== ROLES.RESIDENT) {
@@ -1201,6 +1227,11 @@ export const updateShiftStatus = async (id, data, user) => {
     admin_notes: adminNotes,
     reviewed_at: moment().toISOString(),
   });
+  const shiftPgId = request.resident?.pg_id || request.pg_id;
+  if (shiftPgId) {
+    socketService.emitStatsUpdated(shiftPgId, SOCKET_EVENTS.ROOM_STATS_UPDATED);
+    socketService.emitStatsUpdated(shiftPgId, SOCKET_EVENTS.DASHBOARD_STATS_UPDATED);
+  }
 
   auditService.log({
     pg_id: request.resident?.pg_id || request.pg_id,

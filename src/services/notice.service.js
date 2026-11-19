@@ -545,6 +545,10 @@ class NoticeService {
       new_values: { title: data.title, category: data.category, priority: data.priority, audience_type: data.audience_type, status },
     });
 
+    try {
+      socketService.emitStatsUpdated(context.pg_id, SOCKET_EVENTS.NOTICE_STATS_UPDATED, { notice_id: id, status });
+    } catch (e) {}
+
     return { id };
   };
 
@@ -657,6 +661,10 @@ class NoticeService {
       new_values: logNewValues,
     });
 
+    try {
+      socketService.emitStatsUpdated(existing.pg_id, SOCKET_EVENTS.NOTICE_STATS_UPDATED, { notice_id: id });
+    } catch (e) {}
+
     return { id: Number(id) };
   };
 
@@ -692,6 +700,10 @@ class NoticeService {
       entity_id: id,
       description: `Deleted notice "${existing.title}"`,
     });
+
+    try {
+      socketService.emitStatsUpdated(existing.pg_id, SOCKET_EVENTS.NOTICE_STATS_UPDATED, { notice_id: id, deleted: true });
+    } catch (e) {}
 
     return { id: Number(id) };
   };
@@ -737,6 +749,10 @@ class NoticeService {
       entity_id: id,
       description: `Broadcasted notice "${existing.title}" to ${existing.audience_type}`,
     });
+
+    try {
+      socketService.emitStatsUpdated(existing.pg_id, SOCKET_EVENTS.NOTICE_STATS_UPDATED, { notice_id: id, status: 'sent' });
+    } catch (e) {}
 
     return { id: Number(id) };
   };

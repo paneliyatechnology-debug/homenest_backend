@@ -9,6 +9,7 @@ import { HTTP_STATUS, ROLES, AUDIT_MODULES, AUDIT_ACTIONS } from '../constants/i
 import { buildFileUrl } from '../utils/url.js';
 import QRCode from 'qrcode';
 import auditService from './audit.service.js';
+import socketService, { SOCKET_EVENTS } from './socket.service.js';
 
 /**
  * Service managing Payments, Invoices, Billing Breakdowns, QR/UPI Checkout, and Receipts.
@@ -1764,6 +1765,16 @@ class PaymentService {
       new_values: { amount: paid_amount, payment_method, upi_ref_no: payload.upi_ref_no },
     });
 
+    // Real-time: Notify admins and resident, update payment stats and main dashboard
+    try {
+      socketService.emitStatsUpdated(payment.pg_id, SOCKET_EVENTS.PAYMENT_STATS_UPDATED, { payment_id, status: 'paid', paid_amount });
+      socketService.emitStatsUpdated(payment.pg_id, SOCKET_EVENTS.DASHBOARD_STATS_UPDATED);
+      socketService.emitToPgAdmins(payment.pg_id, SOCKET_EVENTS.PAYMENT_STATUS_UPDATED, { id: payment_id, status: 'paid', paid_amount });
+      if (payment.resident_id) {
+        socketService.emitToUser(payment.resident_id, SOCKET_EVENTS.PAYMENT_STATUS_UPDATED, { id: payment_id, status: 'paid', paid_amount });
+      }
+    } catch (e) {}
+
     return await this.findById(payment_id);
   };
 
@@ -1895,6 +1906,16 @@ class PaymentService {
       new_values: { resident_id, amount: calculated_total, title, due_date },
     });
 
+    // Real-time: Notify admins and resident, update payment stats and main dashboard
+    try {
+      socketService.emitStatsUpdated(resolved_pg_id, SOCKET_EVENTS.PAYMENT_STATS_UPDATED, { payment_id: id, status: 'pending' });
+      socketService.emitStatsUpdated(resolved_pg_id, SOCKET_EVENTS.DASHBOARD_STATS_UPDATED);
+      socketService.emitToPgAdmins(resolved_pg_id, SOCKET_EVENTS.PAYMENT_NEW, { id, resident_id, amount: calculated_total, status: 'pending' });
+      if (resident_id) {
+        socketService.emitToUser(resident_id, SOCKET_EVENTS.PAYMENT_NEW, { id, amount: calculated_total, status: 'pending' });
+      }
+    } catch (e) {}
+
     return await this.findById(id);
   };
 
@@ -1998,6 +2019,13 @@ class PaymentService {
       new_values: updatePayload,
     });
 
+    // Real-time: Update stats and dashboard
+    try {
+      socketService.emitStatsUpdated(existing.pg_id, SOCKET_EVENTS.PAYMENT_STATS_UPDATED, { payment_id: id });
+      socketService.emitStatsUpdated(existing.pg_id, SOCKET_EVENTS.DASHBOARD_STATS_UPDATED);
+      socketService.emitToPgAdmins(existing.pg_id, SOCKET_EVENTS.PAYMENT_STATUS_UPDATED, { id, status: updatePayload.status || existing.status });
+    } catch (e) {}
+
     return await this.findById(id);
   };
 
@@ -2028,6 +2056,12 @@ class PaymentService {
       description: `Deleted payment record #${id}`,
       old_values: { amount: existing.amount, status: existing.status },
     });
+
+    // Real-time: Update stats and dashboard
+    try {
+      socketService.emitStatsUpdated(existing.pg_id, SOCKET_EVENTS.PAYMENT_STATS_UPDATED, { payment_id: id, deleted: true });
+      socketService.emitStatsUpdated(existing.pg_id, SOCKET_EVENTS.DASHBOARD_STATS_UPDATED);
+    } catch (e) {}
 
     return true;
   };

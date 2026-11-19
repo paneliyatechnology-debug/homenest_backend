@@ -365,6 +365,26 @@ class VisitorService {
       }
     }
 
+    // Real-time: Notify admins and host resident, update visitor stats
+    try {
+      socketService.emitToPgAdmins(target_pg_id, SOCKET_EVENTS.VISITOR_NEW, {
+        id: insertId,
+        visitor_name: data.visitor_name,
+        pass_code,
+        status: status || 'pending',
+        resident_id,
+      });
+      socketService.emitStatsUpdated(target_pg_id, SOCKET_EVENTS.VISITOR_STATS_UPDATED, { visitor_id: insertId });
+      if (user.role !== ROLES.RESIDENT && resident_id) {
+        socketService.emitToUser(resident_id, SOCKET_EVENTS.VISITOR_NEW, {
+          id: insertId,
+          visitor_name: data.visitor_name,
+          pass_code,
+          status: status || 'pending',
+        });
+      }
+    } catch (e) {}
+
     return createdRecord;
   };
 
@@ -779,6 +799,7 @@ class VisitorService {
       pass_code,
       updated_at: moment().toISOString(),
     });
+    socketService.emitStatsUpdated(existing.pg_id, SOCKET_EVENTS.VISITOR_STATS_UPDATED, { visitor_id: id, status });
 
     auditService.log({
       pg_id: existing.pg_id,
@@ -913,6 +934,7 @@ class VisitorService {
         gate_name: options?.gate_name || 'Main Gate',
         log_time: currentTime,
       });
+      socketService.emitStatsUpdated(existing.pg_id, SOCKET_EVENTS.VISITOR_STATS_UPDATED, { visitor_id: existing.id, action: 'EXIT' });
 
       auditService.log({
         pg_id: existing.pg_id,
@@ -974,6 +996,7 @@ class VisitorService {
         gate_name: options?.gate_name || 'Main Gate',
         log_time: currentTime,
       });
+      socketService.emitStatsUpdated(existing.pg_id, SOCKET_EVENTS.VISITOR_STATS_UPDATED, { visitor_id: existing.id, action: 'ENTRY' });
 
       auditService.log({
         pg_id: existing.pg_id,
@@ -1034,6 +1057,10 @@ class VisitorService {
     if (existing.visitor_photo) {
       deleteVisitorPhotoFile(existing.visitor_photo);
     }
+
+    try {
+      socketService.emitStatsUpdated(existing.pg_id, SOCKET_EVENTS.VISITOR_STATS_UPDATED, { visitor_id: id, deleted: true });
+    } catch (e) {}
 
     return true;
   };

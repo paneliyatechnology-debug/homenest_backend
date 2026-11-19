@@ -4,6 +4,7 @@ import { AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS, ROLES, STAFF_ROLES } from '../constants/index.js';
 import { formatDate } from '../utils/date.js';
 import { buildFileUrl } from '../utils/url.js';
+import socketService, { SOCKET_EVENTS } from './socket.service.js';
 
 // Default system laundry service pricing catalog per piece/item
 export const LAUNDRY_CATALOG = [
@@ -444,7 +445,16 @@ export const create = async (user, data) => {
       updated_at: db.fn.now(),
     });
 
-    return await findById(requestId, user, trx);
+    const created = await findById(requestId, user, trx);
+    try {
+      socketService.emitStatsUpdated(created.pg_id, SOCKET_EVENTS.LAUNDRY_STATS_UPDATED, { order_id: requestId, status: initialStatus });
+      socketService.emitToPgAdmins(created.pg_id, SOCKET_EVENTS.LAUNDRY_NEW, { id: requestId, resident_id: targetResidentId, status: initialStatus });
+      if (user.role !== ROLES.RESIDENT) {
+        socketService.emitToUser(targetResidentId, SOCKET_EVENTS.LAUNDRY_NEW, { id: requestId, status: initialStatus });
+      }
+    } catch (e) {}
+
+    return created;
   });
 };
 
@@ -940,7 +950,17 @@ export const updateStatus = async (id, user, data) => {
   }
 
   await db('laundry_requests').where({ id }).update(updates);
-  return await findById(id, user);
+  const updated = await findById(id, user);
+
+  try {
+    socketService.emitStatsUpdated(updated.pg_id, SOCKET_EVENTS.LAUNDRY_STATS_UPDATED, { order_id: id, status: data.status.toLowerCase() });
+    socketService.emitToPgAdmins(updated.pg_id, SOCKET_EVENTS.LAUNDRY_STATUS_UPDATED, { id, status: data.status.toLowerCase() });
+    if (updated.resident_id) {
+      socketService.emitToUser(updated.resident_id, SOCKET_EVENTS.LAUNDRY_STATUS_UPDATED, { id, status: data.status.toLowerCase() });
+    }
+  } catch (e) {}
+
+  return updated;
 };
 
 /**
@@ -983,6 +1003,10 @@ export const remove = async (id, user) => {
     deleted_at: db.fn.now(),
     status: 'cancelled',
   });
+
+  try {
+    socketService.emitStatsUpdated(current.pg_id, SOCKET_EVENTS.LAUNDRY_STATS_UPDATED, { order_id: id, deleted: true });
+  } catch (e) {}
 
   return { success: true, message: 'Laundry request cancelled successfully' };
 };

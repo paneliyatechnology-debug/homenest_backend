@@ -1,6 +1,7 @@
 import db from '../config/db.js';
 import { AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS } from '../constants/index.js';
+import socketService, { SOCKET_EVENTS } from './socket.service.js';
 
 class SubscriptionService {
   /**
@@ -251,6 +252,10 @@ class SubscriptionService {
       updated_at: db.fn.now(),
     });
 
+    try {
+      socketService.emitStatsUpdated(Number(pg_id), SOCKET_EVENTS.SUBSCRIPTION_STATS_UPDATED, { plan_id: id });
+    } catch (e) {}
+
     return this.findById(id);
   };
 
@@ -312,6 +317,10 @@ class SubscriptionService {
     }
 
     await db('subscription_plans').where({ id }).update(updatePayload);
+    try {
+      socketService.emitStatsUpdated(Number(plan.pg_id), SOCKET_EVENTS.SUBSCRIPTION_STATS_UPDATED, { plan_id: id });
+    } catch (e) {}
+
     return this.findById(id);
   };
 
@@ -342,6 +351,10 @@ class SubscriptionService {
       updated_at: db.fn.now(),
     });
 
+    try {
+      socketService.emitStatsUpdated(Number(plan.pg_id), SOCKET_EVENTS.SUBSCRIPTION_STATS_UPDATED, { plan_id: id });
+    } catch (e) {}
+
     return this.findById(id);
   };
 
@@ -363,6 +376,10 @@ class SubscriptionService {
       is_active: 0,
       updated_at: db.fn.now(),
     });
+
+    try {
+      socketService.emitStatsUpdated(Number(plan.pg_id), SOCKET_EVENTS.SUBSCRIPTION_STATS_UPDATED, { plan_id: id, deleted: true });
+    } catch (e) {}
 
     return true;
   };

@@ -5,6 +5,7 @@ import { buildFileUrl } from '../utils/url.js';
 import { deleteBranchPhotoFile } from '../middlewares/upload.middleware.js';
 import { resolveFileUpdate } from '../utils/fileHelper.js';
 import auditService from './audit.service.js';
+import socketService, { SOCKET_EVENTS } from './socket.service.js';
 
 /**
  * Service managing Property Branches.
@@ -160,6 +161,10 @@ class BranchService {
       description: `Created branch ${data.name.trim()} (${data.location || ''})`,
       new_values: { name: data.name, location: data.location, total_rooms: data.total_rooms },
     });
+
+    try {
+      socketService.emitStatsUpdated(pg_id, SOCKET_EVENTS.BRANCH_STATS_UPDATED, { branch_id });
+    } catch (e) {}
 
     return await this.findById(branch_id, { user, trx });
   };
@@ -403,6 +408,10 @@ class BranchService {
       new_values: logNewValues,
     });
 
+    try {
+      socketService.emitStatsUpdated(existing.pg_id, SOCKET_EVENTS.BRANCH_STATS_UPDATED, { branch_id: id });
+    } catch (e) {}
+
     return await this.findById(id, { user });
   };
 
@@ -438,6 +447,10 @@ class BranchService {
       description: `Deleted branch ${existing.name}`,
       old_values: { name: existing.name },
     });
+
+    try {
+      socketService.emitStatsUpdated(existing.pg_id, SOCKET_EVENTS.BRANCH_STATS_UPDATED, { branch_id: id, deleted: true });
+    } catch (e) {}
 
     return true;
   };

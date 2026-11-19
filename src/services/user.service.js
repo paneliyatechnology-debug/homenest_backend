@@ -4,6 +4,7 @@ import config from '../config/index.js';
 import { hashPassword, generateSecurePassword } from '../utils/password.js';
 import emailService from './email.service.js';
 import auditService from './audit.service.js';
+import socketService, { SOCKET_EVENTS } from './socket.service.js';
 import { AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS, ROLES, STAFF_ROLES, ALL_STAFF_ROLES, AUDIT_MODULES, AUDIT_ACTIONS } from '../constants/index.js';
 import { deleteUserPhotoFile, deleteDocumentFile } from '../middlewares/upload.middleware.js';
@@ -931,6 +932,15 @@ class UserService {
       new_values: { name, email, phone, role: role || ROLES.RESIDENT },
     });
 
+    // Real-time: Update resident stats, room stats, and operations dashboard
+    try {
+      const targetPgId = target_pg_id || pg_id || user_data.pg_id;
+      socketService.emitStatsUpdated(targetPgId, SOCKET_EVENTS.RESIDENT_STATS_UPDATED, { user_id: inserted_id });
+      socketService.emitStatsUpdated(targetPgId, SOCKET_EVENTS.ROOM_STATS_UPDATED);
+      socketService.emitStatsUpdated(targetPgId, SOCKET_EVENTS.DASHBOARD_STATS_UPDATED);
+      socketService.emitToPgAdmins(targetPgId, SOCKET_EVENTS.USER_NEW, { id: inserted_id, name, email, role: role || ROLES.RESIDENT });
+    } catch (e) {}
+
     return await this.findById(inserted_id);
   };
 
@@ -1313,6 +1323,13 @@ class UserService {
       new_values: { name: update_data.name, email: update_data.email, status: update_data.status },
     });
 
+    // Real-time: Update resident stats and operations dashboard
+    try {
+      socketService.emitStatsUpdated(existing.pg_id, SOCKET_EVENTS.RESIDENT_STATS_UPDATED, { user_id: id });
+      socketService.emitStatsUpdated(existing.pg_id, SOCKET_EVENTS.DASHBOARD_STATS_UPDATED);
+      socketService.emitToPgAdmins(existing.pg_id, SOCKET_EVENTS.USER_UPDATED, { id, status: update_data.status || existing.status });
+    } catch (e) {}
+
     return await this.findById(id);
   };
 
@@ -1382,6 +1399,13 @@ class UserService {
       description: `Deleted user ${user.name} (${user.role})`,
       old_values: { name: user.name, email: user.email, role: user.role },
     });
+
+    // Real-time: Update resident stats, room stats, and operations dashboard
+    try {
+      socketService.emitStatsUpdated(user.pg_id, SOCKET_EVENTS.RESIDENT_STATS_UPDATED, { user_id: id, deleted: true });
+      socketService.emitStatsUpdated(user.pg_id, SOCKET_EVENTS.ROOM_STATS_UPDATED);
+      socketService.emitStatsUpdated(user.pg_id, SOCKET_EVENTS.DASHBOARD_STATS_UPDATED);
+    } catch (e) {}
 
     return true;
   };
@@ -1963,6 +1987,10 @@ class UserService {
       new_values: { name: newStaff.name, email: newStaff.email, staff_role: newStaff.role, branch_ids: branchIds },
     });
 
+    try {
+      socketService.emitStatsUpdated(pg.id, SOCKET_EVENTS.STAFF_STATS_UPDATED, { staff_id: newStaff.id });
+    } catch (e) {}
+
     return newStaff;
   };
 
@@ -2085,6 +2113,10 @@ class UserService {
       new_values: { name: data.name, email: data.email, staff_role: data.staff_role || data.role },
     });
 
+    try {
+      socketService.emitStatsUpdated(pg.id, SOCKET_EVENTS.STAFF_STATS_UPDATED, { staff_id: id });
+    } catch (e) {}
+
     return await this.getStaffById(id, user);
   };
 
@@ -2122,6 +2154,10 @@ class UserService {
       old_values: { status: staff.status },
       new_values: { status: normalizedStatus },
     });
+
+    try {
+      socketService.emitStatsUpdated(pg.id, SOCKET_EVENTS.STAFF_STATS_UPDATED, { staff_id: id, status: normalizedStatus });
+    } catch (e) {}
 
     return {
       id,
@@ -2165,6 +2201,10 @@ class UserService {
       description: `Removed staff member ${staff.name}`,
       old_values: { name: staff.name, email: staff.email, role: staff.role },
     });
+
+    try {
+      socketService.emitStatsUpdated(pg.id, SOCKET_EVENTS.STAFF_STATS_UPDATED, { staff_id: id, deleted: true });
+    } catch (e) {}
 
     return {
       id,

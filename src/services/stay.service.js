@@ -1767,6 +1767,11 @@ class StayService {
       admin_notes: data.admin_notes || null,
       updated_at: moment().toISOString(),
     });
+    try {
+      socketService.emitStatsUpdated(existing.pg_id, SOCKET_EVENTS.ROOM_STATS_UPDATED);
+      socketService.emitStatsUpdated(existing.pg_id, SOCKET_EVENTS.RESIDENT_STATS_UPDATED);
+      socketService.emitStatsUpdated(existing.pg_id, SOCKET_EVENTS.DASHBOARD_STATS_UPDATED);
+    } catch (e) {}
 
     auditService.log({
       pg_id: existing.pg_id,

@@ -1,6 +1,7 @@
 import db from '../config/db.js';
 import { AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS, ROLES } from '../constants/index.js';
+import socketService, { SOCKET_EVENTS } from './socket.service.js';
 
 /**
  * Standard ordinal floor name generator
@@ -207,6 +208,10 @@ export class BuildingService {
 
       return newId;
     });
+
+    try {
+      socketService.emitStatsUpdated(pg_id, SOCKET_EVENTS.BUILDING_STATS_UPDATED, { building_id: createdBuildingId });
+    } catch (e) {}
 
     return this.findById(createdBuildingId);
   };
@@ -607,6 +612,10 @@ export class BuildingService {
       }
     });
 
+    try {
+      socketService.emitStatsUpdated(building.pg_id, SOCKET_EVENTS.BUILDING_STATS_UPDATED, { building_id: id });
+    } catch (e) {}
+
     return this.findById(id);
   };
 
@@ -649,6 +658,10 @@ export class BuildingService {
         .whereNull('deleted_at')
         .update({ deleted_at: db.fn.now(), updated_at: db.fn.now() });
     });
+
+    try {
+      socketService.emitStatsUpdated(building.pg_id, SOCKET_EVENTS.BUILDING_STATS_UPDATED, { building_id: id, deleted: true });
+    } catch (e) {}
 
     return true;
   };
