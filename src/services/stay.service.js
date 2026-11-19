@@ -7,6 +7,7 @@ import db from '../config/db.js';
 import { AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS, ROLES, STAFF_ROLES, AUDIT_MODULES, AUDIT_ACTIONS } from '../constants/index.js';
 import { syncBranchStats } from './branch.service.js';
+import { syncRoomOccupancyStatus } from './room.service.js';
 import { buildFileUrl } from '../utils/url.js';
 import socketService, { SOCKET_EVENTS } from './socket.service.js';
 import auditService from './audit.service.js';
@@ -191,22 +192,9 @@ class StayService {
           updated_at: db.fn.now(),
         });
 
-      // If no other active resident in this room, set room to vacant
-      const remaining_active = await trx('resident_pg_stays')
-        .where({ room_id: stay.room_id, status: 'active' })
-        .whereNull('deleted_at')
-        .whereNot({ id: stay_id })
-        .first();
-
-      if (!remaining_active) {
-        await trx('rooms')
-          .where({ id: stay.room_id })
-          .update({ status: 'vacant', updated_at: db.fn.now() });
-
-        const roomRecord = await trx('rooms').where({ id: stay.room_id }).first();
-        if (roomRecord && roomRecord.branch_id) {
-          await syncBranchStats(roomRecord.branch_id, trx);
-        }
+      // Dynamically sync room occupancy based on capacity and remaining active residents
+      if (stay.room_id) {
+        await syncRoomOccupancyStatus(stay.room_id, trx);
       }
     });
 
@@ -1743,19 +1731,9 @@ class StayService {
             updated_at: db.fn.now(),
           });
 
-        // Verify whether any other active resident stays remain in this room
-        const remainingOccupants = await trx('resident_pg_stays')
-          .where({ room_id: existing.room_id, status: 'active' })
-          .whereNull('deleted_at')
-          .whereNot({ id: existing.stay_id })
-          .first();
-
-        if (!remainingOccupants) {
-          await trx('rooms')
-            .where({ id: existing.room_id })
-            .update({ status: 'vacant', updated_at: db.fn.now() });
-
-          await syncBranchStats(existing.branch_id, trx);
+        // Dynamically sync room occupancy based on capacity and remaining active residents
+        if (existing.room_id) {
+          await syncRoomOccupancyStatus(existing.room_id, trx);
         }
       }
     });

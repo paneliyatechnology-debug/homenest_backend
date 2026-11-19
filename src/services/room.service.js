@@ -40,6 +40,87 @@ const formatRoom = (room) => {
 };
 
 /**
+ * Automatically sync room occupancy status based on room capacity and assigned active residents.
+ * Dynamic rule:
+ * - Double-sharing (capacity: 2): 1 active resident => 'vacant' (1 bed available); 2 active residents => 'occupied'.
+ * - Dynamic for all capacities: active residents >= capacity => 'occupied'; active residents < capacity => 'vacant'.
+ * - Retains administrative status ('maintenance', 'out_of_service') when active residents === 0.
+ *
+ * @param {number|string} roomId - Room ID
+ * @param {Object|null} trx - Optional Knex transaction
+ * @returns {Promise<Object|null>} Sync result with status details
+ */
+export const syncRoomOccupancyStatus = async (roomId, trx = null) => {
+  if (!roomId) return null;
+  const rId = Number(roomId);
+  if (!rId || isNaN(rId)) return null;
+
+  const qb = trx || db;
+
+  const room = await qb('rooms')
+    .where({ id: rId })
+    .whereNull('deleted_at')
+    .first();
+
+  if (!room) return null;
+
+  const capacity = Math.max(1, Number(room.capacity) || 1);
+
+  const [{ count: activeOccupantsRaw }] = await qb('resident_pg_stays')
+    .where({ room_id: rId, status: 'active' })
+    .whereNull('deleted_at')
+    .count('id as count');
+
+  const activeOccupants = Number(activeOccupantsRaw) || 0;
+
+  let newStatus;
+  if (activeOccupants >= capacity) {
+    newStatus = 'occupied';
+  } else if (activeOccupants === 0 && ['maintenance', 'out_of_service'].includes(room.status)) {
+    newStatus = room.status;
+  } else {
+    newStatus = 'vacant';
+  }
+
+  const previousStatus = room.status;
+  let statusChanged = false;
+
+  if (previousStatus !== newStatus) {
+    statusChanged = true;
+    await qb('rooms')
+      .where({ id: rId })
+      .update({
+        status: newStatus,
+        updated_at: db.fn.now(),
+      });
+  }
+
+  // Always keep branch stats accurate
+  if (room.branch_id) {
+    await syncBranchStats(room.branch_id, trx);
+  }
+
+  if (statusChanged) {
+    try {
+      socketService.emitStatsUpdated(room.pg_id, SOCKET_EVENTS.ROOM_STATS_UPDATED, { room_id: rId });
+      socketService.emitStatsUpdated(room.pg_id, SOCKET_EVENTS.DASHBOARD_STATS_UPDATED);
+      if (room.branch_id) {
+        socketService.emitStatsUpdated(room.pg_id, SOCKET_EVENTS.BRANCH_STATS_UPDATED, { branch_id: room.branch_id });
+      }
+    } catch (e) {}
+  }
+
+  return {
+    roomId: rId,
+    previousStatus,
+    status: newStatus,
+    activeOccupants,
+    capacity,
+    statusChanged,
+  };
+};
+
+/**
  * ============================================================================
  * CORE ROOM MANAGEMENT SERVICE
  * ============================================================================
@@ -1103,29 +1184,15 @@ const executeRoomTransfer = async (requestId, targetRoomId, stay, user, adminNot
         updated_at: db.fn.now(),
       });
 
-    // 3. Update old room status if now vacant
-    const oldRemaining = await trx('resident_pg_stays')
-      .where({ room_id: oldRoomId, status: 'active' })
-      .whereNull('deleted_at')
-      .first();
-
-    if (!oldRemaining) {
-      await trx('rooms').where({ id: oldRoomId }).update({ status: 'vacant', updated_at: db.fn.now() });
+    // 3. Dynamically sync old room occupancy based on capacity and remaining occupants
+    if (oldRoomId) {
+      await syncRoomOccupancyStatus(oldRoomId, trx);
     }
 
-    // 4. Update target room status
-    const [{ count: targetActive }] = await trx('resident_pg_stays')
-      .where({ room_id: targetRoomId, status: 'active' })
-      .whereNull('deleted_at')
-      .count('id as count');
-
-    const targetCapacity = Number(targetRoom.capacity) || 1;
-    const newStatus = Number(targetActive) >= targetCapacity ? 'occupied' : 'vacant';
-
-    await trx('rooms').where({ id: targetRoomId }).update({
-      status: newStatus,
-      updated_at: db.fn.now(),
-    });
+    // 4. Dynamically sync target room occupancy based on capacity and new occupants
+    if (targetRoomId) {
+      await syncRoomOccupancyStatus(targetRoomId, trx);
+    }
 
     // 5. Update room shift record
     await trx('room_shift_requests')

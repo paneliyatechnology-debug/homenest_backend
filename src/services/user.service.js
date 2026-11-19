@@ -11,6 +11,7 @@ import { deleteUserPhotoFile, deleteDocumentFile } from '../middlewares/upload.m
 import { resolveFileUpdate, isExplicitFileRemoval } from '../utils/fileHelper.js';
 import { buildFileUrl } from '../utils/url.js';
 import { syncBranchStats } from './branch.service.js';
+import { syncRoomOccupancyStatus } from './room.service.js';
 
 /**
  * Helper to safely parse JSON strings
@@ -825,14 +826,9 @@ class UserService {
             .ignore();
         }
 
+        // Dynamically sync room occupancy status based on capacity and active residents
         if (status === 'active') {
-          await trx('rooms').where({ id: target_room.id }).update({
-            status: 'occupied',
-            updated_at: db.fn.now(),
-          });
-          if (target_room.branch_id) {
-            await syncBranchStats(target_room.branch_id, trx);
-          }
+          await syncRoomOccupancyStatus(target_room.id, trx);
         }
 
         // Automatically create initial onboarding payment demand with total of all three: rent, deposit, maintenance
@@ -1248,10 +1244,13 @@ class UserService {
       }
 
       if (active_stay) {
+        const oldRoomId = active_stay.room_id;
+        const newRoomId = update_data.room_id !== undefined ? Number(update_data.room_id) : oldRoomId;
+
         const stay_updates = {
           ...(update_data.branch_id !== undefined && { branch_id: Number(update_data.branch_id) }),
           ...(target_room?.branch_id && { branch_id: target_room.branch_id }),
-          ...(update_data.room_id !== undefined && { room_id: update_data.room_id }),
+          ...(update_data.room_id !== undefined && { room_id: newRoomId }),
           ...(update_data.bed_number !== undefined && { bed_number: update_data.bed_number }),
           ...(update_data.monthly_rent !== undefined && { monthly_rent: parseFloat(update_data.monthly_rent) || 0.0 }),
           ...(update_data.security_deposit !== undefined && { security_deposit: parseFloat(update_data.security_deposit) || 0.0 }),
@@ -1260,20 +1259,15 @@ class UserService {
           updated_at: db.fn.now(),
         };
 
-        if (update_data.room_id && update_data.room_id !== active_stay.room_id) {
-          // Free previous room if no other active residents
-          const other_in_old = await db('resident_pg_stays')
-            .where({ room_id: active_stay.room_id, status: 'active' })
-            .whereNull('deleted_at')
-            .whereNot({ id: active_stay.id })
-            .first();
-          if (!other_in_old) {
-            await db('rooms').where({ id: active_stay.room_id }).update({ status: 'vacant', updated_at: db.fn.now() });
-          }
-          await db('rooms').where({ id: update_data.room_id }).update({ status: 'occupied', updated_at: db.fn.now() });
-        }
-
         await db('resident_pg_stays').where({ id: active_stay.id }).update(stay_updates);
+
+        // Dynamically sync occupancy for both old and new rooms
+        if (update_data.room_id !== undefined && newRoomId !== oldRoomId) {
+          if (oldRoomId) await syncRoomOccupancyStatus(oldRoomId);
+          if (newRoomId) await syncRoomOccupancyStatus(newRoomId);
+        } else if (oldRoomId) {
+          await syncRoomOccupancyStatus(oldRoomId);
+        }
 
         // Sync user_branches if branch updated
         if (stay_updates.branch_id) {
@@ -1299,7 +1293,7 @@ class UserService {
           created_at: db.fn.now(),
           updated_at: db.fn.now(),
         });
-        await db('rooms').where({ id: target_room.id }).update({ status: 'occupied', updated_at: db.fn.now() });
+        await syncRoomOccupancyStatus(target_room.id);
 
         // Sync user_branches
         if (assignedBranchId) {
@@ -1349,26 +1343,7 @@ class UserService {
       deleteUserPhotoFile(user.profile_photo);
     }
 
-    // If resident has an active stay in a room, set that room back to vacant
-    const roomId = user.room_id || user.room_info?.room_id;
-    if (roomId) {
-      const remaining = await db('resident_pg_stays')
-        .where({ room_id: roomId, status: 'active' })
-        .whereNull('deleted_at')
-        .whereNot({ resident_id: id })
-        .first();
-
-      if (!remaining) {
-        await db('rooms').where({ id: roomId }).update({
-          status: 'vacant',
-          updated_at: db.fn.now(),
-        });
-        const rm = await db('rooms').where({ id: roomId }).first();
-        if (rm && rm.branch_id) {
-          await syncBranchStats(rm.branch_id);
-        }
-      }
-    }
+    const roomId = user.room_id || user.room_info?.room_id || user.room_info?.id;
 
     // Soft delete associated active stays
     await db('resident_pg_stays')
@@ -1379,6 +1354,11 @@ class UserService {
         deleted_at: db.fn.now(),
         updated_at: db.fn.now(),
       });
+
+    // Dynamically sync room occupancy based on capacity and remaining active residents
+    if (roomId) {
+      await syncRoomOccupancyStatus(roomId);
+    }
 
     // Soft delete the user record
     await db('users')
