@@ -1779,6 +1779,7 @@ class PaymentService {
     const {
       resident_id,
       pg_id,
+      branch_id = null,
       stay_id = null,
       room_id = null,
       title = 'Monthly Rent',
@@ -1801,25 +1802,45 @@ class PaymentService {
       throw new AppError('Resident not found', HTTP_STATUS.NOT_FOUND);
     }
 
-    // Auto-resolve current active stay, room_id, and pg_id if not explicitly provided
+    // Auto-resolve current active stay, room_id, pg_id, and branch_id if not explicitly provided
     let resolved_stay_id = stay_id ? Number(stay_id) : null;
     let resolved_room_id = room_id ? Number(room_id) : null;
     let resolved_pg_id = pg_id ? Number(pg_id) : null;
-    let resolved_branch_id = data.branch_id ? Number(data.branch_id) : null;
+    let resolved_branch_id = branch_id ? Number(branch_id) : (data.branch_id ? Number(data.branch_id) : null);
 
     if (!resolved_stay_id || !resolved_room_id || !resolved_pg_id || !resolved_branch_id) {
-      const active_stay = await db('resident_pg_stays')
+      let stay = await db('resident_pg_stays')
         .where({ resident_id: Number(resident_id), status: 'active' })
         .whereNull('deleted_at')
         .orderBy('id', 'desc')
         .first();
 
-      if (active_stay) {
-        if (!resolved_stay_id) resolved_stay_id = active_stay.id;
-        if (!resolved_room_id) resolved_room_id = active_stay.room_id;
-        if (!resolved_pg_id) resolved_pg_id = active_stay.pg_id;
-        if (!resolved_branch_id) resolved_branch_id = active_stay.branch_id;
+      if (!stay) {
+        stay = await db('resident_pg_stays')
+          .where({ resident_id: Number(resident_id) })
+          .whereNull('deleted_at')
+          .orderBy('id', 'desc')
+          .first();
       }
+
+      if (stay) {
+        if (!resolved_stay_id) resolved_stay_id = stay.id;
+        if (!resolved_room_id) resolved_room_id = stay.room_id;
+        if (!resolved_pg_id) resolved_pg_id = stay.pg_id;
+        if (!resolved_branch_id) resolved_branch_id = stay.branch_id;
+      }
+    }
+
+    if (resolved_room_id && (!resolved_branch_id || !resolved_pg_id)) {
+      const room = await db('rooms').where({ id: resolved_room_id }).whereNull('deleted_at').first();
+      if (room) {
+        if (!resolved_branch_id) resolved_branch_id = room.branch_id;
+        if (!resolved_pg_id) resolved_pg_id = room.pg_id;
+      }
+    }
+
+    if (!resolved_pg_id && resident.pg_id) {
+      resolved_pg_id = resident.pg_id;
     }
 
     if (!resolved_pg_id) {
@@ -1866,8 +1887,8 @@ class PaymentService {
     });
 
     auditService.log({
-      pg_id,
-      branch_id,
+      pg_id: resolved_pg_id,
+      branch_id: resolved_branch_id,
       user_id: resident_id,
       module: AUDIT_MODULES.PAYMENT,
       action: AUDIT_ACTIONS.CREATE,

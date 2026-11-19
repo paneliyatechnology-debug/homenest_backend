@@ -166,14 +166,48 @@ export const createPayment = async (req, res, next) => {
     let branch_id = req.body.branch_id ? Number(req.body.branch_id) : undefined;
 
     if ((!pg_id || !branch_id) && req.body.resident_id) {
-      const activeStay = await db('resident_pg_stays')
+      let activeStay = await db('resident_pg_stays')
         .where({ resident_id: Number(req.body.resident_id), status: 'active' })
         .whereNull('deleted_at')
         .orderBy('id', 'desc')
         .first();
+
+      if (!activeStay) {
+        activeStay = await db('resident_pg_stays')
+          .where({ resident_id: Number(req.body.resident_id) })
+          .whereNull('deleted_at')
+          .orderBy('id', 'desc')
+          .first();
+      }
+
       if (activeStay) {
         if (!pg_id) pg_id = activeStay.pg_id;
         if (!branch_id) branch_id = activeStay.branch_id;
+      }
+
+      const roomId = req.body.room_id || activeStay?.room_id;
+      if ((!branch_id || !pg_id) && roomId) {
+        const room = await db('rooms').where({ id: roomId }).whereNull('deleted_at').first();
+        if (room) {
+          if (!branch_id) branch_id = room.branch_id;
+          if (!pg_id) pg_id = room.pg_id;
+        }
+      }
+
+      if (!pg_id) {
+        const resident = await db('users').where({ id: Number(req.body.resident_id) }).whereNull('deleted_at').first();
+        if (resident && resident.pg_id) {
+          pg_id = resident.pg_id;
+        }
+      }
+
+      if (!branch_id && pg_id) {
+        const defaultBranch = await db('branches')
+          .where({ pg_id })
+          .whereNull('deleted_at')
+          .orderBy('id', 'asc')
+          .first();
+        if (defaultBranch) branch_id = defaultBranch.id;
       }
     }
 
