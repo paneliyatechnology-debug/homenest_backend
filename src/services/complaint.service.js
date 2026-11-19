@@ -177,15 +177,6 @@ class ComplaintService {
       name: c.name,
       key: c.key,
       icon: c.icon,
-      description: c.description,
-      ...(c.key === 'wifi'
-        ? {
-          wifi_options: {
-            issue_types: ['NO_CONNECTION', 'SLOW_SPEED', 'INTERMITTENT_CONNECTION', 'OTHER'],
-            device_types: ['MOBILE', 'LAPTOP', 'TABLET', 'SMART_TV', 'OTHER'],
-          },
-        }
-        : {}),
     }));
   };
 
@@ -203,10 +194,18 @@ class ComplaintService {
         .first();
     }
     if (!category && data.category) {
+      const catKey = String(data.category).trim().toLowerCase().replace(/\s+/g, '_');
       category = await db('complaint_categories')
-        .where('key', String(data.category).toLowerCase())
+        .where('key', catKey)
         .where('is_active', true)
         .first();
+
+      if (!category) {
+        category = await db('complaint_categories')
+          .where('name', String(data.category).trim())
+          .where('is_active', true)
+          .first();
+      }
     }
 
     if (!category) {
