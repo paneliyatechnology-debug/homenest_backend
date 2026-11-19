@@ -241,10 +241,10 @@ class DashboardService {
 
     const pendingDues = parseFloat(duesRes?.total_dues || 0);
 
-    // 6. Open Complaints
+    // 6. Open / Pending Complaints
     const complaintsQuery = db('complaints')
       .where('complaints.pg_id', pgId)
-      .whereIn('complaints.status', ['OPEN', 'IN_PROGRESS'])
+      .whereIn('complaints.status', ['PENDING', 'OPEN', 'IN_PROGRESS'])
       .whereNull('complaints.deleted_at');
 
     if (targetBranchId) {
@@ -442,6 +442,12 @@ class DashboardService {
           comparison_label: 'vs. last month',
         },
         open_complaints: {
+          value: openComplaints,
+          change_percentage: complaintsTrend.change_percentage,
+          trend: complaintsTrend.trend,
+          comparison_label: 'vs. last month',
+        },
+        pending_complaints: {
           value: openComplaints,
           change_percentage: complaintsTrend.change_percentage,
           trend: complaintsTrend.trend,

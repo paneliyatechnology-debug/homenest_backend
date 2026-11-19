@@ -82,7 +82,7 @@ export const assignComplaint = async (req, res, next) => {
 };
 
 /**
- * Update complaint status (OPEN -> IN_PROGRESS -> RESOLVED)
+ * Update complaint status (PENDING -> IN_PROGRESS -> RESOLVED)
  */
 export const updateStatus = async (req, res, next) => {
   try {

@@ -31,7 +31,7 @@ router.get(
 
 /**
  * @route   GET /api/v1/complaints/stats
- * @desc    Get complaint KPIs/statistics (total, open, in_progress, resolved, overdue)
+ * @desc    Get complaint KPIs/statistics (total, pending, in_progress, resolved, overdue)
  * @access  Private (Admin / Super Admin)
  */
 router.get(
@@ -88,7 +88,7 @@ router.patch(
 
 /**
  * @route   PATCH /api/v1/complaints/:id/status
- * @desc    Update complaint status (OPEN -> IN_PROGRESS -> RESOLVED) with optional resolution notes
+ * @desc    Update complaint status (PENDING -> IN_PROGRESS -> RESOLVED) with optional resolution notes
  * @access  Private (Admin / Super Admin)
  */
 router.patch(

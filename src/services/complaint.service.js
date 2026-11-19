@@ -253,22 +253,9 @@ class ComplaintService {
       residentId = data.resident_id || user.id;
     }
 
-    // 3. WiFi-specific fields validation
-    let issueType = null;
-    let deviceType = null;
-    if (category.key === 'wifi') {
-      if (data.issue_type) {
-        issueType = String(data.issue_type).toUpperCase();
-      }
-      if (data.device_type) {
-        deviceType = String(data.device_type).replace(/\s+/g, '_').toUpperCase();
-      }
-    }
-
     const complaintNumber = await ComplaintService.generateComplaintNumber();
-    const priority = (data.priority ? String(data.priority).toUpperCase() : 'MEDIUM');
 
-    // 4. Database Transaction
+    // 3. Database Transaction
     const complaintId = await db.transaction(async (trx) => {
       const [newId] = await trx('complaints').insert({
         complaint_number: complaintNumber,
@@ -279,11 +266,7 @@ class ComplaintService {
         category_id: category.id,
         title: data.title ? data.title.trim() : `${category.name} Issue`,
         description: data.description.trim(),
-        priority,
-        status: 'OPEN',
-        issue_type: issueType,
-        device_type: deviceType,
-        notify_updates: data.notify_updates !== undefined ? Boolean(data.notify_updates) : true,
+        status: 'PENDING',
       });
 
       // Associate uploaded proof attachments with the complaint record
@@ -302,9 +285,8 @@ class ComplaintService {
       await trx('complaint_history').insert({
         complaint_id: newId,
         event_type: 'CREATED',
-        description: `Complaint created by ${user.name || 'Resident'} (${priority} priority)`,
         description: `Complaint created by ${user.name || 'Resident'}`,
-        new_value: 'OPEN',
+        new_value: 'PENDING',
         performed_by: user.id,
       });
 
@@ -316,8 +298,7 @@ class ComplaintService {
       id: complaintId,
       complaint_number: complaintNumber,
       title: data.title ? data.title.trim() : `${category.name} Issue`,
-      priority,
-      status: 'OPEN',
+      status: 'PENDING',
       room_id: targetRoomId,
       resident_id: residentId,
       created_at: moment().toISOString(),
@@ -334,18 +315,14 @@ class ComplaintService {
       entity_type: 'complaint',
       entity_id: complaintId,
       description: `Complaint #${complaintNumber} created: ${data.title ? data.title.trim() : category.name}`,
-      new_values: { complaint_number: complaintNumber, title: data.title, priority, room_id: targetRoomId },
       new_values: { complaint_number: complaintNumber, title: data.title, room_id: targetRoomId },
     });
 
     return {
       id: complaintId,
       complaint_number: complaintNumber,
-      status: 'OPEN',
-      priority,
+      status: 'PENDING',
       category: category.name,
-      issue_type: data.issue_type || null,
-      device_type: data.device_type || null,
     };
   };
 
@@ -360,7 +337,6 @@ class ComplaintService {
       status,
       category_id,
       category,
-      priority,
       branch_id,
       search,
       start_date,
@@ -397,7 +373,8 @@ class ComplaintService {
 
         // Status Filter
         if (status && status.toUpperCase() !== 'ALL') {
-          qb.where('complaints.status', status.toUpperCase());
+          const s = status.toUpperCase() === 'OPEN' ? 'PENDING' : status.toUpperCase();
+          qb.where('complaints.status', s);
         }
 
         // Category Filter
@@ -682,7 +659,7 @@ class ComplaintService {
     const counts = await base.clone()
       .select(
         db.raw('COUNT(id) as total_complaints'),
-        db.raw('COUNT(CASE WHEN status = "OPEN" THEN 1 END) as open_complaints'),
+        db.raw('COUNT(CASE WHEN status = "PENDING" OR status = "OPEN" THEN 1 END) as pending_complaints'),
         db.raw('COUNT(CASE WHEN status = "IN_PROGRESS" THEN 1 END) as in_progress_complaints'),
         db.raw('COUNT(CASE WHEN status = "RESOLVED" THEN 1 END) as resolved_complaints'),
         db.raw('COUNT(CASE WHEN status != "RESOLVED" AND due_date IS NOT NULL AND due_date < NOW() THEN 1 END) as overdue_complaints')
@@ -690,7 +667,7 @@ class ComplaintService {
       .first();
 
     const totalCount = parseInt(counts?.total_complaints || 0, 10);
-    const openCount = parseInt(counts?.open_complaints || 0, 10);
+    const pendingCount = parseInt(counts?.pending_complaints || 0, 10);
     const inProgressCount = parseInt(counts?.in_progress_complaints || 0, 10);
     const resolvedCount = parseInt(counts?.resolved_complaints || 0, 10);
     const overdueCount = parseInt(counts?.overdue_complaints || 0, 10);
@@ -700,8 +677,10 @@ class ComplaintService {
       branch_name: branchContext.branch_name,
       total: totalCount,
       total_complaints: totalCount,
-      open: openCount,
-      open_complaints: openCount,
+      pending: pendingCount,
+      pending_complaints: pendingCount,
+      open: pendingCount,
+      open_complaints: pendingCount,
       in_progress: inProgressCount,
       in_progress_complaints: inProgressCount,
       resolved: resolvedCount,
@@ -810,7 +789,7 @@ class ComplaintService {
 
   /**
    * 7. Update Complaint Status (Admin)
-   * OPEN -> IN_PROGRESS -> RESOLVED
+   * PENDING -> IN_PROGRESS -> RESOLVED
    */
   updateStatus = async (id, data, user) => {
     const complaint = await db('complaints')
@@ -829,7 +808,8 @@ class ComplaintService {
     }
 
     const oldStatus = complaint.status;
-    const newStatus = data.status.toUpperCase();
+    let newStatus = data.status.toUpperCase();
+    if (newStatus === 'OPEN') newStatus = 'PENDING';
 
     if (oldStatus === newStatus) {
       return { id, status: newStatus, message: `Status is already ${newStatus}` };
