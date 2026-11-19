@@ -10,13 +10,39 @@ import socketService, { SOCKET_EVENTS } from './socket.service.js';
 import auditService from './audit.service.js';
 
 /**
+ * Helper to determine room capacity dynamically from explicit capacity and/or room_type.
+ * If room_type is 'double', capacity is 2; if 'triple', 3; if 'four', 4; etc.
+ * @param {string} roomType
+ * @param {number|string|null} [explicitCapacity=null]
+ * @returns {number}
+ */
+export const resolveRoomCapacity = (roomType, explicitCapacity = null) => {
+  const explicit = Number(explicitCapacity);
+  if (!isNaN(explicit) && explicit > 1) {
+    return explicit;
+  }
+  if (!roomType) return !isNaN(explicit) && explicit > 0 ? explicit : 1;
+
+  const type = String(roomType).toLowerCase().trim();
+  if (type.includes('double') || type === '2' || type.startsWith('2_') || type.startsWith('2-')) return 2;
+  if (type.includes('triple') || type === '3' || type.startsWith('3_') || type.startsWith('3-')) return 3;
+  if (type.includes('four') || type.includes('quad') || type === '4' || type.startsWith('4_') || type.startsWith('4-')) return 4;
+  if (type.includes('five') || type === '5' || type.startsWith('5_') || type.startsWith('5-')) return 5;
+  if (type.includes('six') || type === '6' || type.startsWith('6_') || type.startsWith('6-')) return 6;
+  if (type.includes('seven') || type === '7') return 7;
+  if (type.includes('eight') || type === '8') return 8;
+
+  return !isNaN(explicit) && explicit > 0 ? explicit : 1;
+};
+
+/**
  * Helper to attach full image URL to room object
  * @param {Object} room - Room record
  * @returns {Object} Formatted room
  */
 const formatRoom = (room) => {
   if (!room) return null;
-  const capacity = Number(room.capacity) || 1;
+  const capacity = Math.max(1, resolveRoomCapacity(room.room_type, room.capacity));
   const occupants = Number(room.current_occupants) || 0;
   const availableBeds = Math.max(0, capacity - occupants);
 
@@ -27,12 +53,18 @@ const formatRoom = (room) => {
       .join(' ') + (room.room_type.toLowerCase().includes('sharing') ? '' : ' Sharing')
     : 'Standard';
 
+  let dynamicStatus = room.status;
+  if (!['maintenance', 'out_of_service'].includes(room.status)) {
+    dynamicStatus = occupants >= capacity ? 'occupied' : 'vacant';
+  }
+
   return {
     ...room,
     capacity,
     current_occupants: occupants,
     available_beds: availableBeds,
-    is_available: availableBeds > 0 && room.status !== 'maintenance' && room.status !== 'out_of_service',
+    status: dynamicStatus,
+    is_available: availableBeds > 0 && dynamicStatus !== 'maintenance' && dynamicStatus !== 'out_of_service',
     sharing_label: sharingLabel,
     display_label: `Room ${room.room_no} (${sharingLabel}) - ${availableBeds} beds available`,
     image_url: buildFileUrl('rooms', room.image),
@@ -64,7 +96,7 @@ export const syncRoomOccupancyStatus = async (roomId, trx = null) => {
 
   if (!room) return null;
 
-  const capacity = Math.max(1, Number(room.capacity) || 1);
+  const capacity = Math.max(1, resolveRoomCapacity(room.room_type, room.capacity));
 
   const [{ count: activeOccupantsRaw }] = await qb('resident_pg_stays')
     .where({ room_id: rId, status: 'active' })
@@ -85,14 +117,18 @@ export const syncRoomOccupancyStatus = async (roomId, trx = null) => {
   const previousStatus = room.status;
   let statusChanged = false;
 
+  const updates = {};
   if (previousStatus !== newStatus) {
     statusChanged = true;
-    await qb('rooms')
-      .where({ id: rId })
-      .update({
-        status: newStatus,
-        updated_at: db.fn.now(),
-      });
+    updates.status = newStatus;
+  }
+  if (Number(room.capacity) !== capacity) {
+    updates.capacity = capacity;
+  }
+
+  if (Object.keys(updates).length > 0) {
+    updates.updated_at = db.fn.now();
+    await qb('rooms').where({ id: rId }).update(updates);
   }
 
   // Always keep branch stats accurate
@@ -195,6 +231,8 @@ export const create = async (data) => {
     );
   }
 
+  const resolvedCapacity = resolveRoomCapacity(room_type, capacity);
+
   const [id] = await db('rooms').insert({
     pg_id,
     branch_id,
@@ -202,7 +240,7 @@ export const create = async (data) => {
     room_type: String(room_type).toLowerCase(),
     building_id,
     floor_id,
-    capacity: Number(capacity) || 1,
+    capacity: resolvedCapacity,
     size: size || null,
     image: image || null,
     status,
@@ -484,7 +522,12 @@ export const update = async (id, data) => {
   if (input_building_id !== undefined) update_data.building_id = targetBuildingId;
   if (input_floor_id !== undefined) update_data.floor_id = targetFloorId;
   if (input_branch_id !== undefined) update_data.branch_id = branch_id;
-  if (capacity !== undefined) update_data.capacity = Number(capacity);
+  if (capacity !== undefined || room_type !== undefined) {
+    update_data.capacity = resolveRoomCapacity(
+      room_type !== undefined ? room_type : room.room_type,
+      capacity !== undefined ? capacity : room.capacity
+    );
+  }
   if (size !== undefined) update_data.size = size;
 
   const imageField = image !== undefined

@@ -5,74 +5,169 @@ import db from '../config/db.js';
 import { ROLES } from '../constants/index.js';
 
 /**
- * Standard Real-Time Socket Event Names
+ * Complete Real-Time WebSocket Event Catalog
+ * Standardized event constants for bidirectional client-server communication.
  */
 export const SOCKET_EVENTS = {
-  // General & Notifications
+  // ==========================================================================
+  // 1. General & Notifications
+  // ==========================================================================
+  /** Triggered when an automated notification/alert is delivered to an individual user */
   NOTIFICATION_NEW: 'notification:new',
 
-  // Notices & Announcements
+  // ==========================================================================
+  // 2. Notices & Announcements
+  // ==========================================================================
+  /** Triggered when a new notice is published (broadcast to all residents, branch, or individual) */
   NOTICE_NEW: 'notice:new',
+  /** Triggered on notice creation, update, or deletion to refresh notice KPI stats */
   NOTICE_STATS_UPDATED: 'notice:stats_updated',
 
-  // Complaints & Maintenance
+  // ==========================================================================
+  // 3. Maintenance & Complaints
+  // ==========================================================================
+  /** Triggered when a resident files a new complaint or when assigned to staff */
   COMPLAINT_NEW: 'complaint:new',
+  /** Triggered when complaint status changes (pending -> in_progress -> resolved / rejected) */
   COMPLAINT_STATUS_UPDATED: 'complaint:status_updated',
+  /** Triggered on staff assignment or scheduling updates on a complaint */
   COMPLAINT_ACTIVITY: 'complaint:activity',
+  /** Triggered to refresh complaint metrics and KPI status cards */
   COMPLAINT_STATS_UPDATED: 'complaint:stats_updated',
 
-  // Visitors & Gate Access
+  // ==========================================================================
+  // 4. Visitors & Gate Access
+  // ==========================================================================
+  /** Triggered when a visitor pass is requested or registered */
   VISITOR_NEW: 'visitor:new',
+  /** Triggered when visitor request is approved, rejected, or updated */
   VISITOR_STATUS_UPDATED: 'visitor:status_updated',
+  /** Triggered when visitor checks in / enters the gate or checks out */
   VISITOR_ENTRY: 'visitor:entry',
+  /** Triggered to refresh visitor KPI metrics (today visitors, currently inside, etc.) */
   VISITOR_STATS_UPDATED: 'visitor:stats_updated',
 
-  // Community Feed & Social
+  // ==========================================================================
+  // 5. Community Feed & Social Hub
+  // ==========================================================================
+  /** Broadcast to all property members when a resident or staff posts in community */
   COMMUNITY_POST_NEW: 'community:post_new',
+  /** Broadcast when a community post is liked/unliked (live counter update) */
   COMMUNITY_POST_LIKED: 'community:post_liked',
+  /** Dispatched to post thread subscribers when a new comment is posted */
   COMMUNITY_COMMENT_NEW: 'community:comment_new',
+  /** Broadcast when a community event announcement or RSVP is updated */
   COMMUNITY_EVENT_UPDATED: 'community:event_updated',
 
-  // Rooms & Inventory
+  // ==========================================================================
+  // 6. Rooms & Inventory
+  // ==========================================================================
+  /** Triggered when a new room is added to inventory */
   ROOM_NEW: 'room:new',
+  /** Triggered when room details, capacity, or status change */
   ROOM_UPDATED: 'room:updated',
+  /** Triggered when a room is soft-deleted from inventory */
   ROOM_DELETED: 'room:deleted',
+  /** Triggered to refresh room inventory and occupancy KPI stats */
   ROOM_STATS_UPDATED: 'room:stats_updated',
-  ROOM_SHIFT_NEW: 'room_shift:new',
-  ROOM_SHIFT_STATUS_UPDATED: 'room_shift:status_updated',
 
-  // Payments & Finance
+  // ==========================================================================
+  // 7. Room Shift Requests
+  // ==========================================================================
+  /** Triggered when a resident or admin submits a room shift request */
+  ROOM_SHIFT_NEW: 'room_shift:new',
+  /** Triggered when a room shift request is approved, rejected, or reviewed */
+  ROOM_SHIFT_STATUS_UPDATED: 'room_shift:status_updated',
+  /** Triggered to refresh room shift request metrics */
+  ROOM_SHIFT_STATS_UPDATED: 'room_shift:stats_updated',
+
+  // ==========================================================================
+  // 8. Payments & Finance
+  // ==========================================================================
+  /** Triggered when a new invoice, fee, or onboarding demand is generated */
   PAYMENT_NEW: 'payment:new',
+  /** Triggered when a payment is marked paid, verified, or receipt uploaded */
   PAYMENT_STATUS_UPDATED: 'payment:status_updated',
+  /** Triggered to refresh payment/collection KPIs, dues, and revenue stats */
   PAYMENT_STATS_UPDATED: 'payment:stats_updated',
 
-  // Residents & Staff (Users)
+  // ==========================================================================
+  // 9. Residents & Staff (Users)
+  // ==========================================================================
+  /** Triggered when a new user (resident or staff) is registered or onboarded */
   USER_NEW: 'user:new',
+  /** Triggered when profile, room allocation, or user details change */
   USER_UPDATED: 'user:updated',
+  /** Triggered when user active/inactive status changes */
   USER_STATUS_UPDATED: 'user:status_updated',
+  /** Triggered to refresh resident counts, onboarding, and occupancy metrics */
   RESIDENT_STATS_UPDATED: 'resident:stats_updated',
+  /** Triggered to refresh staff counts, roles, and branch staff metrics */
   STAFF_STATS_UPDATED: 'staff:stats_updated',
 
-  // Branches
+  // ==========================================================================
+  // 10. Branches / Properties
+  // ==========================================================================
+  /** Triggered when a new branch/facility is created */
+  BRANCH_NEW: 'branch:new',
+  /** Triggered when branch details change */
+  BRANCH_UPDATED: 'branch:updated',
+  /** Triggered when a branch is soft-deleted */
+  BRANCH_DELETED: 'branch:deleted',
+  /** Triggered to refresh branch total rooms, occupied rooms, and occupancy rate */
   BRANCH_STATS_UPDATED: 'branch:stats_updated',
 
-  // Buildings & Floors
+  // ==========================================================================
+  // 11. Buildings & Floors
+  // ==========================================================================
+  /** Triggered when a new building is registered */
+  BUILDING_NEW: 'building:new',
+  /** Triggered when building details change */
+  BUILDING_UPDATED: 'building:updated',
+  /** Triggered when a building is soft-deleted */
+  BUILDING_DELETED: 'building:deleted',
+  /** Triggered to refresh building count and floor distribution metrics */
   BUILDING_STATS_UPDATED: 'building:stats_updated',
 
-  // Laundry
+  // ==========================================================================
+  // 12. Laundry Management
+  // ==========================================================================
+  /** Triggered when a resident submits a laundry pickup request */
   LAUNDRY_NEW: 'laundry:new',
+  /** Triggered when laundry status updates (in_progress, ready, delivered) */
   LAUNDRY_STATUS_UPDATED: 'laundry:status_updated',
+  /** Triggered to refresh laundry operational status and metrics */
   LAUNDRY_STATS_UPDATED: 'laundry:stats_updated',
 
-  // Subscriptions
+  // ==========================================================================
+  // 13. Subscription Plans
+  // ==========================================================================
+  /** Triggered when subscriptions are purchased or renewed to refresh subscriber counts */
   SUBSCRIPTION_STATS_UPDATED: 'subscription:stats_updated',
 
-  // Room Shift & Checkout Requests
+  // ==========================================================================
+  // 14. Room Shift & Checkout Requests
+  // ==========================================================================
+  /** Triggered when a resident requests checkout/departure clearance */
   CHECKOUT_NEW: 'checkout:new',
+  /** Triggered when checkout request is approved, rejected, or completed */
   CHECKOUT_STATUS_UPDATED: 'checkout:status_updated',
+  /** Triggered to refresh checkout clearance stats */
+  CHECKOUT_STATS_UPDATED: 'checkout:stats_updated',
 
-  // Operations Dashboard Live Refresh
+  // ==========================================================================
+  // 15. Operations Dashboard Live Refresh
+  // ==========================================================================
+  /** Broadcast across property to refresh top-level KPI cards and charts on operations dashboard */
   DASHBOARD_STATS_UPDATED: 'dashboard:stats_updated',
+
+  // ==========================================================================
+  // 16. Inbound Client-to-Server Subscription Events
+  // ==========================================================================
+  /** Client requests to join live discussion updates for a specific community post */
+  SUBSCRIBE_POST: 'subscribe:post',
+  /** Client requests to leave live discussion updates for a community post */
+  UNSUBSCRIBE_POST: 'unsubscribe:post',
 };
 
 class SocketService {
