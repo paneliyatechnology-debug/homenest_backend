@@ -18,7 +18,7 @@ export const getPaymentStats = async (req, res, next) => {
     const owner_id = is_admin ? req.user.id : undefined;
     const pg_id = req.query.pg_id ? Number(req.query.pg_id) : (req.pg_id || undefined);
     const branch_id = req.query.branch_id ? Number(req.query.branch_id) : undefined;
-    const { start_date, end_date } = req.query;
+    const { start_date, end_date, date_by } = req.query;
 
     const stats = await paymentService.getPaymentStats({
       owner_id,
@@ -26,6 +26,7 @@ export const getPaymentStats = async (req, res, next) => {
       branch_id,
       start_date,
       end_date,
+      date_by,
     });
     return success(res, 'Payment statistics retrieved successfully', stats);
   } catch (err) {

@@ -204,6 +204,13 @@ export const paymentStatsValidator = [
     .optional({ checkFalsy: true })
     .isISO8601()
     .withMessage('End date must be in YYYY-MM-DD format'),
+
+  query('date_by')
+    .optional({ checkFalsy: true })
+    .trim()
+    .toLowerCase()
+    .isIn(['due_date', 'paid_at', 'created_at'])
+    .withMessage('date_by must be due_date, paid_at, or created_at'),
 ];
 
 // Aliases for backward compatibility

@@ -1420,7 +1420,7 @@ class PaymentService {
    * @returns {Promise<object>} Unified payment statistics
    */
   getPaymentStats = async (options = {}) => {
-    const { owner_id, pg_id, branch_id, start_date, end_date } = options;
+    const { owner_id, pg_id, branch_id, start_date, end_date, date_by } = options;
 
     const base_query = db('payments')
       .whereNull('payments.deleted_at')
@@ -1440,11 +1440,8 @@ class PaymentService {
         if (branch_id) {
           qb.where('payments.branch_id', branch_id);
         }
-        if (start_date) {
-          qb.where('payments.created_at', '>=', start_date);
-        }
-        if (end_date) {
-          qb.where('payments.created_at', '<=', end_date);
+        if (start_date || end_date) {
+          PaymentService.applyDateFilter(qb, start_date, end_date, date_by);
         }
       });
 
