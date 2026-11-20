@@ -208,7 +208,7 @@ class StayService {
       entity_id: stay_id,
       description: `Stay #${stay_id} vacated for resident #${stay.resident_id}`,
       old_values: { status: stay.status },
-      new_values: { status: 'completed', check_out_date: effective_checkout_date },
+      new_values: { status: 'completed', check_out_date: effective_check_out },
     });
 
     return await this.findById(stay_id);

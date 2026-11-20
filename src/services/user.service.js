@@ -249,7 +249,8 @@ const formatResidentUser = (user, options = {}) => {
 
   const stay = options.active_stay || (user.room_id ? user : null);
   const room_image_url = stay ? buildFileUrl('rooms', stay.room_image) : null;
-  const is_complete_profile = checkResidentProfileCompletion(user, stay);
+  const stayForProfile = options.active_stay || options.latest_stay || (user.room_id ? user : null);
+  const is_complete_profile = checkResidentProfileCompletion(user, stayForProfile);
 
   return {
     id: user.id,
@@ -577,6 +578,15 @@ class UserService {
         .first(),
     ]);
 
+    let latest_stay = null;
+    if (!active_stay) {
+      latest_stay = await db('resident_pg_stays')
+        .where({ resident_id: id })
+        .whereNull('deleted_at')
+        .orderBy('id', 'desc')
+        .first();
+    }
+
     let subscription_plan = null;
     if (raw_user.subscription_plan_id) {
       const plan = await db('subscription_plans')
@@ -597,7 +607,7 @@ class UserService {
       }
     }
 
-    return formatResidentUser(raw_user, { active_stay, pending_payment, subscription_plan });
+    return formatResidentUser(raw_user, { active_stay, latest_stay, pending_payment, subscription_plan });
   };
   /**
    * Create a new user record (Resident, Admin, Super Admin).
