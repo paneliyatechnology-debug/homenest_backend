@@ -4,6 +4,10 @@ import fs from 'fs';
 import { AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS } from '../constants/index.js';
 
+// ==========================================
+// UPLOAD DIRECTORIES CONFIGURATION
+// ==========================================
+
 const rooms_upload_dir = path.join(process.cwd(), 'uploads', 'rooms');
 const users_upload_dir = path.join(process.cwd(), 'uploads', 'users');
 const pgs_upload_dir = path.join(process.cwd(), 'uploads', 'pgs');
@@ -18,847 +22,444 @@ const notices_upload_dir = path.join(process.cwd(), 'uploads', 'notices');
 const community_upload_dir = path.join(process.cwd(), 'uploads', 'community');
 const payments_upload_dir = path.join(process.cwd(), 'uploads', 'payments');
 
-// Ensure upload directories exist
-[rooms_upload_dir, users_upload_dir, pgs_upload_dir, documents_upload_dir, visitors_upload_dir, branches_upload_dir, food_menu_upload_dir, food_feedback_upload_dir, complaints_upload_dir, staff_upload_dir, notices_upload_dir, community_upload_dir, payments_upload_dir].forEach((dir) => {
+const allUploadDirs = [
+  rooms_upload_dir,
+  users_upload_dir,
+  pgs_upload_dir,
+  documents_upload_dir,
+  visitors_upload_dir,
+  branches_upload_dir,
+  food_menu_upload_dir,
+  food_feedback_upload_dir,
+  complaints_upload_dir,
+  staff_upload_dir,
+  notices_upload_dir,
+  community_upload_dir,
+  payments_upload_dir,
+];
+
+// Ensure all upload directories exist on application initialization
+allUploadDirs.forEach((dir) => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
 });
 
-// Allowed mimetypes
-const allowed_mimetypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-const allowed_user_and_doc_mimetypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
+// ==========================================
+// REUSABLE HELPER FACTORIES
+// ==========================================
 
-const file_filter = (req, file, cb) => {
-  if (allowed_mimetypes.includes(file.mimetype.toLowerCase())) {
-    cb(null, true);
-  } else {
-    cb(
-      new AppError(
-        'Invalid file type. Only JPG, PNG, and WebP images are allowed (max 5MB)',
-        HTTP_STATUS.BAD_REQUEST
-      ),
-      false
-    );
+/**
+ * Creates a standard Multer disk storage engine for a target folder and filename prefix.
+ * @param {string} uploadDir - Absolute directory path
+ * @param {string} prefix - Filename prefix (e.g., 'room', 'branch')
+ */
+const createDiskStorage = (uploadDir, prefix) =>
+  multer.diskStorage({
+    destination: (req, file, cb) => cb(null, uploadDir),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase();
+      cb(null, `${prefix}-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
+    },
+  });
+
+/**
+ * Creates a standard file deletion function for cleaning up files from disk.
+ * @param {string} uploadDir - Target directory path
+ * @param {string} label - Human-readable label for logging warnings
+ */
+const createDeleter = (uploadDir, label) => (filename) => {
+  if (!filename) return;
+  try {
+    const filePath = path.join(uploadDir, path.basename(filename));
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  } catch (err) {
+    console.warn(`[Warning] Could not delete ${label}: ${filename}`, err.message);
   }
 };
 
-// Rooms storage
-const rooms_storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, rooms_upload_dir),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const unique_name = `room-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, unique_name);
-  },
+/**
+ * Common Multer error interceptor
+ */
+const handleMulterError = (err, next, limitMessage = 'File size exceeds 5MB limit') => {
+  if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+    return next(new AppError(limitMessage, HTTP_STATUS.BAD_REQUEST));
+  }
+  return next(err);
+};
+
+// ==========================================
+// FILE TYPE FILTERS
+// ==========================================
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+const imageMimetypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+const documentMimetypes = [...imageMimetypes, 'application/pdf'];
+const noticeMimetypes = [
+  ...documentMimetypes,
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+];
+
+const fileFilter = (req, file, cb) => {
+  if (imageMimetypes.includes(file.mimetype.toLowerCase())) {
+    cb(null, true);
+  } else {
+    cb(new AppError('Invalid file type. Only JPG, PNG, and WebP images are allowed (max 5MB)', HTTP_STATUS.BAD_REQUEST), false);
+  }
+};
+
+const docFilter = (req, file, cb) => {
+  if (documentMimetypes.includes(file.mimetype.toLowerCase())) {
+    cb(null, true);
+  } else {
+    cb(new AppError('Invalid file type. Only PDF, JPG, PNG, and WebP files are allowed (max 5MB)', HTTP_STATUS.BAD_REQUEST), false);
+  }
+};
+
+const noticeFilter = (req, file, cb) => {
+  if (noticeMimetypes.includes(file.mimetype.toLowerCase())) {
+    cb(null, true);
+  } else {
+    cb(new AppError('Invalid file type. Only PDF, DOC, DOCX, and JPG/PNG images are allowed (max 5MB)', HTTP_STATUS.BAD_REQUEST), false);
+  }
+};
+
+// ==========================================
+// MULTER INSTANCES
+// ==========================================
+
+// Room
+const upload_room = multer({
+  storage: createDiskStorage(rooms_upload_dir, 'room'),
+  fileFilter,
+  limits: { fileSize: MAX_FILE_SIZE },
 });
 
-// Users/Residents profile & documents storage
+// User / Resident
+const DOC_FIELD_NAMES = ['aadhar_card', 'address_proof', 'education_certificate', 'signature', 'agreement_file', 'agreement'];
 const users_storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    if (['aadhar_card', 'address_proof', 'education_certificate', 'signature', 'agreement_file', 'agreement'].includes(file.fieldname)) {
-      cb(null, documents_upload_dir);
-    } else {
-      cb(null, users_upload_dir);
-    }
+    cb(null, DOC_FIELD_NAMES.includes(file.fieldname) ? documents_upload_dir : users_upload_dir);
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    const prefix = ['aadhar_card', 'address_proof', 'education_certificate', 'signature', 'agreement_file', 'agreement'].includes(file.fieldname)
-      ? `doc-${file.fieldname}`
-      : 'user';
-    const unique_name = `${prefix}-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, unique_name);
+    const prefix = DOC_FIELD_NAMES.includes(file.fieldname) ? `doc-${file.fieldname}` : 'user';
+    cb(null, `${prefix}-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
   },
 });
-
-const upload_room = multer({
-  storage: rooms_storage,
-  fileFilter: file_filter,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-});
-
 const upload_user = multer({
   storage: users_storage,
-  fileFilter: (req, file, cb) => {
-    if (allowed_user_and_doc_mimetypes.includes(file.mimetype.toLowerCase())) {
-      cb(null, true);
-    } else {
-      cb(
-        new AppError(
-          'Invalid file type. Only PDF, JPG, PNG, and WebP files are allowed (max 5MB)',
-          HTTP_STATUS.BAD_REQUEST
-        ),
-        false
-      );
-    }
-  },
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: docFilter,
+  limits: { fileSize: MAX_FILE_SIZE },
 });
 
-// PG Registration storage supporting both owner profile photo and PG logo
+// PG Registration
 const registration_storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    if (['logo', 'pg_logo'].includes(file.fieldname)) {
-      cb(null, pgs_upload_dir);
-    } else {
-      cb(null, users_upload_dir);
-    }
+    cb(null, ['logo', 'pg_logo'].includes(file.fieldname) ? pgs_upload_dir : users_upload_dir);
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     const prefix = ['logo', 'pg_logo'].includes(file.fieldname) ? 'pg-logo' : 'user';
-    const unique_name = `${prefix}-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, unique_name);
+    cb(null, `${prefix}-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
   },
 });
-
 const upload_registration = multer({
   storage: registration_storage,
-  fileFilter: file_filter,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit per file
+  fileFilter,
+  limits: { fileSize: MAX_FILE_SIZE },
 });
 
-/**
- * Middleware for room image upload.
- * Seamlessly handles multipart/form-data or JSON payloads.
- * Image is completely optional.
- */
+// Branch
+const upload_branch = multer({
+  storage: createDiskStorage(branches_upload_dir, 'branch'),
+  fileFilter,
+  limits: { fileSize: MAX_FILE_SIZE },
+});
+
+// Visitor
+const upload_visitor = multer({
+  storage: createDiskStorage(visitors_upload_dir, 'visitor'),
+  fileFilter,
+  limits: { fileSize: MAX_FILE_SIZE },
+});
+
+// Food Menu & Feedback
+const upload_food_menu = multer({
+  storage: createDiskStorage(food_menu_upload_dir, 'food'),
+  fileFilter,
+  limits: { fileSize: MAX_FILE_SIZE },
+});
+const upload_food_feedback = multer({
+  storage: createDiskStorage(food_feedback_upload_dir, 'feedback'),
+  fileFilter,
+  limits: { fileSize: MAX_FILE_SIZE },
+});
+
+// Complaints
+const upload_complaints = multer({
+  storage: createDiskStorage(complaints_upload_dir, 'complaint'),
+  fileFilter,
+  limits: { fileSize: MAX_FILE_SIZE },
+});
+
+// Notices
+const upload_notice = multer({
+  storage: createDiskStorage(notices_upload_dir, 'notice'),
+  fileFilter: noticeFilter,
+  limits: { fileSize: MAX_FILE_SIZE },
+});
+
+// Community
+const upload_community = multer({
+  storage: createDiskStorage(community_upload_dir, 'community'),
+  fileFilter,
+  limits: { fileSize: MAX_FILE_SIZE },
+});
+
+// Payments
+const upload_payment = multer({
+  storage: createDiskStorage(payments_upload_dir, 'payment'),
+  fileFilter: docFilter,
+  limits: { fileSize: MAX_FILE_SIZE },
+});
+
+// ==========================================
+// UPLOAD MIDDLEWARES
+// ==========================================
+
 export const handleRoomImageUpload = (req, res, next) => {
-  const content_type = req.headers['content-type'] || '';
-  if (content_type.startsWith('multipart/form-data')) {
-    upload_room.single('image')(req, res, (err) => {
-      if (err) {
-        if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
-          return next(new AppError('Room image file size exceeds 5MB limit', HTTP_STATUS.BAD_REQUEST));
-        }
-        return next(err);
-      }
-      next();
-    });
-  } else {
+  if (!req.is('multipart/form-data')) return next();
+  upload_room.single('image')(req, res, (err) => {
+    if (err) return handleMulterError(err, next, 'Room image file size exceeds 5MB limit');
     next();
-  }
+  });
 };
 
-/**
- * Middleware for user/resident profile photo and documents upload.
- * Seamlessly handles multipart/form-data with fields:
- * - 'profile_photo', 'passport_photo', 'image' (saved to uploads/users/)
- * - 'aadhar_card', 'address_proof', 'education_certificate', 'signature' (saved to uploads/documents/)
- * Files are optional. Also seamlessly supports JSON bodies.
- */
 export const handleUserPhotoUpload = (req, res, next) => {
-  const content_type = req.headers['content-type'] || '';
-  if (content_type.startsWith('multipart/form-data')) {
-    upload_user.fields([
-      { name: 'profile_photo', maxCount: 1 },
-      { name: 'passport_photo', maxCount: 1 },
-      { name: 'image', maxCount: 1 },
-      { name: 'photo', maxCount: 1 },
-      { name: 'aadhar_card', maxCount: 1 },
-      { name: 'address_proof', maxCount: 1 },
-      { name: 'education_certificate', maxCount: 1 },
-      { name: 'signature', maxCount: 1 },
-      { name: 'agreement_file', maxCount: 1 },
-      { name: 'agreement', maxCount: 1 },
-    ])(req, res, (err) => {
-      if (err) {
-        if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
-          return next(new AppError('Uploaded file size exceeds 5MB limit', HTTP_STATUS.BAD_REQUEST));
-        }
-        return next(err);
-      }
-      if (req.files?.profile_photo?.[0]) {
-        req.body.profile_photo = req.files.profile_photo[0].filename;
-        req.file = req.files.profile_photo[0];
-      } else if (req.files?.passport_photo?.[0]) {
-        req.body.profile_photo = req.files.passport_photo[0].filename;
-        req.file = req.files.passport_photo[0];
-      } else if (req.files?.image?.[0]) {
-        req.body.profile_photo = req.files.image[0].filename;
-        req.file = req.files.image[0];
-      } else if (req.files?.photo?.[0]) {
-        req.body.profile_photo = req.files.photo[0].filename;
-        req.file = req.files.photo[0];
-      }
+  if (!req.is('multipart/form-data')) return next();
+  upload_user.fields([
+    { name: 'profile_photo', maxCount: 1 },
+    { name: 'passport_photo', maxCount: 1 },
+    { name: 'image', maxCount: 1 },
+    { name: 'photo', maxCount: 1 },
+    { name: 'aadhar_card', maxCount: 1 },
+    { name: 'address_proof', maxCount: 1 },
+    { name: 'education_certificate', maxCount: 1 },
+    { name: 'signature', maxCount: 1 },
+    { name: 'agreement_file', maxCount: 1 },
+    { name: 'agreement', maxCount: 1 },
+  ])(req, res, (err) => {
+    if (err) return handleMulterError(err, next, 'Uploaded file size exceeds 5MB limit');
 
-      if (req.files?.aadhar_card?.[0]) {
-        req.body.aadhar_card = req.files.aadhar_card[0].filename;
-      }
-      if (req.files?.address_proof?.[0]) {
-        req.body.address_proof = req.files.address_proof[0].filename;
-      }
-      if (req.files?.education_certificate?.[0]) {
-        req.body.education_certificate = req.files.education_certificate[0].filename;
-      }
-      if (req.files?.signature?.[0]) {
-        req.body.signature = req.files.signature[0].filename;
-      }
-      if (req.files?.agreement_file?.[0]) {
-        req.body.agreement_file = req.files.agreement_file[0].filename;
-      } else if (req.files?.agreement?.[0]) {
-        req.body.agreement_file = req.files.agreement[0].filename;
-      }
+    const profileFile =
+      req.files?.profile_photo?.[0] ||
+      req.files?.passport_photo?.[0] ||
+      req.files?.image?.[0] ||
+      req.files?.photo?.[0];
 
-      next();
-    });
-  } else {
+    if (profileFile) {
+      req.body.profile_photo = profileFile.filename;
+      req.file = profileFile;
+    }
+
+    if (req.files?.aadhar_card?.[0]) req.body.aadhar_card = req.files.aadhar_card[0].filename;
+    if (req.files?.address_proof?.[0]) req.body.address_proof = req.files.address_proof[0].filename;
+    if (req.files?.education_certificate?.[0]) req.body.education_certificate = req.files.education_certificate[0].filename;
+    if (req.files?.signature?.[0]) req.body.signature = req.files.signature[0].filename;
+
+    const agreementFile = req.files?.agreement_file?.[0] || req.files?.agreement?.[0];
+    if (agreementFile) req.body.agreement_file = agreementFile.filename;
+
     next();
-  }
+  });
 };
 
 export const handleUserProfileUpload = handleUserPhotoUpload;
-
-/**
- * Middleware for PG Owner + PG Registration upload.
- * Seamlessly handles multipart/form-data for:
- * - Owner profile image: 'profile_photo', 'profile_image', or 'image' (saved to uploads/users/)
- * - PG logo: 'logo' or 'pg_logo' (saved to uploads/pgs/)
- * Both files are completely optional. Also seamlessly supports JSON bodies.
- */
-export const handlePgRegistrationUpload = (req, res, next) => {
-  const content_type = req.headers['content-type'] || '';
-  if (content_type.startsWith('multipart/form-data')) {
-    upload_registration.fields([
-      { name: 'profile_photo', maxCount: 1 },
-      { name: 'profile_image', maxCount: 1 },
-      { name: 'image', maxCount: 1 },
-      { name: 'logo', maxCount: 1 },
-      { name: 'pg_logo', maxCount: 1 },
-    ])(req, res, (err) => {
-      if (err) {
-        if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
-          return next(new AppError('Uploaded file size exceeds 5MB limit', HTTP_STATUS.BAD_REQUEST));
-        }
-        return next(err);
-      }
-
-      // Map owner profile photo
-      if (req.files?.profile_photo?.[0]) {
-        req.body.profile_photo = req.files.profile_photo[0].filename;
-      } else if (req.files?.profile_image?.[0]) {
-        req.body.profile_photo = req.files.profile_image[0].filename;
-      } else if (req.files?.image?.[0]) {
-        req.body.profile_photo = req.files.image[0].filename;
-      }
-
-      // Map PG logo
-      if (req.files?.logo?.[0]) {
-        req.body.logo = req.files.logo[0].filename;
-      } else if (req.files?.pg_logo?.[0]) {
-        req.body.logo = req.files.pg_logo[0].filename;
-      }
-
-      next();
-    });
-  } else {
-    next();
-  }
-};
-
-/**
- * Delete a local room image file safely
- * @param {string|null} filename
- */
-export const deleteRoomImageFile = (filename) => {
-  if (!filename) return;
-  try {
-    const file_path = path.join(rooms_upload_dir, path.basename(filename));
-    if (fs.existsSync(file_path)) {
-      fs.unlinkSync(file_path);
-    }
-  } catch (err) {
-    console.warn(`[Warning] Could not delete room image: ${filename}`, err.message);
-  }
-};
-
-/**
- * Delete a local user profile photo safely
- * @param {string|null} filename
- */
-export const deleteUserPhotoFile = (filename) => {
-  if (!filename) return;
-  try {
-    const file_path = path.join(users_upload_dir, path.basename(filename));
-    if (fs.existsSync(file_path)) {
-      fs.unlinkSync(file_path);
-    }
-  } catch (err) {
-    console.warn(`[Warning] Could not delete user photo: ${filename}`, err.message);
-  }
-};
-
-/**
- * Delete a local PG logo file safely
- * @param {string|null} filename
- */
-export const deletePgLogoFile = (filename) => {
-  if (!filename) return;
-  try {
-    const file_path = path.join(pgs_upload_dir, path.basename(filename));
-    if (fs.existsSync(file_path)) {
-      fs.unlinkSync(file_path);
-    }
-  } catch (err) {
-    console.warn(`[Warning] Could not delete PG logo: ${filename}`, err.message);
-  }
-};
-
-/**
- * Delete a local uploaded document safely
- * @param {string|null} filename
- */
-export const deleteDocumentFile = (filename) => {
-  if (!filename) return;
-  try {
-    const file_path = path.join(documents_upload_dir, path.basename(filename));
-    if (fs.existsSync(file_path)) {
-      fs.unlinkSync(file_path);
-    }
-  } catch (err) {
-    console.warn(`[Warning] Could not delete document: ${filename}`, err.message);
-  }
-};
-
-// Visitors photo storage
-const visitors_storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, visitors_upload_dir),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const unique_name = `visitor-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, unique_name);
-  },
-});
-
-const upload_visitor = multer({
-  storage: visitors_storage,
-  fileFilter: file_filter,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-});
-
-// Branches photo storage
-const branches_storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, branches_upload_dir),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const unique_name = `branch-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, unique_name);
-  },
-});
-
-const upload_branch = multer({
-  storage: branches_storage,
-  fileFilter: file_filter,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-});
-
-/**
- * Middleware for branch photo upload.
- * Seamlessly handles multipart/form-data with field 'branch_photo', 'photo', or 'image'.
- * Also supports JSON payloads. Photo is optional.
- */
-export const handleBranchPhotoUpload = (req, res, next) => {
-  const content_type = req.headers['content-type'] || '';
-  if (content_type.startsWith('multipart/form-data')) {
-    upload_branch.fields([
-      { name: 'branch_photo', maxCount: 1 },
-      { name: 'photo', maxCount: 1 },
-      { name: 'image', maxCount: 1 },
-    ])(req, res, (err) => {
-      if (err) {
-        if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
-          return next(new AppError('Branch photo file size exceeds 5MB limit', HTTP_STATUS.BAD_REQUEST));
-        }
-        return next(err);
-      }
-      if (req.files) {
-        req.file = req.files['branch_photo']?.[0] || req.files['photo']?.[0] || req.files['image']?.[0] || null;
-      }
-      next();
-    });
-  } else {
-    next();
-  }
-};
-
-/**
- * Delete a local branch photo file safely
- * @param {string|null} filename
- */
-export const deleteBranchPhotoFile = (filename) => {
-  if (!filename) return;
-  try {
-    const file_path = path.join(branches_upload_dir, path.basename(filename));
-    if (fs.existsSync(file_path)) {
-      fs.unlinkSync(file_path);
-    }
-  } catch (err) {
-    console.warn(`[Warning] Could not delete branch photo: ${filename}`, err.message);
-  }
-};
-
-/**
- * Middleware for visitor photo upload.
- * Seamlessly handles multipart/form-data with field 'photo', 'visitor_photo', or 'image'.
- * Also supports JSON payloads. Photo is optional.
- */
-export const handleVisitorPhotoUpload = (req, res, next) => {
-  const content_type = req.headers['content-type'] || '';
-  if (content_type.startsWith('multipart/form-data')) {
-    upload_visitor.fields([
-      { name: 'photo', maxCount: 1 },
-      { name: 'visitor_photo', maxCount: 1 },
-      { name: 'image', maxCount: 1 },
-    ])(req, res, (err) => {
-      if (err) {
-        if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
-          return next(new AppError('Visitor photo file size exceeds 5MB limit', HTTP_STATUS.BAD_REQUEST));
-        }
-        return next(err);
-      }
-      if (req.files) {
-        req.file = req.files['photo']?.[0] || req.files['visitor_photo']?.[0] || req.files['image']?.[0] || null;
-      }
-      next();
-    });
-  } else {
-    next();
-  }
-};
-
-/**
- * Delete a local visitor photo file safely
- * @param {string|null} filename
- */
-export const deleteVisitorPhotoFile = (filename) => {
-  if (!filename) return;
-  try {
-    const file_path = path.join(visitors_upload_dir, path.basename(filename));
-    if (fs.existsSync(file_path)) {
-      fs.unlinkSync(file_path);
-    }
-  } catch (err) {
-    console.warn(`[Warning] Could not delete visitor photo: ${filename}`, err.message);
-  }
-};
-
-// Food menu item photo storage
-const food_menu_storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, food_menu_upload_dir),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const unique_name = `food-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, unique_name);
-  },
-});
-
-const upload_food_menu = multer({
-  storage: food_menu_storage,
-  fileFilter: file_filter,
-  limits: { fileSize: 5 * 1024 * 1024 },
-});
-
-/**
- * Middleware for food menu item image upload.
- * Seamlessly handles multipart/form-data with field 'image', 'food_image', or 'photo'.
- * Also supports JSON payloads. Image is optional.
- */
-export const handleFoodMenuImageUpload = (req, res, next) => {
-  const content_type = req.headers['content-type'] || '';
-  if (content_type.startsWith('multipart/form-data')) {
-    upload_food_menu.fields([
-      { name: 'image', maxCount: 1 },
-      { name: 'food_image', maxCount: 1 },
-      { name: 'photo', maxCount: 1 },
-    ])(req, res, (err) => {
-      if (err) {
-        if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
-          return next(new AppError('Food image file size exceeds 5MB limit', HTTP_STATUS.BAD_REQUEST));
-        }
-        return next(err);
-      }
-      if (req.files) {
-        req.file = req.files['image']?.[0] || req.files['food_image']?.[0] || req.files['photo']?.[0] || null;
-      }
-      next();
-    });
-  } else {
-    next();
-  }
-};
-
-/**
- * Delete a local food menu image file safely
- * @param {string|null} filename
- */
-export const deleteFoodMenuImageFile = (filename) => {
-  if (!filename) return;
-  try {
-    const file_path = path.join(food_menu_upload_dir, path.basename(filename));
-    if (fs.existsSync(file_path)) {
-      fs.unlinkSync(file_path);
-    }
-  } catch (err) {
-    console.warn(`[Warning] Could not delete food menu image: ${filename}`, err.message);
-  }
-};
-
-// Food feedback photo storage
-const food_feedback_storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, food_feedback_upload_dir),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const unique_name = `feedback-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, unique_name);
-  },
-});
-
-const upload_food_feedback = multer({
-  storage: food_feedback_storage,
-  fileFilter: file_filter,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-});
-
-/**
- * Middleware for resident food feedback image upload.
- * Supports multipart/form-data with field 'image', 'feedback_image', or 'photo'.
- * Also supports JSON payloads. Image is completely optional.
- */
-export const handleFoodFeedbackImageUpload = (req, res, next) => {
-  const content_type = req.headers['content-type'] || '';
-  if (content_type.startsWith('multipart/form-data')) {
-    upload_food_feedback.fields([
-      { name: 'image', maxCount: 1 },
-      { name: 'feedback_image', maxCount: 1 },
-      { name: 'photo', maxCount: 1 },
-    ])(req, res, (err) => {
-      if (err) {
-        if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
-          return next(new AppError('Feedback image file size exceeds 5MB limit', HTTP_STATUS.BAD_REQUEST));
-        }
-        return next(err);
-      }
-      if (req.files) {
-        req.file = req.files['image']?.[0] || req.files['feedback_image']?.[0] || req.files['photo']?.[0] || null;
-      }
-      next();
-    });
-  } else {
-    next();
-  }
-};
-
-/**
- * Delete a local food feedback image file safely
- * @param {string|null} filename
- */
-export const deleteFoodFeedbackImageFile = (filename) => {
-  if (!filename) return;
-  try {
-    const file_path = path.join(food_feedback_upload_dir, path.basename(filename));
-    if (fs.existsSync(file_path)) {
-      fs.unlinkSync(file_path);
-    }
-  } catch (err) {
-    console.warn(`[Warning] Could not delete food feedback image: ${filename}`, err.message);
-  }
-};
-
-// Complaint attachments photo storage
-const complaint_storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, complaints_upload_dir),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const unique_name = `complaint-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, unique_name);
-  },
-});
-
-const upload_complaints = multer({
-  storage: complaint_storage,
-  fileFilter: file_filter,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit per image
-});
-
-/**
- * Middleware for complaint attachments upload (multiple images up to 5).
- * Supports field 'attachments', 'images', or 'photos'.
- */
-export const handleComplaintAttachmentsUpload = (req, res, next) => {
-  const content_type = req.headers['content-type'] || '';
-  if (content_type.startsWith('multipart/form-data')) {
-    upload_complaints.fields([
-      { name: 'attachments', maxCount: 5 },
-      { name: 'images', maxCount: 5 },
-      { name: 'photos', maxCount: 5 },
-    ])(req, res, (err) => {
-      if (err) {
-        if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
-          return next(new AppError('Attachment file size exceeds 5MB limit', HTTP_STATUS.BAD_REQUEST));
-        }
-        if (err instanceof multer.MulterError && err.code === 'LIMIT_UNEXPECTED_FILE') {
-          return next(new AppError('Maximum 5 attachment images allowed', HTTP_STATUS.BAD_REQUEST));
-        }
-        return next(err);
-      }
-      if (req.files) {
-        req.filesList = [
-          ...(req.files['attachments'] || []),
-          ...(req.files['images'] || []),
-          ...(req.files['photos'] || []),
-        ];
-      } else {
-        req.filesList = [];
-      }
-      next();
-    });
-  } else {
-    req.filesList = [];
-    next();
-  }
-};
-
-/**
- * Delete a local complaint attachment file safely
- * @param {string|null} filename
- */
-export const deleteComplaintAttachmentFile = (filename) => {
-  if (!filename) return;
-  try {
-    const file_path = path.join(complaints_upload_dir, path.basename(filename));
-    if (fs.existsSync(file_path)) {
-      fs.unlinkSync(file_path);
-    }
-  } catch (err) {
-    console.warn(`[Warning] Could not delete complaint attachment: ${filename}`, err.message);
-  }
-};
-
-// Staff photo upload & delete helpers (Alias to user photo methods since staff are users)
 export const handleStaffPhotoUpload = handleUserPhotoUpload;
-export const deleteStaffPhotoFile = deleteUserPhotoFile;
 
-// Notice attachment file storage and filter
-const notice_attachment_storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, notices_upload_dir),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const unique_name = `notice-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, unique_name);
-  },
-});
+export const handlePgRegistrationUpload = (req, res, next) => {
+  if (!req.is('multipart/form-data')) return next();
+  upload_registration.fields([
+    { name: 'profile_photo', maxCount: 1 },
+    { name: 'profile_image', maxCount: 1 },
+    { name: 'image', maxCount: 1 },
+    { name: 'logo', maxCount: 1 },
+    { name: 'pg_logo', maxCount: 1 },
+  ])(req, res, (err) => {
+    if (err) return handleMulterError(err, next, 'Uploaded file size exceeds 5MB limit');
 
-const allowed_notice_mimetypes = [
-  'application/pdf',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'image/jpeg',
-  'image/jpg',
-  'image/png',
-  'image/webp',
-];
+    const profileFile =
+      req.files?.profile_photo?.[0] ||
+      req.files?.profile_image?.[0] ||
+      req.files?.image?.[0];
+    if (profileFile) req.body.profile_photo = profileFile.filename;
 
-const upload_notice = multer({
-  storage: notice_attachment_storage,
-  fileFilter: (req, file, cb) => {
-    if (allowed_notice_mimetypes.includes(file.mimetype.toLowerCase())) {
-      cb(null, true);
-    } else {
-      cb(
-        new AppError(
-          'Invalid file type. Only PDF, DOC, DOCX, and JPG/PNG images are allowed (max 5MB)',
-          HTTP_STATUS.BAD_REQUEST
-        ),
-        false
-      );
+    const logoFile = req.files?.logo?.[0] || req.files?.pg_logo?.[0];
+    if (logoFile) req.body.logo = logoFile.filename;
+
+    next();
+  });
+};
+
+export const handleBranchPhotoUpload = (req, res, next) => {
+  if (!req.is('multipart/form-data')) return next();
+  upload_branch.fields([
+    { name: 'branch_photo', maxCount: 1 },
+    { name: 'photo', maxCount: 1 },
+    { name: 'image', maxCount: 1 },
+  ])(req, res, (err) => {
+    if (err) return handleMulterError(err, next, 'Branch photo file size exceeds 5MB limit');
+    if (req.files) {
+      req.file = req.files['branch_photo']?.[0] || req.files['photo']?.[0] || req.files['image']?.[0] || null;
     }
-  },
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-});
+    next();
+  });
+};
 
-/**
- * Middleware for notice attachment file upload (PDF, DOC, JPG, PNG up to 5MB).
- * Accepts 'file', 'attachment', or 'document'.
- */
+export const handleVisitorPhotoUpload = (req, res, next) => {
+  if (!req.is('multipart/form-data')) return next();
+  upload_visitor.fields([
+    { name: 'photo', maxCount: 1 },
+    { name: 'visitor_photo', maxCount: 1 },
+    { name: 'image', maxCount: 1 },
+  ])(req, res, (err) => {
+    if (err) return handleMulterError(err, next, 'Visitor photo file size exceeds 5MB limit');
+    if (req.files) {
+      req.file = req.files['photo']?.[0] || req.files['visitor_photo']?.[0] || req.files['image']?.[0] || null;
+    }
+    next();
+  });
+};
+
+export const handleFoodMenuImageUpload = (req, res, next) => {
+  if (!req.is('multipart/form-data')) return next();
+  upload_food_menu.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'food_image', maxCount: 1 },
+    { name: 'photo', maxCount: 1 },
+  ])(req, res, (err) => {
+    if (err) return handleMulterError(err, next, 'Food image file size exceeds 5MB limit');
+    if (req.files) {
+      req.file = req.files['image']?.[0] || req.files['food_image']?.[0] || req.files['photo']?.[0] || null;
+    }
+    next();
+  });
+};
+
+export const handleFoodFeedbackImageUpload = (req, res, next) => {
+  if (!req.is('multipart/form-data')) return next();
+  upload_food_feedback.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'feedback_image', maxCount: 1 },
+    { name: 'photo', maxCount: 1 },
+  ])(req, res, (err) => {
+    if (err) return handleMulterError(err, next, 'Feedback image file size exceeds 5MB limit');
+    if (req.files) {
+      req.file = req.files['image']?.[0] || req.files['feedback_image']?.[0] || req.files['photo']?.[0] || null;
+    }
+    next();
+  });
+};
+
+export const handleComplaintAttachmentsUpload = (req, res, next) => {
+  if (!req.is('multipart/form-data')) {
+    req.filesList = [];
+    return next();
+  }
+  upload_complaints.fields([
+    { name: 'attachments', maxCount: 5 },
+    { name: 'images', maxCount: 5 },
+    { name: 'photos', maxCount: 5 },
+  ])(req, res, (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+        return next(new AppError('Attachment file size exceeds 5MB limit', HTTP_STATUS.BAD_REQUEST));
+      }
+      if (err instanceof multer.MulterError && err.code === 'LIMIT_UNEXPECTED_FILE') {
+        return next(new AppError('Maximum 5 attachment images allowed', HTTP_STATUS.BAD_REQUEST));
+      }
+      return next(err);
+    }
+    req.filesList = req.files
+      ? [...(req.files['attachments'] || []), ...(req.files['images'] || []), ...(req.files['photos'] || [])]
+      : [];
+    next();
+  });
+};
+
 export const handleNoticeAttachmentUpload = (req, res, next) => {
-  const content_type = req.headers['content-type'] || '';
-  if (content_type.startsWith('multipart/form-data')) {
-    upload_notice.fields([
-      { name: 'file', maxCount: 1 },
-      { name: 'attachment', maxCount: 1 },
-      { name: 'document', maxCount: 1 },
-    ])(req, res, (err) => {
-      if (err) {
-        if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
-          return next(new AppError('Notice attachment file size exceeds 5MB limit', HTTP_STATUS.BAD_REQUEST));
-        }
-        return next(err);
-      }
-      if (req.files) {
-        req.file = req.files['file']?.[0] || req.files['attachment']?.[0] || req.files['document']?.[0] || null;
-      }
-      next();
-    });
-  } else {
-    next();
-  }
-};
-
-/**
- * Delete a local notice attachment file safely
- * @param {string|null} filename
- */
-export const deleteNoticeAttachmentFile = (filename) => {
-  if (!filename) return;
-  try {
-    const file_path = path.join(notices_upload_dir, path.basename(filename));
-    if (fs.existsSync(file_path)) {
-      fs.unlinkSync(file_path);
+  if (!req.is('multipart/form-data')) return next();
+  upload_notice.fields([
+    { name: 'file', maxCount: 1 },
+    { name: 'attachment', maxCount: 1 },
+    { name: 'document', maxCount: 1 },
+  ])(req, res, (err) => {
+    if (err) return handleMulterError(err, next, 'Notice attachment file size exceeds 5MB limit');
+    if (req.files) {
+      req.file = req.files['file']?.[0] || req.files['attachment']?.[0] || req.files['document']?.[0] || null;
     }
-  } catch (err) {
-    console.warn(`[Warning] Could not delete notice attachment: ${filename}`, err.message);
-  }
+    next();
+  });
 };
 
-// Community Post & Event image storage
-const community_storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, community_upload_dir),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const unique_name = `community-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, unique_name);
-  },
-});
-
-const upload_community = multer({
-  storage: community_storage,
-  fileFilter: file_filter,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-});
-
-/**
- * Middleware handling optional photo upload for community posts & events
- */
 export const handleCommunityImageUpload = (req, res, next) => {
-  if (req.is('multipart/form-data')) {
-    const uploader = upload_community.single('image');
-    uploader(req, res, (err) => {
-      if (err) {
-        if (err.code === 'LIMIT_FILE_SIZE') {
-          return next(new AppError('Photo file size cannot exceed 5MB', HTTP_STATUS.BAD_REQUEST));
-        }
-        return next(err);
-      }
-      next();
-    });
-  } else {
+  if (!req.is('multipart/form-data')) return next();
+  upload_community.single('image')(req, res, (err) => {
+    if (err) return handleMulterError(err, next, 'Photo file size cannot exceed 5MB');
     next();
-  }
+  });
 };
 
-/**
- * Delete a local community image file safely
- * @param {string|null} filename
- */
-export const deleteCommunityImageFile = (filename) => {
-  if (!filename) return;
-  try {
-    const file_path = path.join(community_upload_dir, path.basename(filename));
-    if (fs.existsSync(file_path)) {
-      fs.unlinkSync(file_path);
-    }
-  } catch (err) {
-    console.warn(`[Warning] Could not delete community image: ${filename}`, err.message);
-  }
-};
-
-// Payment proof / receipt screenshot storage
-const payment_storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, payments_upload_dir),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const unique_name = `payment-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, unique_name);
-  },
-});
-
-const upload_payment = multer({
-  storage: payment_storage,
-  fileFilter: (req, file, cb) => {
-    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
-    if (allowed.includes(file.mimetype.toLowerCase())) {
-      cb(null, true);
-    } else {
-      cb(
-        new AppError(
-          'Invalid file type. Only JPG, PNG, WebP, or PDF payment receipts are allowed (max 5MB)',
-          HTTP_STATUS.BAD_REQUEST
-        ),
-        false
-      );
-    }
-  },
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-});
-
-/**
- * Middleware handling optional payment proof / receipt screenshot upload.
- * Seamlessly supports multipart/form-data for field 'image' (or 'payment_image', 'receipt_image', 'proof').
- * Also seamlessly allows pure JSON bodies.
- */
 export const handlePaymentProofUpload = (req, res, next) => {
-  const content_type = req.headers['content-type'] || '';
-  if (content_type.startsWith('multipart/form-data')) {
-    upload_payment.fields([
-      { name: 'image', maxCount: 1 },
-      { name: 'payment_image', maxCount: 1 },
-      { name: 'receipt_image', maxCount: 1 },
-      { name: 'proof', maxCount: 1 },
-    ])(req, res, (err) => {
-      if (err) {
-        if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
-          return next(new AppError('Payment proof file size exceeds 5MB limit', HTTP_STATUS.BAD_REQUEST));
-        }
-        return next(err);
-      }
+  if (!req.is('multipart/form-data')) return next();
+  upload_payment.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'payment_image', maxCount: 1 },
+    { name: 'receipt_image', maxCount: 1 },
+    { name: 'proof', maxCount: 1 },
+  ])(req, res, (err) => {
+    if (err) return handleMulterError(err, next, 'Payment proof file size exceeds 5MB limit');
 
-      if (req.files?.image?.[0]) {
-        req.file = req.files.image[0];
-        req.body.image = req.files.image[0].filename;
-      } else if (req.files?.payment_image?.[0]) {
-        req.file = req.files.payment_image[0];
-        req.body.image = req.files.payment_image[0].filename;
-      } else if (req.files?.receipt_image?.[0]) {
-        req.file = req.files.receipt_image[0];
-        req.body.image = req.files.receipt_image[0].filename;
-      } else if (req.files?.proof?.[0]) {
-        req.file = req.files.proof[0];
-        req.body.image = req.files.proof[0].filename;
-      }
+    const file =
+      req.files?.image?.[0] ||
+      req.files?.payment_image?.[0] ||
+      req.files?.receipt_image?.[0] ||
+      req.files?.proof?.[0];
 
-      next();
-    });
-  } else {
-    next();
-  }
-};
-
-/**
- * Delete a local payment proof file safely
- * @param {string|null} filename
- */
-export const deletePaymentProofFile = (filename) => {
-  if (!filename) return;
-  try {
-    const file_path = path.join(payments_upload_dir, path.basename(filename));
-    if (fs.existsSync(file_path)) {
-      fs.unlinkSync(file_path);
+    if (file) {
+      req.file = file;
+      req.body.image = file.filename;
     }
-  } catch (err) {
-    console.warn(`[Warning] Could not delete payment proof file: ${filename}`, err.message);
-  }
+    next();
+  });
 };
+
+// ==========================================
+// SAFE DISK FILE DELETERS
+// ==========================================
+
+export const deleteRoomImageFile = createDeleter(rooms_upload_dir, 'room image');
+export const deleteUserPhotoFile = createDeleter(users_upload_dir, 'user photo');
+export const deletePgLogoFile = createDeleter(pgs_upload_dir, 'PG logo');
+export const deleteDocumentFile = createDeleter(documents_upload_dir, 'document');
+export const deleteBranchPhotoFile = createDeleter(branches_upload_dir, 'branch photo');
+export const deleteVisitorPhotoFile = createDeleter(visitors_upload_dir, 'visitor photo');
+export const deleteFoodMenuImageFile = createDeleter(food_menu_upload_dir, 'food menu image');
+export const deleteFoodFeedbackImageFile = createDeleter(food_feedback_upload_dir, 'food feedback image');
+export const deleteComplaintAttachmentFile = createDeleter(complaints_upload_dir, 'complaint attachment');
+export const deleteStaffPhotoFile = deleteUserPhotoFile;
+export const deleteNoticeAttachmentFile = createDeleter(notices_upload_dir, 'notice attachment');
+export const deleteCommunityImageFile = createDeleter(community_upload_dir, 'community image');
+export const deletePaymentProofFile = createDeleter(payments_upload_dir, 'payment proof file');
+
+// ==========================================
+// DEFAULT EXPORT
+// ==========================================
 
 export default {
   handleRoomImageUpload,

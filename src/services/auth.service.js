@@ -9,6 +9,7 @@ import { ROLES, HTTP_STATUS } from '../constants/index.js';
 import { hashPassword, comparePassword, generateSecurePassword } from '../utils/password.js';
 import { generateAuthTokens, verifyRefreshToken } from '../utils/jwt.js';
 import { AppError } from '../utils/apiResponse.js';
+import { normalizePhone } from '../utils/phone.js';
 
 /**
  * Service managing user authentication, registration, OTP login,
@@ -17,20 +18,8 @@ import { AppError } from '../utils/apiResponse.js';
 class AuthService {
   /**
    * Helper: Normalize 10-digit Indian phone number
-   * @param {string|number} phone
-   * @returns {string} 10-digit mobile number
    */
-  normalizePhone = (phone) => {
-    if (!phone) return '';
-    const cleaned = String(phone).replace(/\D/g, '');
-    if (cleaned.length === 12 && cleaned.startsWith('91')) {
-      return cleaned.slice(2);
-    }
-    if (cleaned.length === 11 && cleaned.startsWith('0')) {
-      return cleaned.slice(1);
-    }
-    return cleaned;
-  };
+  normalizePhone = normalizePhone;
 
   /**
    * Helper: Normalize user role string to standard system role

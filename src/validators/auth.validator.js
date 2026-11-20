@@ -1,22 +1,6 @@
 import { body } from 'express-validator';
 import userService from '../services/user.service.js';
-
-/**
- * Normalizes an Indian phone number to 10 digits
- * @param {string|number} phone
- * @returns {string} 10-digit mobile number
- */
-const normalizePhone = (phone) => {
-  if (!phone) return '';
-  const cleaned = String(phone).replace(/\D/g, '');
-  if (cleaned.length === 12 && cleaned.startsWith('91')) {
-    return cleaned.slice(2);
-  }
-  if (cleaned.length === 11 && cleaned.startsWith('0')) {
-    return cleaned.slice(1);
-  }
-  return cleaned;
-};
+import { normalizePhone } from '../utils/phone.js';
 
 /**
  * Validator for Dedicated PG Owner + Initial PG Registration Flow

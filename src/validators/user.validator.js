@@ -1,26 +1,13 @@
 import { body, param, query } from 'express-validator';
 import db from '../config/db.js';
 import ROLES, { ALL_STAFF_ROLES, STAFF_ROLES } from '../constants/roles.js';
+import { normalizePhone } from '../utils/phone.js';
 
 export const STAFF_STATUSES = ['active', 'on_leave', 'inactive'];
 export const ALLOWED_STATUSES = ['active', 'pending', 'inactive', 'on_leave'];
 export const ALLOWED_GENDERS = ['male', 'female', 'other'];
 export const ALLOWED_ROLES = [ROLES.RESIDENT, ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.STAFF];
-
-/**
- * Normalizes an Indian phone number to 10 digits
- */
-export const normalizePhone = (phone) => {
-  if (!phone) return '';
-  const cleaned = String(phone).replace(/\D/g, '');
-  if (cleaned.length === 12 && cleaned.startsWith('91')) {
-    return cleaned.slice(2);
-  }
-  if (cleaned.length === 11 && cleaned.startsWith('0')) {
-    return cleaned.slice(1);
-  }
-  return cleaned;
-};
+export { normalizePhone };
 
 /**
  * Helper to identify Resident role for conditional validation
