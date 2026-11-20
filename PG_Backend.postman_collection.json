@@ -477,6 +477,194 @@
           "response": []
         },
         {
+          "name": "Update PG Details",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Sunita Mehra",
+                  "type": "text",
+                  "description": "[OPTIONAL] Full name of PG Owner (2-100 characters)"
+                },
+                {
+                  "key": "email",
+                  "value": "sunita.mehra@example.com",
+                  "type": "text",
+                  "description": "[OPTIONAL] Login email address for PG Owner"
+                },
+                {
+                  "key": "phone",
+                  "value": "9876543220",
+                  "type": "text",
+                  "description": "[OPTIONAL] 10-digit mobile number"
+                },
+                {
+                  "key": "gender",
+                  "value": "female",
+                  "type": "text",
+                  "description": "[OPTIONAL] male | female | other"
+                },
+                {
+                  "key": "address",
+                  "value": "101 Owner Enclave, Ahmedabad",
+                  "type": "text",
+                  "description": "[OPTIONAL] Owner residence address"
+                },
+                {
+                  "key": "profile_photo",
+                  "type": "file",
+                  "src": [],
+                  "description": "[OPTIONAL] Owner profile image (JPG, PNG, WebP, max 5MB)",
+                  "value": ""
+                },
+                {
+                  "key": "pg_name",
+                  "value": "HouseNest Sunshine PG",
+                  "type": "text",
+                  "description": "[OPTIONAL] Name of PG facility (2-150 characters)"
+                },
+                {
+                  "key": "pg_type",
+                  "value": "girls",
+                  "type": "text",
+                  "description": "[OPTIONAL] boys | girls | coed | other"
+                },
+                {
+                  "key": "pg_phone",
+                  "value": "9876543221",
+                  "type": "text",
+                  "description": "[OPTIONAL] Official PG contact phone (10 digits)"
+                },
+                {
+                  "key": "pg_address",
+                  "value": "Plot 45, Near St. Xavier College",
+                  "type": "text",
+                  "description": "[OPTIONAL] Physical street address of PG"
+                },
+                {
+                  "key": "pg_city",
+                  "value": "Ahmedabad",
+                  "type": "text",
+                  "description": "[OPTIONAL] City name"
+                },
+                {
+                  "key": "pg_state",
+                  "value": "Gujarat",
+                  "type": "text",
+                  "description": "[OPTIONAL] State name"
+                },
+                {
+                  "key": "pg_pincode",
+                  "value": "380009",
+                  "type": "text",
+                  "description": "[OPTIONAL] 6-digit PIN code"
+                },
+                {
+                  "key": "total_rooms",
+                  "value": "25",
+                  "type": "text",
+                  "description": "[OPTIONAL] Total rooms count"
+                },
+                {
+                  "key": "total_beds",
+                  "value": "50",
+                  "type": "text",
+                  "description": "[OPTIONAL] Total bed capacity"
+                },
+                {
+                  "key": "amenities",
+                  "value": "[\"Wi-Fi\",\"AC\",\"Meals\",\"Laundry\"]",
+                  "type": "text",
+                  "description": "[OPTIONAL] Amenities list (JSON array or comma-separated string)"
+                },
+                {
+                  "key": "rules",
+                  "value": "Curfew at 10:30 PM. No loud music after 11 PM.",
+                  "type": "text",
+                  "description": "[OPTIONAL] PG rules and regulations"
+                },
+                {
+                  "key": "status",
+                  "value": "active",
+                  "type": "text",
+                  "description": "[OPTIONAL] active | inactive | under_maintenance"
+                },
+                {
+                  "key": "logo",
+                  "type": "file",
+                  "src": [],
+                  "description": "[OPTIONAL] PG logo image file (JPG, PNG, WebP, max 5MB)",
+                  "value": ""
+                },
+                {
+                  "key": "pg_upi_id",
+                  "value": "jasminkorat204@oksbi",
+                  "type": "text",
+                  "description": "[OPTIONAL] UPI ID for digital payments"
+                },
+                {
+                  "key": "pg_bank_name",
+                  "value": "State Bank of India",
+                  "type": "text",
+                  "description": "[OPTIONAL] Bank name for payouts"
+                },
+                {
+                  "key": "pg_account_number",
+                  "value": "38291048592",
+                  "type": "text",
+                  "description": "[OPTIONAL] Bank account number"
+                },
+                {
+                  "key": "pg_ifsc_code",
+                  "value": "SBIN0001234",
+                  "type": "text",
+                  "description": "[OPTIONAL] 11-digit IFSC code"
+                },
+                {
+                  "key": "pg_account_holder_name",
+                  "value": "Jasmin Patel",
+                  "type": "text",
+                  "description": "[OPTIONAL] Bank account holder name"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/update-pg",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "update-pg"
+              ]
+            },
+            "description": "### Update PG & Owner Details\n\nUpdates the authenticated PG Owner's PG facility and profile details.\nSupports **multipart/form-data** (for uploading new `logo` or `profile_photo`) and **application/json**.\n\nAll fields are optional to support partial updates.\nRequires `adminToken` or `superAdminToken`.\n\nEndpoint: `PUT {{baseUrl}}/api/v1/auth/update-pg`"
+          },
+          "response": []
+        },
+        {
           "name": "Login",
           "event": [
             {
@@ -4250,7 +4438,7 @@
                 "pay"
               ]
             },
-            "description": "### Submit Payment Proof / Details\nRecords payment details/proof for an existing invoice without automatically changing status to paid (unless called with Admin token, which automatically marks as paid).\nSupports both **multipart/form-data** (with file upload) and **application/json**.\n\n#### Path Parameters:\n- `id` **[REQUIRED]**: Payment ID.\n\n#### Form Fields / JSON Body:\n- `payment_method` **[REQUIRED]**: Enum: `upi`, `card`, `net_banking`, `wallet`, `bank_transfer`, `cash`.\n- `upi_ref_no` **[OPTIONAL]**: 12-digit UPI reference number.\n- `note` **[OPTIONAL]**: Payment notes / remarks.\n- `image` **[OPTIONAL - File]**: Screenshot or PDF of the payment receipt/transaction proof (max 5MB).\n\n#### Response Object includes:\n- `image`: Uploaded filename (e.g., `payment-1732090775123.jpg`).\n- `image_url`: Full public URL (e.g., `http://localhost:5000/uploads/payments/payment-1732090775123.jpg`).\n\n#### Permissions:\n- Authenticated Resident or Admin / Super Admin."
+            "description": "### Submit / Record Payment\nRecords payment details/proof for an existing invoice.\n- **Admin Token**: Automatically marks payment as `paid` and generates an official receipt number.\n- **Resident / Other Role Token**: Automatically sets status to `in_review` for admin verification.\n\nSupports both **multipart/form-data** (with file upload) and **application/json**.\n\n#### Path Parameters:\n- `id` **[REQUIRED]**: Payment ID.\n\n#### Form Fields / JSON Body:\n- `payment_method` **[REQUIRED]**: Enum: `upi`, `card`, `net_banking`, `wallet`, `bank_transfer`, `cash`.\n- `upi_ref_no` **[OPTIONAL]**: 12-digit UPI reference number.\n- `note` **[OPTIONAL]**: Payment notes / remarks.\n- `image` **[OPTIONAL - File]**: Screenshot or PDF of the payment receipt/transaction proof (max 5MB).\n\n#### Response Object includes:\n- `status`: `paid` (if Admin) or `in_review` (if Resident)\n- `transaction_id`: Uniform 9-character reference (e.g., `TXN000059`)\n- `receipt_no`: Generated if marked paid (e.g., `RCPT-2026-0059`)\n- `image`: Uploaded filename (e.g., `payment-1732090775123.jpg`).\n- `image_url`: Full public URL.\n\n#### Permissions:\n- Authenticated Resident or Admin / Super Admin."
           },
           "response": []
         },
@@ -4287,7 +4475,7 @@
                 "status"
               ]
             },
-            "description": "### Update Payment Status (Admin Only)\nAllows property managers/admins to update payment status to `paid`, `pending`, `overdue`, `failed`, or `refunded`.\n\n#### Path Parameters:\n- `id` **[REQUIRED]**: Payment ID.\n\n#### Request Body (JSON):\n- `status` **[REQUIRED]**: Enum: `paid`, `pending`, `overdue`, `failed`, `refunded`.\n\n#### Response Object includes:\n- `image`: Uploaded filename (e.g., `payment-1732090775123.jpg`).\n- `image_url`: Full public URL (e.g., `http://localhost:5000/uploads/payments/payment-1732090775123.jpg`)."
+            "description": "### Update Payment Status (Admin Only)\nAllows property managers/admins to update payment status to `paid`, `pending`, `in_review`, `overdue`, `failed`, or `refunded`.\n\n#### Path Parameters:\n- `id` **[REQUIRED]**: Payment ID.\n\n#### Request Body (JSON):\n- `status` **[REQUIRED]**: Enum: `paid`, `pending`, `in_review`, `overdue`, `failed`, `refunded`.\n\n#### Response Object includes:\n- `image`: Uploaded filename (e.g., `payment-1732090775123.jpg`).\n- `image_url`: Full public URL (e.g., `http://localhost:5000/uploads/payments/payment-1732090775123.jpg`)."
           },
           "response": []
         },

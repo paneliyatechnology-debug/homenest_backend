@@ -144,7 +144,6 @@ class AuthService {
         name: pg_name,
         type: pg_type,
         phone: clean_pg_phone,
-        email: email,
         address: pg_address,
         city: pg_city,
         state: pg_state,
@@ -213,6 +212,156 @@ class AuthService {
 
     return registrationResult;
   };
+
+  /**
+   * Update PG and Owner details
+   * Resolves target PG, validates owner uniqueness for phone/email if updated,
+   * and atomically updates users and pgs tables.
+   * @param {object} currentUser - Authenticated user from req.user
+   * @param {object} payload - Fields to update
+   * @returns {Promise<object>} Updated PG object
+   */
+  updateOwnerWithPg = async (currentUser, payload) => {
+    // 1. Identify which PG to update
+    let targetPgId = currentUser.pg_id || currentUser.pg?.id;
+    if (!targetPgId && currentUser.role === ROLES.ADMIN) {
+      const ownedPg = await db('pgs')
+        .where({ owner_id: currentUser.id })
+        .whereNull('deleted_at')
+        .orderBy('id', 'asc')
+        .first();
+      if (ownedPg) targetPgId = ownedPg.id;
+    } else if (currentUser.role === ROLES.SUPER_ADMIN && payload.pg_id) {
+      targetPgId = payload.pg_id;
+    }
+
+    if (!targetPgId) {
+      throw new AppError('No PG facility found for this account', HTTP_STATUS.NOT_FOUND);
+    }
+
+    // Verify PG exists and permission
+    const existingPg = await db('pgs')
+      .where({ id: targetPgId })
+      .whereNull('deleted_at')
+      .first();
+
+    if (!existingPg) {
+      throw new AppError('PG facility not found', HTTP_STATUS.NOT_FOUND);
+    }
+
+    if (currentUser.role !== ROLES.SUPER_ADMIN && existingPg.owner_id !== currentUser.id) {
+      throw new AppError('You do not have permission to update this PG facility', HTTP_STATUS.FORBIDDEN);
+    }
+
+    const owner_id = existingPg.owner_id;
+
+    // Safely parse amenities if sent as string (e.g. via multipart/form-data)
+    let parsed_amenities = payload.amenities;
+    if (typeof payload.amenities === 'string' && payload.amenities.trim().startsWith('[')) {
+      try {
+        parsed_amenities = JSON.parse(payload.amenities);
+      } catch {
+        parsed_amenities = payload.amenities;
+      }
+    }
+
+    // Normalize phone numbers if provided
+    let clean_owner_phone = undefined;
+    const raw_owner_phone = payload.owner_phone !== undefined ? payload.owner_phone : payload.phone;
+    if (raw_owner_phone !== undefined) {
+      clean_owner_phone = this.normalizePhone(raw_owner_phone);
+      if (clean_owner_phone) {
+        const phoneConflict = await db('users')
+          .where({ phone: clean_owner_phone })
+          .whereNot({ id: owner_id })
+          .whereNull('deleted_at')
+          .first();
+        if (phoneConflict) {
+          throw new AppError('Owner phone number is already registered with another account', HTTP_STATUS.CONFLICT);
+        }
+      }
+    }
+
+    let clean_owner_email = undefined;
+    const raw_owner_email = payload.owner_email !== undefined ? payload.owner_email : payload.email;
+    if (raw_owner_email !== undefined) {
+      clean_owner_email = String(raw_owner_email).trim().toLowerCase();
+      const emailConflict = await db('users')
+        .where({ email: clean_owner_email })
+        .whereNot({ id: owner_id })
+        .whereNull('deleted_at')
+        .first();
+      if (emailConflict) {
+        throw new AppError('Owner email address is already registered with another account', HTTP_STATUS.CONFLICT);
+      }
+    }
+
+    let clean_pg_phone = undefined;
+    if (payload.pg_phone !== undefined) {
+      clean_pg_phone = this.normalizePhone(payload.pg_phone);
+    }
+
+    return await db.transaction(async (trx) => {
+      // 1. Update owner in users table if any owner fields provided
+      const userUpdateFields = {};
+      const owner_name = payload.owner_name !== undefined ? payload.owner_name : (payload.pg_name !== undefined ? payload.name : (payload.name || undefined));
+      if (owner_name !== undefined && payload.name !== undefined && payload.pg_name === undefined && payload.owner_name === undefined) {
+        userUpdateFields.name = payload.name;
+      } else if (payload.owner_name !== undefined) {
+        userUpdateFields.name = payload.owner_name;
+      } else if (payload.name !== undefined && payload.pg_name !== undefined) {
+        userUpdateFields.name = payload.name;
+      }
+
+      if (clean_owner_email !== undefined) {
+        userUpdateFields.email = clean_owner_email;
+      }
+      if (clean_owner_phone !== undefined) userUpdateFields.phone = clean_owner_phone || null;
+      if (payload.gender !== undefined) userUpdateFields.gender = String(payload.gender).toLowerCase();
+      const owner_address = payload.owner_address !== undefined ? payload.owner_address : (payload.address !== undefined ? payload.address : undefined);
+      if (owner_address !== undefined) userUpdateFields.address = owner_address;
+      if (payload.profile_photo !== undefined) userUpdateFields.profile_photo = payload.profile_photo;
+
+      if (Object.keys(userUpdateFields).length > 0) {
+        userUpdateFields.updated_at = db.fn.now();
+        await trx('users').where({ id: owner_id }).update(userUpdateFields);
+      }
+
+      // 2. Update PG details
+      const pgUpdateData = {};
+      const pg_name = payload.pg_name !== undefined ? payload.pg_name : (payload.owner_name !== undefined ? payload.name : undefined);
+      if (pg_name !== undefined) pgUpdateData.name = pg_name;
+      if (payload.pg_type !== undefined || payload.type !== undefined) {
+        pgUpdateData.type = payload.pg_type || payload.type;
+      }
+      if (clean_pg_phone !== undefined) pgUpdateData.phone = clean_pg_phone;
+      const pg_address = payload.pg_address !== undefined ? payload.pg_address : undefined;
+      if (pg_address !== undefined) pgUpdateData.address = pg_address;
+      if (payload.pg_city !== undefined || payload.city !== undefined) {
+        pgUpdateData.city = payload.pg_city || payload.city;
+      }
+      if (payload.pg_state !== undefined || payload.state !== undefined) {
+        pgUpdateData.state = payload.pg_state || payload.state;
+      }
+      if (payload.pg_pincode !== undefined || payload.pincode !== undefined) {
+        pgUpdateData.pincode = payload.pg_pincode || payload.pincode;
+      }
+      if (payload.total_rooms !== undefined) pgUpdateData.total_rooms = payload.total_rooms;
+      if (payload.total_beds !== undefined) pgUpdateData.total_beds = payload.total_beds;
+      if (parsed_amenities !== undefined) pgUpdateData.amenities = parsed_amenities;
+      if (payload.rules !== undefined) pgUpdateData.rules = payload.rules;
+      if (payload.status !== undefined) pgUpdateData.status = payload.status;
+      if (payload.logo !== undefined) pgUpdateData.logo = payload.logo;
+      if (payload.pg_upi_id !== undefined) pgUpdateData.pg_upi_id = payload.pg_upi_id;
+      if (payload.pg_bank_name !== undefined) pgUpdateData.pg_bank_name = payload.pg_bank_name;
+      if (payload.pg_account_number !== undefined) pgUpdateData.pg_account_number = payload.pg_account_number;
+      if (payload.pg_ifsc_code !== undefined) pgUpdateData.pg_ifsc_code = payload.pg_ifsc_code;
+      if (payload.pg_account_holder_name !== undefined) pgUpdateData.pg_account_holder_name = payload.pg_account_holder_name;
+
+      return await pgService.update(targetPgId, pgUpdateData, trx);
+    });
+  };
+
 
   /**
    * Authenticate user by email & password

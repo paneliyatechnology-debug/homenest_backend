@@ -186,6 +186,203 @@ export const registerOwnerWithPgValidator = [
 ];
 
 /**
+ * Validator for Updating PG Facility & Owner details
+ * All fields are optional to support partial updates
+ */
+export const updateOwnerWithPgValidator = [
+  // Owner Personal Details (Optional)
+  body('name')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Owner name must be between 2 and 100 characters'),
+
+  body('owner_name')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Owner name must be between 2 and 100 characters'),
+
+  body('email')
+    .optional()
+    .trim()
+    .isEmail()
+    .withMessage('Please provide a valid owner email address')
+    .normalizeEmail(),
+
+  body('owner_email')
+    .optional()
+    .trim()
+    .isEmail()
+    .withMessage('Please provide a valid owner email address')
+    .normalizeEmail(),
+
+  body('phone')
+    .optional()
+    .trim()
+    .matches(/^(\+91[\-\s]?)?[6-9]\d{9}$/)
+    .withMessage('Please provide a valid 10-digit owner phone number')
+    .customSanitizer(normalizePhone),
+
+  body('owner_phone')
+    .optional()
+    .trim()
+    .matches(/^(\+91[\-\s]?)?[6-9]\d{9}$/)
+    .withMessage('Please provide a valid 10-digit owner phone number')
+    .customSanitizer(normalizePhone),
+
+  body('gender')
+    .optional()
+    .trim()
+    .toLowerCase()
+    .isIn(['male', 'female', 'other'])
+    .withMessage('Gender must be one of: male, female, other'),
+
+  body('address')
+    .optional()
+    .trim(),
+
+  body('owner_address')
+    .optional()
+    .trim(),
+
+  // PG Facility Details (Optional)
+  body('pg_name')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 150 })
+    .withMessage('PG name must be between 2 and 150 characters'),
+
+  body('pg_type')
+    .optional()
+    .trim()
+    .toLowerCase()
+    .isIn(['boys', 'girls', 'coed', 'other'])
+    .withMessage('PG type must be one of: boys, girls, coed, other'),
+
+  body('type')
+    .optional()
+    .trim()
+    .toLowerCase()
+    .isIn(['boys', 'girls', 'coed', 'other'])
+    .withMessage('PG type must be one of: boys, girls, coed, other'),
+
+  body('pg_phone')
+    .optional()
+    .trim()
+    .matches(/^(\+91[\-\s]?)?[6-9]\d{9}$/)
+    .withMessage('Please provide a valid 10-digit PG contact phone number'),
+
+  body('pg_address')
+    .optional()
+    .trim()
+    .isLength({ min: 3 })
+    .withMessage('PG address must be at least 3 characters long'),
+
+  body('pg_city')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('PG city must be between 2 and 100 characters'),
+
+  body('city')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('PG city must be between 2 and 100 characters'),
+
+  body('pg_state')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('PG state must be between 2 and 100 characters'),
+
+  body('state')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('PG state must be between 2 and 100 characters'),
+
+  body('pg_pincode')
+    .optional()
+    .trim()
+    .matches(/^[1-9][0-9]{5}$/)
+    .withMessage('Please provide a valid 6-digit Indian PIN code for PG'),
+
+  body('pincode')
+    .optional()
+    .trim()
+    .matches(/^[1-9][0-9]{5}$/)
+    .withMessage('Please provide a valid 6-digit Indian PIN code for PG'),
+
+  body('total_rooms')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 0 })
+    .withMessage('Total rooms must be a non-negative integer'),
+
+  body('total_beds')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 0 })
+    .withMessage('Total beds must be a non-negative integer'),
+
+  body('amenities')
+    .optional(),
+
+  body('rules')
+    .optional()
+    .trim(),
+
+  body('status')
+    .optional()
+    .trim()
+    .toLowerCase()
+    .isIn(['active', 'inactive', 'under_maintenance'])
+    .withMessage('PG status must be one of: active, inactive, under_maintenance'),
+
+  body('profile_photo')
+    .optional()
+    .trim(),
+
+  body('logo')
+    .optional()
+    .trim(),
+
+  // PG UPI & Banking Details
+  body('pg_upi_id')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ min: 3, max: 100 })
+    .withMessage('PG UPI ID must be between 3 and 100 characters'),
+
+  body('pg_bank_name')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('PG bank name must be between 2 and 100 characters'),
+
+  body('pg_account_number')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ min: 6, max: 50 })
+    .withMessage('PG bank account number must be between 6 and 50 characters'),
+
+  body('pg_ifsc_code')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ min: 4, max: 20 })
+    .withMessage('PG IFSC code must be between 4 and 20 characters'),
+
+  body('pg_account_holder_name')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ min: 2, max: 150 })
+    .withMessage('PG account holder name must be between 2 and 150 characters'),
+];
+
+
+/**
  * Validator for Email/Password Login
  */
 export const loginValidator = [

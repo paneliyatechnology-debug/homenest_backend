@@ -3,8 +3,8 @@ import db from '../config/db.js';
 
 const ALLOWED_TYPES = ['rent', 'maintenance', 'security_deposit', 'electricity', 'other', 'laundry'];
 const ALLOWED_METHODS = ['upi', 'card', 'net_banking', 'wallet', 'bank_transfer', 'cash'];
-const ALLOWED_STATUSES = ['paid', 'pending', 'overdue', 'refunded', 'failed'];
-const ALLOWED_FILTER_STATUSES = ['all', 'pending', 'paid', 'completed', 'overdue', 'refunded', 'refunds', 'failed'];
+const ALLOWED_STATUSES = ['paid', 'pending', 'in_review', 'overdue', 'refunded', 'failed'];
+const ALLOWED_FILTER_STATUSES = ['all', 'pending', 'in_review', 'paid', 'completed', 'overdue', 'refunded', 'refunds', 'failed'];
 
 /**
  * Validator for listing payments (GET /api/v1/payments)
@@ -532,8 +532,8 @@ export const updatePaymentStatusValidator = [
     .withMessage('Status is required')
     .trim()
     .toLowerCase()
-    .isIn(['paid', 'pending', 'overdue', 'failed', 'refunded'])
-    .withMessage('Status must be one of: paid, pending, overdue, failed, refunded'),
+    .isIn(ALLOWED_STATUSES)
+    .withMessage(`Status must be one of: ${ALLOWED_STATUSES.join(', ')}`),
 ];
 
 export default {

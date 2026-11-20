@@ -2,6 +2,7 @@ import { Router } from 'express';
 import authController from '../controllers/auth.controller.js';
 import {
   registerOwnerWithPgValidator,
+  updateOwnerWithPgValidator,
   loginValidator,
   sendOtpValidator,
   verifyOtpValidator,
@@ -9,8 +10,9 @@ import {
   resetPasswordValidator,
 } from '../validators/auth.validator.js';
 import validate from '../middlewares/validate.middleware.js';
-import { authenticate } from '../middlewares/auth.middleware.js';
+import { authenticate, authorize } from '../middlewares/auth.middleware.js';
 import { handlePgRegistrationUpload } from '../middlewares/upload.middleware.js';
+import { ROLES } from '../constants/index.js';
 
 const router = Router();
 
@@ -26,6 +28,22 @@ router.post(
   validate(registerOwnerWithPgValidator),
   authController.registerOwnerWithPg
 );
+
+/**
+ * @route   PUT /api/v1/auth/update-pg
+ * @desc    Update PG Facility and Owner details. Supports FormData with optional owner profile photo and PG logo.
+ * @access  Private (Admin / Super Admin)
+ */
+router.put(
+  '/update-pg',
+  authenticate,
+  authorize(ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  handlePgRegistrationUpload,
+  validate(updateOwnerWithPgValidator),
+  authController.updateOwnerWithPg
+);
+
+
 
 /**
  * @route   POST /api/v1/auth/login

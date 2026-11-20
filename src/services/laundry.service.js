@@ -1289,11 +1289,9 @@ export const createLaundryPaymentEntries = async (user, payload) => {
       }
 
       const receiptNo = `LND-${Date.now().toString().slice(-6)}-${resId}`;
-      const transactionId = `TXN-LND-${Date.now()}-${resId}`;
 
       // Record laundry invoice in payments table
       const [paymentId] = await trx('payments').insert({
-        transaction_id: transactionId,
         receipt_no: receiptNo,
         resident_id: resId,
         pg_id: activeStay.pg_id,
@@ -1308,9 +1306,10 @@ export const createLaundryPaymentEntries = async (user, payload) => {
         paid_amount: 0.00,
         status: 'pending',
         notes,
-        created_at: db.fn.now(),
-        updated_at: db.fn.now(),
       });
+
+      const transactionId = `TXN${String(paymentId).padStart(6, '0')}`;
+      await trx('payments').where({ id: paymentId }).update({ transaction_id: transactionId });
 
       // Mark the requests as billed
       if (unbilledReqs.length > 0) {

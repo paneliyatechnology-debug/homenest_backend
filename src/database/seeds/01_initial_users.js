@@ -306,7 +306,7 @@ export const seed = async (knex) => {
   await knex('payments').insert([
     {
       id: 1,
-      transaction_id: 'TXN1234567890123',
+      transaction_id: 'TXN000001',
       receipt_no: 'RCPT-2026-0001',
       resident_id: 3,
       pg_id: 1,
@@ -334,7 +334,7 @@ export const seed = async (knex) => {
     },
     {
       id: 2,
-      transaction_id: 'TXN1234567890124',
+      transaction_id: 'TXN000002',
       receipt_no: 'RCPT-2026-0002',
       resident_id: 3,
       pg_id: 1,
@@ -389,7 +389,7 @@ export const seed = async (knex) => {
     },
     {
       id: 4,
-      transaction_id: 'TXN00024B',
+      transaction_id: 'TXN000004',
       receipt_no: 'RCPT-2026-0004',
       resident_id: 3,
       pg_id: 1,
@@ -416,7 +416,7 @@ export const seed = async (knex) => {
     },
     {
       id: 5,
-      transaction_id: 'TXN00024C',
+      transaction_id: 'TXN000005',
       receipt_no: 'RCPT-2026-0005',
       resident_id: 3,
       pg_id: 1,

@@ -81,6 +81,13 @@ class PaymentService {
 
   static formatReportDate = (date) => PaymentService.formatIST(date, true);
 
+  /**
+   * Helper to format a standardized 6-digit transaction ID (e.g. TXN000057)
+   */
+  static generateTransactionId = (id) => {
+    return `TXN${String(id).padStart(6, '0')}`;
+  };
+
   static formatPayment = (item) => {
     if (!item) return null;
 
@@ -95,7 +102,7 @@ class PaymentService {
 
     return {
       id: item.id,
-      transaction_id: item.transaction_id || null,
+      transaction_id: item.transaction_id || PaymentService.generateTransactionId(item.id),
       receipt_no: item.receipt_no || null,
       title: item.title || 'Monthly Rent',
       payment_type: item.payment_type || 'rent',
@@ -602,6 +609,9 @@ class PaymentService {
           if (statusUpper === 'PAID') {
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
             cell.font = { name: 'Segoe UI', size: 8.5, bold: true, color: { argb: 'FF166534' } };
+          } else if (statusUpper === 'IN_REVIEW') {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } };
+            cell.font = { name: 'Segoe UI', size: 8.5, bold: true, color: { argb: 'FF0369A1' } };
           } else if (statusUpper === 'PENDING') {
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
             cell.font = { name: 'Segoe UI', size: 8.5, bold: true, color: { argb: 'FF92400E' } };
@@ -918,6 +928,9 @@ class PaymentService {
       if (statusUpper === 'PAID') {
         pillBg = '#DCFCE7';
         pillText = '#166534';
+      } else if (statusUpper === 'IN_REVIEW') {
+        pillBg = '#E0F2FE';
+        pillText = '#0369A1';
       } else if (statusUpper === 'PENDING') {
         pillBg = '#FEF3C7';
         pillText = '#92400E';
@@ -1271,7 +1284,7 @@ class PaymentService {
     doc.fillColor(brandDark).font(fontBold).fontSize(7.5).text('PAYMENT & TRANSACTION DETAILS', rightColX + 10, curY + 8);
     doc.moveTo(rightColX + 10, curY + 20).lineTo(rightColX + colW - 10, curY + 20).strokeColor(borderSubtle).lineWidth(0.5).stroke();
 
-    const txnId = payment.transaction_id || `TXN${String(payment.id).padStart(6, '0')}`;
+    const txnId = payment.transaction_id || PaymentService.generateTransactionId(payment.id);
     doc.fillColor(textDark).font(fontBold).fontSize(8.5).text(`Txn ID: ${txnId}`, rightColX + 10, curY + 25, { width: colW - 20, lineBreak: false });
     const methodUpper = String(payment.payment_method || 'UPI').toUpperCase();
     const methodDetail = payment.payment_method_details ? ` (${payment.payment_method_details})` : '';
@@ -1746,16 +1759,16 @@ class PaymentService {
     }
 
     // Determine target status:
-    // If calling token is admin, automatically set status to 'paid';
-    // otherwise (resident submitting proof), retain current status (e.g. pending/overdue).
+    // If calling token role is admin (or super_admin), set status to 'paid'.
+    // For other token roles (e.g. resident), set status to 'in_review'.
     const isAdmin = user && (user.role === ROLES.ADMIN || user.role === ROLES.SUPER_ADMIN);
-    const targetStatus = isAdmin ? 'paid' : payment.status;
+    const targetStatus = isAdmin ? 'paid' : 'in_review';
 
-    const transaction_id = payment.transaction_id || (targetStatus === 'paid' ? `TXN${Date.now()}${Math.floor(100 + Math.random() * 900)}` : null);
+    const transaction_id = payment.transaction_id || PaymentService.generateTransactionId(payment.id);
     const receipt_no = targetStatus === 'paid'
       ? (payment.receipt_no || `RCPT-${moment().format('YYYY')}-${String(payment.id).padStart(4, '0')}`)
       : (payment.receipt_no || null);
-    const paid_amount = Number(payment.paid_amount || payment.amount || 0);
+    const paid_amount = Number(payload.paid_amount || payment.paid_amount || payment.amount || 0);
     const payment_method = payload.payment_method ? payload.payment_method.toLowerCase().trim() : (payment.payment_method || 'upi');
     const payment_method_details = payment_method === 'upi' ? 'UPI' : (payment.payment_method_details || payment_method);
     const note = payload.note !== undefined ? payload.note : (payload.notes !== undefined ? payload.notes : null);
@@ -1884,7 +1897,7 @@ class PaymentService {
       if (data.transaction_id) {
         updatePayload.transaction_id = data.transaction_id;
       } else if (!payment.transaction_id) {
-        updatePayload.transaction_id = `TXN${Date.now()}${Math.floor(100 + Math.random() * 900)}`;
+        updatePayload.transaction_id = PaymentService.generateTransactionId(payment.id);
       }
     } else if (newStatus === 'refunded') {
       updatePayload.refunded_at = db.fn.now();
@@ -2062,6 +2075,9 @@ class PaymentService {
       created_at: db.fn.now(),
       updated_at: db.fn.now(),
     });
+
+    const transaction_id = PaymentService.generateTransactionId(id);
+    await db('payments').where({ id }).update({ transaction_id });
 
     auditService.log({
       pg_id: resolved_pg_id,

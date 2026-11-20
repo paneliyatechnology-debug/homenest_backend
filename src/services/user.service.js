@@ -189,36 +189,36 @@ const formatAdminUser = (user, options = {}) => {
     // Clean Structured PG Facility Object
     pg: pg
       ? {
-          id: pg.id,
-          name: pg.name,
-          type: pg.type,
-          phone: pg.phone,
-          email: pg.email,
-          address: pg.address,
-          city: pg.city,
-          state: pg.state,
-          pincode: pg.pincode,
-          total_rooms: pg.total_rooms !== undefined ? Number(pg.total_rooms) : 0,
-          total_beds: pg.total_beds !== undefined ? Number(pg.total_beds) : 0,
-          amenities: typeof pg.amenities === 'string' ? safeJsonParse(pg.amenities, []) : (pg.amenities || []),
-          rules: pg.rules || null,
-          status: pg.status || 'active',
-          logo: pg.logo || null,
-          logo_url: buildFileUrl('pgs', pg.logo),
+        id: pg.id,
+        name: pg.name,
+        type: pg.type,
+        phone: pg.phone,
+        email: pg.email,
+        address: pg.address,
+        city: pg.city,
+        state: pg.state,
+        pincode: pg.pincode,
+        total_rooms: pg.total_rooms !== undefined ? Number(pg.total_rooms) : 0,
+        total_beds: pg.total_beds !== undefined ? Number(pg.total_beds) : 0,
+        amenities: typeof pg.amenities === 'string' ? safeJsonParse(pg.amenities, []) : (pg.amenities || []),
+        rules: pg.rules || null,
+        status: pg.status || 'active',
+        logo: pg.logo || null,
+        logo_url: buildFileUrl('pgs', pg.logo),
+        pg_upi_id: pg.pg_upi_id || null,
+        pg_bank_name: pg.pg_bank_name || null,
+        pg_account_number: pg.pg_account_number || null,
+        pg_ifsc_code: pg.pg_ifsc_code || null,
+        pg_account_holder_name: pg.pg_account_holder_name || null,
+        bank_details: {
           pg_upi_id: pg.pg_upi_id || null,
           pg_bank_name: pg.pg_bank_name || null,
           pg_account_number: pg.pg_account_number || null,
           pg_ifsc_code: pg.pg_ifsc_code || null,
           pg_account_holder_name: pg.pg_account_holder_name || null,
-          bank_details: {
-            pg_upi_id: pg.pg_upi_id || null,
-            pg_bank_name: pg.pg_bank_name || null,
-            pg_account_number: pg.pg_account_number || null,
-            pg_ifsc_code: pg.pg_ifsc_code || null,
-            pg_account_holder_name: pg.pg_account_holder_name || null,
-          },
-          active_residents_count: pg.active_residents_count !== undefined ? Number(pg.active_residents_count) : 0,
-        }
+        },
+        active_residents_count: pg.active_residents_count !== undefined ? Number(pg.active_residents_count) : 0,
+      }
       : null,
   };
 };
@@ -302,55 +302,55 @@ const formatResidentUser = (user, options = {}) => {
     // Current room & stay allocation section
     room_info: stay
       ? {
-          room_id: stay.room_id || null,
-          room_no: stay.room_no || null,
-          room_type: stay.room_type || null,
-          room_capacity: stay.room_capacity || null,
-          room_size: stay.room_size || null,
-          room_status: stay.room_status || null,
-          room_image_url,
-          building_id: stay.building_id || null,
-          building_name: stay.building_name || null,
-          floor_id: stay.floor_id || null,
-          floor_number: stay.floor_number !== undefined && stay.floor_number !== null ? Number(stay.floor_number) : null,
-          floor_name: stay.floor_name || null,
-          bed_number: stay.bed_number || null,
-          monthly_rent: stay.monthly_rent !== undefined && stay.monthly_rent !== null ? Number(stay.monthly_rent) : null,
-          security_deposit: stay.security_deposit !== undefined && stay.security_deposit !== null ? Number(stay.security_deposit) : null,
-          check_in_date: stay.check_in_date || null,
-          check_out_date: stay.check_out_date || null,
-          current_status: stay.stay_status || stay.status || 'active',
-          stay_notes: stay.stay_notes || stay.notes || null,
-          pg_id: stay.pg_id || null,
-          pg_name: stay.pg_name || null,
-          branch_id: stay.branch_id || null,
-          branch_name: stay.branch_name || stay.pg_name || null,
-        }
+        room_id: stay.room_id || null,
+        room_no: stay.room_no || null,
+        room_type: stay.room_type || null,
+        room_capacity: stay.room_capacity || null,
+        room_size: stay.room_size || null,
+        room_status: stay.room_status || null,
+        room_image_url,
+        building_id: stay.building_id || null,
+        building_name: stay.building_name || null,
+        floor_id: stay.floor_id || null,
+        floor_number: stay.floor_number !== undefined && stay.floor_number !== null ? Number(stay.floor_number) : null,
+        floor_name: stay.floor_name || null,
+        bed_number: stay.bed_number || null,
+        monthly_rent: stay.monthly_rent !== undefined && stay.monthly_rent !== null ? Number(stay.monthly_rent) : null,
+        security_deposit: stay.security_deposit !== undefined && stay.security_deposit !== null ? Number(stay.security_deposit) : null,
+        check_in_date: stay.check_in_date || null,
+        check_out_date: stay.check_out_date || null,
+        current_status: stay.stay_status || stay.status || 'active',
+        stay_notes: stay.stay_notes || stay.notes || null,
+        pg_id: stay.pg_id || null,
+        pg_name: stay.pg_name || null,
+        branch_id: stay.branch_id || null,
+        branch_name: stay.branch_name || stay.pg_name || null,
+      }
       : {
-          room_id: null,
-          room_no: null,
-          room_type: null,
-          room_capacity: null,
-          room_size: null,
-          room_status: null,
-          room_image_url: null,
-          building_id: null,
-          building_name: null,
-          floor_id: null,
-          floor_number: null,
-          floor_name: null,
-          bed_number: null,
-          monthly_rent: null,
-          security_deposit: null,
-          check_in_date: null,
-          check_out_date: null,
-          current_status: 'active',
-          stay_notes: null,
-          pg_id: null,
-          pg_name: null,
-          branch_id: null,
-          branch_name: null,
-        },
+        room_id: null,
+        room_no: null,
+        room_type: null,
+        room_capacity: null,
+        room_size: null,
+        room_status: null,
+        room_image_url: null,
+        building_id: null,
+        building_name: null,
+        floor_id: null,
+        floor_number: null,
+        floor_name: null,
+        bed_number: null,
+        monthly_rent: null,
+        security_deposit: null,
+        check_in_date: null,
+        check_out_date: null,
+        current_status: 'active',
+        stay_notes: null,
+        pg_id: null,
+        pg_name: null,
+        branch_id: null,
+        branch_name: null,
+      },
 
     // Uploaded documents & signature section
     documents: {
@@ -469,7 +469,7 @@ class UserService {
     'subscription_plans.duration as plan_duration',
   ];
 
-  
+
   /**
    * Find user by email address
    * @param {string} email
@@ -900,7 +900,7 @@ class UserService {
           if (maint_val > 0) titleParts.push('Maintenance');
           const titleDesc = titleParts.length > 0 ? titleParts.join(', ') : 'Rent & Deposit';
 
-          await trx('payments').insert({
+          const [initialPaymentId] = await trx('payments').insert({
             resident_id: user_id,
             pg_id: target_room.pg_id,
             stay_id,
@@ -923,19 +923,23 @@ class UserService {
             created_at: db.fn.now(),
             updated_at: db.fn.now(),
           });
+
+          await trx('payments').where({ id: initialPaymentId }).update({
+            transaction_id: `TXN${String(initialPaymentId).padStart(6, '0')}`,
+          });
         }
       }
 
-      const effectivePg = target_pg_id || pg_id;
-      if (!allocatedPgName && effectivePg) {
-        const directPg = await trx('pgs').where({ id: effectivePg }).first();
-        if (directPg) {
-          allocatedPgName = directPg.name;
+        const effectivePg = target_pg_id || pg_id;
+        if (!allocatedPgName && effectivePg) {
+          const directPg = await trx('pgs').where({ id: effectivePg }).first();
+          if (directPg) {
+            allocatedPgName = directPg.name;
+          }
         }
-      }
 
-      return user_id;
-    });
+        return user_id;
+      });
 
     // Send professional welcome credentials email asynchronously (safe error boundary)
     try {
@@ -976,7 +980,7 @@ class UserService {
       socketService.emitStatsUpdated(targetPgId, SOCKET_EVENTS.ROOM_STATS_UPDATED);
       socketService.emitStatsUpdated(targetPgId, SOCKET_EVENTS.DASHBOARD_STATS_UPDATED);
       socketService.emitToPgAdmins(targetPgId, SOCKET_EVENTS.USER_NEW, { id: inserted_id, name, email, role: role || ROLES.RESIDENT });
-    } catch (e) {}
+    } catch (e) { }
 
     return await this.findById(inserted_id);
   };
@@ -1389,7 +1393,7 @@ class UserService {
       socketService.emitStatsUpdated(existing.pg_id, SOCKET_EVENTS.RESIDENT_STATS_UPDATED, { user_id: id });
       socketService.emitStatsUpdated(existing.pg_id, SOCKET_EVENTS.DASHBOARD_STATS_UPDATED);
       socketService.emitToPgAdmins(existing.pg_id, SOCKET_EVENTS.USER_UPDATED, { id, status: update_data.status || existing.status });
-    } catch (e) {}
+    } catch (e) { }
 
     return await this.findById(id);
   };
@@ -1452,7 +1456,7 @@ class UserService {
       socketService.emitStatsUpdated(user.pg_id, SOCKET_EVENTS.RESIDENT_STATS_UPDATED, { user_id: id, deleted: true });
       socketService.emitStatsUpdated(user.pg_id, SOCKET_EVENTS.ROOM_STATS_UPDATED);
       socketService.emitStatsUpdated(user.pg_id, SOCKET_EVENTS.DASHBOARD_STATS_UPDATED);
-    } catch (e) {}
+    } catch (e) { }
 
     return true;
   };
@@ -2036,7 +2040,7 @@ class UserService {
 
     try {
       socketService.emitStatsUpdated(pg.id, SOCKET_EVENTS.STAFF_STATS_UPDATED, { staff_id: newStaff.id });
-    } catch (e) {}
+    } catch (e) { }
 
     return newStaff;
   };
@@ -2162,7 +2166,7 @@ class UserService {
 
     try {
       socketService.emitStatsUpdated(pg.id, SOCKET_EVENTS.STAFF_STATS_UPDATED, { staff_id: id });
-    } catch (e) {}
+    } catch (e) { }
 
     return await this.getStaffById(id, user);
   };
@@ -2204,7 +2208,7 @@ class UserService {
 
     try {
       socketService.emitStatsUpdated(pg.id, SOCKET_EVENTS.STAFF_STATS_UPDATED, { staff_id: id, status: normalizedStatus });
-    } catch (e) {}
+    } catch (e) { }
 
     return {
       id,
@@ -2251,7 +2255,7 @@ class UserService {
 
     try {
       socketService.emitStatsUpdated(pg.id, SOCKET_EVENTS.STAFF_STATS_UPDATED, { staff_id: id, deleted: true });
-    } catch (e) {}
+    } catch (e) { }
 
     return {
       id,

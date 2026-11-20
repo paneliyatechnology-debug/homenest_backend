@@ -43,6 +43,36 @@ export const registerOwnerWithPg = async (req, res, next) => {
 };
 
 /**
+ * Update PG Facility and Owner details.
+ * Supports FormData with optional owner profile photo and PG logo.
+ */
+export const updateOwnerWithPg = async (req, res, next) => {
+  try {
+    const updatedPg = await authService.updateOwnerWithPg(req.user, req.body);
+
+    // Non-blocking audit log
+    auditService.log({
+      pg_id: updatedPg.id,
+      branch_id: req.branch_id || null,
+      user_id: req.user.id,
+      user_name: req.user.name,
+      user_role: req.user.role,
+      module: AUDIT_MODULES.AUTH,
+      action: AUDIT_ACTIONS.UPDATE,
+      entity_type: 'pg',
+      entity_id: updatedPg.id,
+      description: `PG and Owner details updated for PG ${updatedPg.name}`,
+      req,
+    });
+
+    return success(res, 'PG and owner details updated successfully', updatedPg);
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+/**
  * Login user with email and password.
  */
 export const login = async (req, res, next) => {
@@ -227,6 +257,7 @@ export const me = async (req, res, next) => {
 
 export default {
   registerOwnerWithPg,
+  updateOwnerWithPg,
   login,
   refresh,
   logout,

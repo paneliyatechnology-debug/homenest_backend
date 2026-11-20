@@ -18,7 +18,6 @@ class PgService {
     'name',
     'type',
     'phone',
-    'email',
     'address',
     'city',
     'state',
@@ -64,7 +63,6 @@ class PgService {
       name: pg_data.name,
       type: pg_data.type || 'coed',
       phone: pg_data.phone,
-      email: pg_data.email || null,
       address: pg_data.address,
       city: pg_data.city,
       state: pg_data.state,
@@ -87,6 +85,52 @@ class PgService {
     });
 
     return await this.findById(pg_id, trx);
+  };
+
+  /**
+   * Update an existing PG facility
+   * @param {number|string} id - PG ID
+   * @param {object} pg_data - Fields to update
+   * @param {object} [trx=null] - Optional Knex transaction instance
+   * @returns {Promise<object>} Updated PG object
+   */
+  update = async (id, pg_data, trx = null) => {
+    const query = trx ? db('pgs').transacting(trx) : db('pgs');
+
+    const updateFields = {};
+    if (pg_data.name !== undefined) updateFields.name = pg_data.name;
+    if (pg_data.type !== undefined) updateFields.type = pg_data.type;
+    if (pg_data.phone !== undefined) updateFields.phone = pg_data.phone;
+    if (pg_data.address !== undefined) updateFields.address = pg_data.address;
+    if (pg_data.city !== undefined) updateFields.city = pg_data.city;
+    if (pg_data.state !== undefined) updateFields.state = pg_data.state;
+    if (pg_data.pincode !== undefined) updateFields.pincode = pg_data.pincode;
+    if (pg_data.total_rooms !== undefined) updateFields.total_rooms = Number(pg_data.total_rooms) || 0;
+    if (pg_data.total_beds !== undefined) updateFields.total_beds = Number(pg_data.total_beds) || 0;
+    if (pg_data.amenities !== undefined) {
+      updateFields.amenities = Array.isArray(pg_data.amenities)
+        ? JSON.stringify(pg_data.amenities)
+        : pg_data.amenities;
+    }
+    if (pg_data.rules !== undefined) updateFields.rules = pg_data.rules;
+    if (pg_data.status !== undefined) updateFields.status = pg_data.status;
+    if (pg_data.logo !== undefined) updateFields.logo = pg_data.logo;
+    if (pg_data.pg_upi_id !== undefined) updateFields.pg_upi_id = pg_data.pg_upi_id;
+    if (pg_data.pg_bank_name !== undefined) updateFields.pg_bank_name = pg_data.pg_bank_name;
+    if (pg_data.pg_account_number !== undefined) updateFields.pg_account_number = pg_data.pg_account_number;
+    if (pg_data.pg_ifsc_code !== undefined) {
+      updateFields.pg_ifsc_code = pg_data.pg_ifsc_code ? String(pg_data.pg_ifsc_code).toUpperCase() : null;
+    }
+    if (pg_data.pg_account_holder_name !== undefined) {
+      updateFields.pg_account_holder_name = pg_data.pg_account_holder_name;
+    }
+
+    if (Object.keys(updateFields).length > 0) {
+      updateFields.updated_at = db.fn.now();
+      await query.where({ id }).update(updateFields);
+    }
+
+    return await this.findById(id, trx);
   };
 
   /**
