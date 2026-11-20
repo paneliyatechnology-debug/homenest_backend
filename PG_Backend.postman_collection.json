@@ -4209,8 +4209,39 @@
               }
             ],
             "body": {
-              "mode": "raw",
-              "raw": "{\n  \"payment_method\": \"upi\",\n  \"payment_method_details\": \"GPay UPI Ref #123456789012\"\n}"
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "payment_method",
+                  "value": "upi",
+                  "type": "text",
+                  "description": "[REQUIRED] Enum: upi, card, net_banking, wallet, bank_transfer, cash"
+                },
+                {
+                  "key": "payment_method_details",
+                  "value": "GPay UPI Ref #123456789012",
+                  "type": "text",
+                  "description": "[OPTIONAL] Remarks or app details (e.g. GPay, PhonePe, Paytm)"
+                },
+                {
+                  "key": "upi_ref_no",
+                  "value": "123456789012",
+                  "type": "text",
+                  "description": "[OPTIONAL] 12-digit UPI Reference / UTR Number"
+                },
+                {
+                  "key": "paid_amount",
+                  "value": "1000",
+                  "type": "text",
+                  "description": "[OPTIONAL] Amount paid (defaults to invoice amount)"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": [],
+                  "description": "[OPTIONAL - File] Payment screenshot / bank transaction proof (JPG, PNG, WebP, PDF, max 5MB)"
+                }
+              ]
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/payments/{{paymentId}}/pay",
@@ -4225,7 +4256,7 @@
                 "pay"
               ]
             },
-            "description": "### Complete / Record Payment\nRecords payment fulfillment for an existing invoice, updating status to `paid` and setting `paid_at`.\n\n#### Path Parameters:\n- `id` **[REQUIRED]**: Payment ID.\n\n#### Request Body (JSON):\n- `payment_method` **[REQUIRED]**: Enum: `upi`, `card`, `net_banking`, `wallet`, `bank_transfer`, `cash`.\n- `payment_method_details` **[OPTIONAL]**: Transaction UTR number, UPI reference, or cheque ID (2-100 characters).\n\n#### Permissions:\n- Authenticated Resident (for their own payment) or Admin / Super Admin."
+            "description": "### Complete / Record Payment\nRecords payment fulfillment for an existing invoice, updating status to `paid`, setting `paid_at`, and optionally uploading a payment proof screenshot.\nSupports both **multipart/form-data** (with file upload) and **application/json**.\n\n#### Path Parameters:\n- `id` **[REQUIRED]**: Payment ID.\n\n#### Form Fields / JSON Body:\n- `payment_method` **[REQUIRED]**: Enum: `upi`, `card`, `net_banking`, `wallet`, `bank_transfer`, `cash`.\n- `payment_method_details` **[OPTIONAL]**: Transaction UTR number, UPI reference, or cheque ID.\n- `upi_ref_no` **[OPTIONAL]**: 12-digit UPI reference number.\n- `paid_amount` **[OPTIONAL]**: Paid amount.\n- `image` **[OPTIONAL - File]**: Screenshot or PDF of the payment receipt/transaction proof.\n\n#### Permissions:\n- Authenticated Resident (for their own payment) or Admin / Super Admin."
           },
           "response": []
         },

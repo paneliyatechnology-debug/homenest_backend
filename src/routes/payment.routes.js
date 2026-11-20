@@ -11,6 +11,7 @@ import {
   residentOverviewValidator,
 } from '../validators/payment.validator.js';
 import validate from '../middlewares/validate.middleware.js';
+import { handlePaymentProofUpload } from '../middlewares/upload.middleware.js';
 import { authenticate, authorize } from '../middlewares/auth.middleware.js';
 import ROLES from '../constants/roles.js';
 
@@ -127,11 +128,12 @@ router.post(
 
 /**
  * @route   POST /api/v1/payments/:id/pay
- * @desc    Complete and record payment
+ * @desc    Complete and record payment (Supports JSON and multipart/form-data with image proof upload)
  * @access  Private
  */
 router.post(
   '/:id/pay',
+  handlePaymentProofUpload,
   validate(processPaymentValidator),
   paymentController.processPayment
 );

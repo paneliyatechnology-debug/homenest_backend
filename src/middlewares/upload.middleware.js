@@ -16,9 +16,10 @@ const complaints_upload_dir = path.join(process.cwd(), 'uploads', 'complaints');
 const staff_upload_dir = path.join(process.cwd(), 'uploads', 'staff');
 const notices_upload_dir = path.join(process.cwd(), 'uploads', 'notices');
 const community_upload_dir = path.join(process.cwd(), 'uploads', 'community');
+const payments_upload_dir = path.join(process.cwd(), 'uploads', 'payments');
 
 // Ensure upload directories exist
-[rooms_upload_dir, users_upload_dir, pgs_upload_dir, documents_upload_dir, visitors_upload_dir, branches_upload_dir, food_menu_upload_dir, food_feedback_upload_dir, complaints_upload_dir, staff_upload_dir, notices_upload_dir, community_upload_dir].forEach((dir) => {
+[rooms_upload_dir, users_upload_dir, pgs_upload_dir, documents_upload_dir, visitors_upload_dir, branches_upload_dir, food_menu_upload_dir, food_feedback_upload_dir, complaints_upload_dir, staff_upload_dir, notices_upload_dir, community_upload_dir, payments_upload_dir].forEach((dir) => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -772,6 +773,93 @@ export const deleteCommunityImageFile = (filename) => {
   }
 };
 
+// Payment proof / receipt screenshot storage
+const payment_storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, payments_upload_dir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const unique_name = `payment-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+    cb(null, unique_name);
+  },
+});
+
+const upload_payment = multer({
+  storage: payment_storage,
+  fileFilter: (req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
+    if (allowed.includes(file.mimetype.toLowerCase())) {
+      cb(null, true);
+    } else {
+      cb(
+        new AppError(
+          'Invalid file type. Only JPG, PNG, WebP, or PDF payment receipts are allowed (max 5MB)',
+          HTTP_STATUS.BAD_REQUEST
+        ),
+        false
+      );
+    }
+  },
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+});
+
+/**
+ * Middleware handling optional payment proof / receipt screenshot upload.
+ * Seamlessly supports multipart/form-data for field 'image' (or 'payment_image', 'receipt_image', 'proof').
+ * Also seamlessly allows pure JSON bodies.
+ */
+export const handlePaymentProofUpload = (req, res, next) => {
+  const content_type = req.headers['content-type'] || '';
+  if (content_type.startsWith('multipart/form-data')) {
+    upload_payment.fields([
+      { name: 'image', maxCount: 1 },
+      { name: 'payment_image', maxCount: 1 },
+      { name: 'receipt_image', maxCount: 1 },
+      { name: 'proof', maxCount: 1 },
+    ])(req, res, (err) => {
+      if (err) {
+        if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+          return next(new AppError('Payment proof file size exceeds 5MB limit', HTTP_STATUS.BAD_REQUEST));
+        }
+        return next(err);
+      }
+
+      if (req.files?.image?.[0]) {
+        req.file = req.files.image[0];
+        req.body.image = req.files.image[0].filename;
+      } else if (req.files?.payment_image?.[0]) {
+        req.file = req.files.payment_image[0];
+        req.body.image = req.files.payment_image[0].filename;
+      } else if (req.files?.receipt_image?.[0]) {
+        req.file = req.files.receipt_image[0];
+        req.body.image = req.files.receipt_image[0].filename;
+      } else if (req.files?.proof?.[0]) {
+        req.file = req.files.proof[0];
+        req.body.image = req.files.proof[0].filename;
+      }
+
+      next();
+    });
+  } else {
+    next();
+  }
+};
+
+/**
+ * Delete a local payment proof file safely
+ * @param {string|null} filename
+ */
+export const deletePaymentProofFile = (filename) => {
+  if (!filename) return;
+  try {
+    const file_path = path.join(payments_upload_dir, path.basename(filename));
+    if (fs.existsSync(file_path)) {
+      fs.unlinkSync(file_path);
+    }
+  } catch (err) {
+    console.warn(`[Warning] Could not delete payment proof file: ${filename}`, err.message);
+  }
+};
+
 export default {
   handleRoomImageUpload,
   handleUserPhotoUpload,
@@ -797,4 +885,6 @@ export default {
   deleteNoticeAttachmentFile,
   handleCommunityImageUpload,
   deleteCommunityImageFile,
+  handlePaymentProofUpload,
+  deletePaymentProofFile,
 };

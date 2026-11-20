@@ -150,8 +150,8 @@ export const initiateUpi = async (req, res, next) => {
 export const processPayment = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const updated = await paymentService.processPayment(id, req.body);
-    return successAction(res, 'Payment processed successfully', updated.id, HTTP_STATUS.OK);
+    const updated = await paymentService.processPayment(id, req.body, req.file);
+    return successAction(res, 'Payment processed successfully', updated.id, HTTP_STATUS.OK, updated);
   } catch (err) {
     next(err);
   }

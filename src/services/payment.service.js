@@ -57,6 +57,7 @@ class PaymentService {
     'payments.payment_method_details',
     'payments.upi_id',
     'payments.upi_ref_no',
+    'payments.image',
     'payments.status',
     'payments.paid_at',
     'payments.refund_amount',
@@ -147,6 +148,8 @@ class PaymentService {
       // UPI & Transaction references
       upi_id: item.upi_id || null,
       upi_ref_no: item.upi_ref_no || null,
+      image: item.image || null,
+      image_url: buildFileUrl('payments', item.image),
 
       // Refund information (if applicable)
       refund: item.status === 'refunded' || refund_amount > 0 ? {
@@ -1719,7 +1722,7 @@ class PaymentService {
    * @param {object} payload - { payment_method, payment_method_details, upi_ref_no, paid_amount }
    * @returns {Promise<object>}
    */
-  processPayment = async (payment_id, payload) => {
+  processPayment = async (payment_id, payload, file = null) => {
     const payment = await db('payments')
       .where({ id: payment_id })
       .whereNull('deleted_at')
@@ -1738,20 +1741,27 @@ class PaymentService {
     const paid_amount = payload.paid_amount !== undefined ? Number(payload.paid_amount) : Number(payment.amount);
     const payment_method = payload.payment_method || 'upi';
     const payment_method_details = payload.payment_method_details || (payment_method === 'upi' ? 'UPI GPay' : payment_method);
+    const uploadedImage = file?.filename || payload.image || null;
+
+    const updatePayload = {
+      transaction_id,
+      receipt_no,
+      paid_amount,
+      payment_method,
+      payment_method_details,
+      upi_ref_no: payload.upi_ref_no || null,
+      status: 'paid',
+      paid_at: db.fn.now(),
+      updated_at: db.fn.now(),
+    };
+
+    if (uploadedImage) {
+      updatePayload.image = uploadedImage;
+    }
 
     await db('payments')
       .where({ id: payment_id })
-      .update({
-        transaction_id,
-        receipt_no,
-        paid_amount,
-        payment_method,
-        payment_method_details,
-        upi_ref_no: payload.upi_ref_no || null,
-        status: 'paid',
-        paid_at: db.fn.now(),
-        updated_at: db.fn.now(),
-      });
+      .update(updatePayload);
 
     auditService.log({
       pg_id: payment.pg_id,
@@ -1762,16 +1772,33 @@ class PaymentService {
       entity_type: 'payment',
       entity_id: payment_id,
       description: `Payment #${payment_id} recorded (₹${paid_amount} via ${payment_method})`,
-      new_values: { amount: paid_amount, payment_method, upi_ref_no: payload.upi_ref_no },
+      new_values: {
+        amount: paid_amount,
+        payment_method,
+        upi_ref_no: payload.upi_ref_no,
+        image: uploadedImage,
+      },
     });
 
     // Real-time: Notify admins and resident, update payment stats and main dashboard
     try {
       socketService.emitStatsUpdated(payment.pg_id, SOCKET_EVENTS.PAYMENT_STATS_UPDATED, { payment_id, status: 'paid', paid_amount });
       socketService.emitStatsUpdated(payment.pg_id, SOCKET_EVENTS.DASHBOARD_STATS_UPDATED);
-      socketService.emitToPgAdmins(payment.pg_id, SOCKET_EVENTS.PAYMENT_STATUS_UPDATED, { id: payment_id, status: 'paid', paid_amount });
+      socketService.emitToPgAdmins(payment.pg_id, SOCKET_EVENTS.PAYMENT_STATUS_UPDATED, {
+        id: payment_id,
+        status: 'paid',
+        paid_amount,
+        image: uploadedImage,
+        image_url: buildFileUrl('payments', uploadedImage),
+      });
       if (payment.resident_id) {
-        socketService.emitToUser(payment.resident_id, SOCKET_EVENTS.PAYMENT_STATUS_UPDATED, { id: payment_id, status: 'paid', paid_amount });
+        socketService.emitToUser(payment.resident_id, SOCKET_EVENTS.PAYMENT_STATUS_UPDATED, {
+          id: payment_id,
+          status: 'paid',
+          paid_amount,
+          image: uploadedImage,
+          image_url: buildFileUrl('payments', uploadedImage),
+        });
       }
     } catch (e) {}
 

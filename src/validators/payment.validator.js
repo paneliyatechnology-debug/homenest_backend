@@ -519,6 +519,10 @@ export const processPaymentValidator = [
     .trim()
     .isLength({ min: 4, max: 100 })
     .withMessage('Transaction ID must be between 4 and 100 characters'),
+
+  body('image')
+    .optional({ checkFalsy: true })
+    .trim(),
 ];
 
 export default {
