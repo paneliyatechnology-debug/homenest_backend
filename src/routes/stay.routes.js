@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import stayController from '../controllers/stay.controller.js';
 import {
-  vacateStayValidator,
   checkoutReviewQueryValidator,
   createCheckoutRequestValidator,
   listCheckoutRequestsQueryValidator,
@@ -58,12 +57,12 @@ router.get(
 
 /**
  * @route   GET /api/v1/stays/checkouts
- * @desc    List checkout requests for Admin Portal with status tabs, filters, and pagination
- * @access  Private (Admin / Super Admin / Staff / Branch Manager)
+ * @desc    List checkout requests with status tabs, filters, and pagination
+ * @access  Private (Resident / Admin / Super Admin / Staff / Branch Manager)
  */
 router.get(
   '/checkouts',
-  authorize(ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.STAFF, ROLES.BRANCH_MANAGER),
+  authorize(ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.STAFF, ROLES.BRANCH_MANAGER, ROLES.RESIDENT),
   validate(listCheckoutRequestsQueryValidator),
   stayController.getAllCheckoutRequests
 );
@@ -100,36 +99,6 @@ router.delete(
   '/checkouts/:id',
   validate(checkoutRequestIdParamValidator),
   stayController.deleteCheckoutRequest
-);
-
-// ============================================================================
-// CORE STAY & VACATE ROUTES
-// ============================================================================
-
-/**
- * @route   GET /api/v1/stays/my-history
- * @desc    Get logged-in resident's stay timeline across multiple PGs
- * @access  Private (Resident)
- */
-router.get('/my-history', stayController.getMyStays);
-
-/**
- * @route   GET /api/v1/stays/:id
- * @desc    Get details of a specific stay record
- * @access  Private
- */
-router.get('/:id', stayController.getStayById);
-
-/**
- * @route   PUT /api/v1/stays/:id/vacate
- * @desc    Check-out / vacate resident from PG (Direct Admin Vacate)
- * @access  Private (PG Owner / Super Admin)
- */
-router.put(
-  '/:id/vacate',
-  authorize(ROLES.ADMIN, ROLES.SUPER_ADMIN),
-  validate(vacateStayValidator),
-  stayController.vacateStay
 );
 
 export default router;

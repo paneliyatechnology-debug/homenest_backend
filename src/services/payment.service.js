@@ -1691,8 +1691,22 @@ class PaymentService {
 
     // Standard NPCI UPI URI Scheme: upi://pay?pa=...&pn=...&am=...&cu=INR&tn=...
     const amount = Number(payment.amount).toFixed(2);
-    const note = `Rent Payment #${payment.id}`;
-    const upi_intent_url = `upi://pay?pa=${encodeURIComponent(payee_upi)}&pn=${encodeURIComponent(payee_name)}&am=${amount}&cu=INR&tn=${encodeURIComponent(note)}`;
+    // NPCI requires transaction note (tn) and name to be clean alphanumeric/spaces without special characters
+    const cleanPayeeName = payee_name.replace(/[^\w\s]/gi, '').trim() || 'HouseNest Living';
+    const note = `Rent Payment ${payment.id}`;
+    
+    // Core query parameters for clean P2P intent (omitting merchant-only parameters like tr/mc which trip up Google Pay)
+    const queryParams = `pa=${encodeURIComponent(payee_upi)}&pn=${encodeURIComponent(cleanPayeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(note)}`;
+    const upi_intent_url = `upi://pay?${queryParams}`;
+
+    // App-specific intent schemes for direct handoff
+    const app_intents = {
+      gpay: `tez://upi/pay?${queryParams}`,
+      phonepe: `phonepe://pay?${queryParams}`,
+      paytm: `paytmmp://pay?${queryParams}`,
+      bhim: `bhim://pay?${queryParams}`,
+      default: upi_intent_url,
+    };
 
     // Store QR code PNG image locally in uploads/payments/
     const uploadDir = path.join(process.cwd(), 'uploads', 'payments');
@@ -1724,10 +1738,11 @@ class PaymentService {
     return {
       payment_id: payment.id,
       amount: Number(payment.amount),
-      payee_name,
+      payee_name: cleanPayeeName,
       payee_upi,
       qr_code_url,
       upi_intent_url,
+      app_intents,
       supported_apps: ['GPay', 'PhonePe', 'Paytm', 'BHIM'],
     };
   };

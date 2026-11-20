@@ -2,22 +2,6 @@ import { body, param, query } from 'express-validator';
 import moment from 'moment';
 
 /**
- * Validator for checking out / vacating a resident stay (Admin Direct Vacate)
- */
-export const vacateStayValidator = [
-  param('id')
-    .notEmpty()
-    .withMessage('Stay ID parameter is required')
-    .isInt({ min: 1 })
-    .withMessage('Stay ID must be a valid integer'),
-
-  body('check_out_date')
-    .optional()
-    .isISO8601()
-    .withMessage('Check-out date must be a valid date in YYYY-MM-DD format'),
-];
-
-/**
  * Validator for reviewing checkout details, live dues calculation, and NOC preview
  */
 export const checkoutReviewQueryValidator = [
@@ -91,8 +75,8 @@ export const listCheckoutRequestsQueryValidator = [
     .optional({ checkFalsy: true })
     .trim()
     .toLowerCase()
-    .isIn(['all', 'pending', 'under_review', 'in_progress', 'approved', 'rejected', 'completed'])
-    .withMessage('Status must be one of: all, pending, under_review, in_progress, approved, rejected, completed'),
+    .isIn(['all', 'active', 'pending', 'under_review', 'in_progress', 'approved', 'rejected', 'completed', 'history'])
+    .withMessage('Status must be one of: all, active, pending, under_review, in_progress, approved, rejected, completed, history'),
 
   query('search')
     .optional({ checkFalsy: true })
@@ -162,8 +146,8 @@ export const exportCheckoutQueryValidator = [
     .optional({ checkFalsy: true })
     .trim()
     .toLowerCase()
-    .isIn(['all', 'pending', 'under_review', 'in_progress', 'approved', 'rejected', 'completed'])
-    .withMessage('Status must be one of: all, pending, under_review, in_progress, approved, rejected, completed'),
+    .isIn(['all', 'active', 'pending', 'under_review', 'in_progress', 'approved', 'rejected', 'completed', 'history'])
+    .withMessage('Status must be one of: all, active, pending, under_review, in_progress, approved, rejected, completed, history'),
 
   query('search')
     .optional({ checkFalsy: true })
@@ -264,7 +248,6 @@ export const updateCheckoutStatusValidator = [
 ];
 
 export default {
-  vacateStayValidator,
   checkoutReviewQueryValidator,
   createCheckoutRequestValidator,
   listCheckoutRequestsQueryValidator,

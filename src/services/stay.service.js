@@ -6,7 +6,6 @@ import moment from 'moment';
 import db from '../config/db.js';
 import { AppError } from '../utils/apiResponse.js';
 import { HTTP_STATUS, ROLES, STAFF_ROLES, AUDIT_MODULES, AUDIT_ACTIONS } from '../constants/index.js';
-import { syncBranchStats } from './branch.service.js';
 import { syncRoomOccupancyStatus } from './room.service.js';
 import { buildFileUrl } from '../utils/url.js';
 import socketService, { SOCKET_EVENTS } from './socket.service.js';
@@ -106,243 +105,6 @@ const resolveUserBranches = async (user, trx) => {
  */
 class StayService {
   /**
-   * Find stay record by ID with associated PG, room, and resident details
-   * @param {number|string} id - Stay record ID
-   * @param {object} [trx=null] - Optional Knex transaction instance
-   * @returns {Promise<object|null>}
-   */
-  findById = async (id, trx = null) => {
-    const query = trx ? db('resident_pg_stays').transacting(trx) : db('resident_pg_stays');
-
-    return await query
-      .where('resident_pg_stays.id', id)
-      .whereNull('resident_pg_stays.deleted_at')
-      .join('pgs', (join) => {
-        join.on('resident_pg_stays.pg_id', '=', 'pgs.id').andOnNull('pgs.deleted_at');
-      })
-      .join('rooms', (join) => {
-        join.on('resident_pg_stays.room_id', '=', 'rooms.id').andOnNull('rooms.deleted_at');
-      })
-      .join('users as resident', (join) => {
-        join.on('resident_pg_stays.resident_id', '=', 'resident.id').andOnNull('resident.deleted_at');
-      })
-      .join('users as owner', (join) => {
-        join.on('pgs.owner_id', '=', 'owner.id').andOnNull('owner.deleted_at');
-      })
-      .leftJoin('branches', (join) => {
-        join.on('resident_pg_stays.branch_id', '=', 'branches.id').andOnNull('branches.deleted_at');
-      })
-      .leftJoin('buildings', 'rooms.building_id', 'buildings.id')
-      .leftJoin('floors', 'rooms.floor_id', 'floors.id')
-      .select(
-        'resident_pg_stays.*',
-        'resident_pg_stays.branch_id',
-        db.raw('COALESCE(branches.name, pgs.name) as branch_name'),
-        'rooms.room_no as room_number',
-        'rooms.room_type',
-        'floors.floor_number as room_floor',
-        'buildings.name as room_building',
-        'pgs.name as pg_name',
-        'pgs.type as pg_type',
-        'pgs.address as pg_address',
-        'pgs.city as pg_city',
-        'pgs.state as pg_state',
-        'pgs.pincode as pg_pincode',
-        'pgs.phone as pg_phone',
-        'owner.id as owner_id',
-        'owner.name as owner_name',
-        'owner.phone as owner_phone',
-        'resident.name as resident_name',
-        'resident.email as resident_email',
-        'resident.phone as resident_phone'
-      )
-      .first();
-  };
-
-  /**
-   * Vacate / Check-out resident from PG stay
-   * Updates room status to 'vacant' if no remaining active residents in this room.
-   * @param {number|string} stay_id
-   * @param {object} options
-   * @returns {Promise<object>} Updated stay record
-   */
-  vacateStay = async (stay_id, { check_out_date = null, notes = null } = {}) => {
-    const stay = await this.findById(stay_id);
-    if (!stay) {
-      throw new AppError('Stay record not found', HTTP_STATUS.NOT_FOUND);
-    }
-
-    if (stay.status !== 'active') {
-      throw new AppError(`Stay is already marked as ${stay.status}`, HTTP_STATUS.BAD_REQUEST);
-    }
-
-    const effective_check_out = check_out_date || moment().format('YYYY-MM-DD');
-
-    const updated_notes = notes
-      ? (stay.notes ? `${stay.notes} | ${notes}` : notes)
-      : stay.notes;
-
-    await db.transaction(async (trx) => {
-      await trx('resident_pg_stays')
-        .where({ id: stay_id })
-        .update({
-          check_out_date: effective_check_out,
-          status: 'completed',
-          notes: updated_notes,
-          updated_at: db.fn.now(),
-        });
-
-      // Dynamically sync room occupancy based on capacity and remaining active residents
-      if (stay.room_id) {
-        await syncRoomOccupancyStatus(stay.room_id, trx);
-      }
-    });
-
-    auditService.log({
-      pg_id: stay.pg_id,
-      branch_id: stay.branch_id,
-      user_id: stay.resident_id,
-      module: AUDIT_MODULES.STAY,
-      action: AUDIT_ACTIONS.CHECK_OUT,
-      entity_type: 'stay',
-      entity_id: stay_id,
-      description: `Stay #${stay_id} vacated for resident #${stay.resident_id}`,
-      old_values: { status: stay.status },
-      new_values: { status: 'completed', check_out_date: effective_check_out },
-    });
-
-    return await this.findById(stay_id);
-  };
-
-  /**
-   * Get all stay records for a resident with pagination, filters, and is_current_stay flag.
-   * @param {number|string} resident_id
-   * @param {object} options
-   * @returns {Promise<{ stays: Array, pagination: object }>}
-   */
-  getResidentStayHistory = async (
-    resident_id,
-    { status = '', pg_id = null, branch_id = null, search = '', page = 1, limit = 10 } = {}
-  ) => {
-    const offset = (page - 1) * limit;
-
-    let query = db('resident_pg_stays')
-      .where('resident_pg_stays.resident_id', resident_id)
-      .whereNull('resident_pg_stays.deleted_at')
-      .join('pgs', (join) => {
-        join.on('resident_pg_stays.pg_id', '=', 'pgs.id').andOnNull('pgs.deleted_at');
-      })
-      .leftJoin('branches', (join) => {
-        join.on('resident_pg_stays.branch_id', '=', 'branches.id').andOnNull('branches.deleted_at');
-      })
-      .join('rooms', (join) => {
-        join.on('resident_pg_stays.room_id', '=', 'rooms.id').andOnNull('rooms.deleted_at');
-      })
-      .join('users as owner', (join) => {
-        join.on('pgs.owner_id', '=', 'owner.id').andOnNull('owner.deleted_at');
-      })
-      .leftJoin('buildings', 'rooms.building_id', 'buildings.id')
-      .leftJoin('floors', 'rooms.floor_id', 'floors.id')
-      .select(
-        'resident_pg_stays.id',
-        'resident_pg_stays.resident_id',
-        'resident_pg_stays.pg_id',
-        'resident_pg_stays.branch_id',
-        db.raw('COALESCE(branches.name, pgs.name) as branch_name'),
-        'pgs.name as pg_name',
-        'pgs.type as pg_type',
-        'pgs.address as pg_address',
-        'pgs.city as pg_city',
-        'pgs.state as pg_state',
-        'pgs.pincode as pg_pincode',
-        'pgs.phone as pg_phone',
-        'owner.name as pg_owner_name',
-        'owner.phone as pg_owner_phone',
-        'resident_pg_stays.room_id',
-        'rooms.room_no as room_number',
-        'rooms.room_type',
-        'floors.floor_number as room_floor',
-        'buildings.name as room_building',
-        'resident_pg_stays.bed_number',
-        'resident_pg_stays.monthly_rent',
-        'resident_pg_stays.security_deposit',
-        'resident_pg_stays.check_in_date',
-        'resident_pg_stays.check_out_date',
-        'resident_pg_stays.status',
-        'resident_pg_stays.notes',
-        'resident_pg_stays.created_at',
-        'resident_pg_stays.updated_at'
-      );
-
-    let count_query = db('resident_pg_stays')
-      .where('resident_pg_stays.resident_id', resident_id)
-      .whereNull('resident_pg_stays.deleted_at')
-      .join('pgs', (join) => {
-        join.on('resident_pg_stays.pg_id', '=', 'pgs.id').andOnNull('pgs.deleted_at');
-      })
-      .join('rooms', (join) => {
-        join.on('resident_pg_stays.room_id', '=', 'rooms.id').andOnNull('rooms.deleted_at');
-      })
-      .count('resident_pg_stays.id as total');
-
-    if (status) {
-      query = query.where('resident_pg_stays.status', status);
-      count_query = count_query.where('resident_pg_stays.status', status);
-    }
-
-    if (pg_id) {
-      query = query.where('resident_pg_stays.pg_id', pg_id);
-      count_query = count_query.where('resident_pg_stays.pg_id', pg_id);
-    }
-
-    if (branch_id) {
-      query = query.where('resident_pg_stays.branch_id', branch_id);
-      count_query = count_query.where('resident_pg_stays.branch_id', branch_id);
-    }
-
-    if (search) {
-      const search_filter = (q) => {
-        q.where('rooms.room_no', 'like', `%${search}%`)
-          .orWhere('pgs.name', 'like', `%${search}%`)
-          .orWhere('pgs.city', 'like', `%${search}%`);
-      };
-      query = query.where(search_filter);
-      count_query = count_query.where(search_filter);
-    }
-
-    const [raw_stays, total_result] = await Promise.all([
-      query
-        .orderBy([
-          { column: 'resident_pg_stays.check_in_date', order: 'desc' },
-          { column: 'resident_pg_stays.id', order: 'desc' },
-        ])
-        .limit(limit)
-        .offset(offset),
-      count_query.first(),
-    ]);
-
-    const total = total_result ? Number(total_result.total) : 0;
-    const total_pages = Math.ceil(total / limit) || 1;
-
-    const formatted_stays = raw_stays.map((stay) => ({
-      ...stay,
-      is_current_stay: stay.status === 'active',
-    }));
-
-    return {
-      stays: formatted_stays,
-      pagination: {
-        total,
-        page,
-        limit,
-        total_pages,
-        has_next: page < total_pages,
-        has_prev: page > 1,
-      },
-    };
-  };
-
-  /**
    * ============================================================================
    * CHECKOUT & REFUND APPROVALS SERVICE METHODS
    * ============================================================================
@@ -416,7 +178,11 @@ class StayService {
     // Verify property ownership and branch authorization for administrative caller
     if (user.role !== ROLES.RESIDENT && user.role !== ROLES.SUPER_ADMIN) {
       const context = await resolveUserBranches(user);
-      if (!context.branchIds.includes(stay.branch_id)) {
+      if (user.role === ROLES.ADMIN) {
+        if (stay.pg_id !== context.pgId && (!stay.branch_id || !context.branchIds.includes(stay.branch_id))) {
+          throw new AppError('Access denied to resident stay outside your PG/branch', HTTP_STATUS.FORBIDDEN);
+        }
+      } else if (!context.branchIds.includes(stay.branch_id)) {
         throw new AppError('Access denied to resident stay outside your managed branches', HTTP_STATUS.FORBIDDEN);
       }
     }
@@ -525,7 +291,11 @@ class StayService {
     // Tenancy guard
     if (user.role !== ROLES.RESIDENT && user.role !== ROLES.SUPER_ADMIN) {
       const context = await resolveUserBranches(user);
-      if (context.branchIds && !context.branchIds.includes(stay.branch_id)) {
+      if (user.role === ROLES.ADMIN) {
+        if (stay.pg_id !== context.pgId && (!stay.branch_id || !context.branchIds.includes(stay.branch_id))) {
+          throw new AppError('Access denied to resident stay outside your PG/branch', HTTP_STATUS.FORBIDDEN);
+        }
+      } else if (context.branchIds && !context.branchIds.includes(stay.branch_id)) {
         throw new AppError('Access denied to resident stay outside your managed branches', HTTP_STATUS.FORBIDDEN);
       }
     }
@@ -793,7 +563,11 @@ class StayService {
     }
     if (user.role !== ROLES.RESIDENT && user.role !== ROLES.SUPER_ADMIN) {
       const context = await resolveUserBranches(user);
-      if (!context.branchIds.includes(row.branch_id)) {
+      if (user.role === ROLES.ADMIN) {
+        if (row.pg_id !== context.pgId && (!row.branch_id || !context.branchIds.includes(row.branch_id))) {
+          throw new AppError('Access denied to checkout requests outside your PG/branch', HTTP_STATUS.FORBIDDEN);
+        }
+      } else if (!context.branchIds.includes(row.branch_id)) {
         throw new AppError('Access denied to checkout requests outside your branch', HTTP_STATUS.FORBIDDEN);
       }
     }
@@ -809,37 +583,48 @@ class StayService {
    * @returns {Promise<object>} Filtered requests list and dashboard summary
    */
   findAllCheckoutRequests = async (user, query = {}) => {
-    const context = await resolveUserBranches(user);
-
-    if (user.role === ROLES.RESIDENT) {
-      throw new AppError('Access denied', HTTP_STATUS.FORBIDDEN);
-    }
-
     let baseQuery = db('checkout_requests')
       .whereNull('checkout_requests.deleted_at')
-      .join('users as resident', 'checkout_requests.resident_id', 'resident.id')
-      .join('resident_pg_stays as stay', 'checkout_requests.stay_id', 'stay.id')
-      .join('rooms', 'checkout_requests.room_id', 'rooms.id')
+      .leftJoin('users as resident', 'checkout_requests.resident_id', 'resident.id')
+      .leftJoin('resident_pg_stays as stay', 'checkout_requests.stay_id', 'stay.id')
+      .leftJoin('rooms', 'checkout_requests.room_id', 'rooms.id')
       .leftJoin('floors', 'rooms.floor_id', 'floors.id')
       .leftJoin('buildings', 'rooms.building_id', 'buildings.id')
       .leftJoin('branches', 'checkout_requests.branch_id', 'branches.id');
 
-    // Tenant / Branch scoping
-    if (!context.isSuperAdmin) {
-      if (!context.branchIds || context.branchIds.length === 0) {
-        return {
-          data: [],
-          total_records: 0,
-          summary: { all: 0, pending: 0, in_progress: 0, approved: 0, rejected: 0 },
-        };
+    let context = { isSuperAdmin: false, branchIds: [], pgId: null, pgName: 'HomeNest PG' };
+
+    // Tenant / Branch / Resident scoping
+    if (user.role === ROLES.RESIDENT) {
+      baseQuery.where('checkout_requests.resident_id', user.id);
+    } else {
+      context = await resolveUserBranches(user);
+
+      if (user.role === ROLES.ADMIN) {
+        baseQuery.where((qb) => {
+          if (context.pgId) {
+            qb.where('checkout_requests.pg_id', context.pgId);
+          }
+          if (context.branchIds && context.branchIds.length > 0) {
+            qb.orWhereIn('checkout_requests.branch_id', context.branchIds);
+          }
+        });
+      } else if (!context.isSuperAdmin) {
+        if (!context.branchIds || context.branchIds.length === 0) {
+          return {
+            data: [],
+            total_records: 0,
+            summary: { all: 0, total: 0, pending: 0, in_progress: 0, approved: 0, rejected: 0 },
+          };
+        }
+        baseQuery.whereIn('checkout_requests.branch_id', context.branchIds);
       }
-      baseQuery.whereIn('checkout_requests.branch_id', context.branchIds);
     }
 
     // Branch filter
     if (query.branch_id && query.branch_id !== 'all') {
       const fBranchId = parseInt(query.branch_id, 10);
-      if (!context.isSuperAdmin && !context.branchIds.includes(fBranchId)) {
+      if (!context.isSuperAdmin && user.role !== ROLES.RESIDENT && !context.branchIds.includes(fBranchId)) {
         throw new AppError('Access denied to specified branch', HTTP_STATUS.FORBIDDEN);
       }
       baseQuery.where('checkout_requests.branch_id', fBranchId);
@@ -875,8 +660,9 @@ class StayService {
       }
     }
 
-    // Calculate tab summary counters (All, Pending, In Progress, Approved, Rejected)
+    // Calculate tab summary counters (before status tab filter)
     const summaryRow = await baseQuery.clone().clearSelect().select(
+      db.raw("COALESCE(SUM(CASE WHEN checkout_requests.status NOT IN ('approved', 'completed') THEN 1 ELSE 0 END), 0) as total_active"),
       db.raw('COUNT(checkout_requests.id) as total_all'),
       db.raw("COALESCE(SUM(CASE WHEN checkout_requests.status IN ('pending', 'under_review') THEN 1 ELSE 0 END), 0) as total_pending"),
       db.raw("COALESCE(SUM(CASE WHEN checkout_requests.status = 'in_progress' THEN 1 ELSE 0 END), 0) as total_in_progress"),
@@ -885,23 +671,33 @@ class StayService {
     ).first();
 
     const summary = {
-      all: parseInt(summaryRow?.total_all || 0, 10),
+      all: parseInt(summaryRow?.total_active || 0, 10),
+      total: parseInt(summaryRow?.total_all || 0, 10),
       pending: parseInt(summaryRow?.total_pending || 0, 10),
       in_progress: parseInt(summaryRow?.total_in_progress || 0, 10),
       approved: parseInt(summaryRow?.total_approved || 0, 10),
       rejected: parseInt(summaryRow?.total_rejected || 0, 10),
     };
 
-    // Tab status filter
-    if (query.status && query.status !== 'all') {
-      const statusFilter = query.status.toLowerCase();
-      if (statusFilter === 'pending') {
-        baseQuery.whereIn('checkout_requests.status', ['pending', 'under_review']);
-      } else if (statusFilter === 'approved') {
-        baseQuery.whereIn('checkout_requests.status', ['approved', 'completed']);
-      } else {
-        baseQuery.where('checkout_requests.status', statusFilter);
-      }
+    // Tab status filter:
+    // If request approved, do NOT display on list; otherwise display on list!
+    const statusFilter = query.status ? String(query.status).trim().toLowerCase() : '';
+    if (statusFilter === 'approved') {
+      baseQuery.whereIn('checkout_requests.status', ['approved', 'completed']);
+    } else if (statusFilter === 'completed') {
+      baseQuery.where('checkout_requests.status', 'completed');
+    } else if (statusFilter === 'pending') {
+      baseQuery.whereIn('checkout_requests.status', ['pending', 'under_review']);
+    } else if (statusFilter === 'in_progress') {
+      baseQuery.where('checkout_requests.status', 'in_progress');
+    } else if (statusFilter === 'rejected') {
+      baseQuery.where('checkout_requests.status', 'rejected');
+    } else if (statusFilter === 'history' || statusFilter === 'all_with_approved') {
+      // Show all records including approved
+    } else {
+      // Default (no status specified, 'all', or 'active'):
+      // If approved, do NOT display on list; otherwise (pending, under_review, in_progress, rejected) display!
+      baseQuery.whereNotIn('checkout_requests.status', ['approved', 'completed']);
     }
 
     // If format is requested (excel or pdf), return export file
@@ -1704,7 +1500,11 @@ class StayService {
     // Tenancy check
     if (user.role !== ROLES.SUPER_ADMIN) {
       const context = await resolveUserBranches(user);
-      if (!context.branchIds.includes(existing.branch_id)) {
+      if (user.role === ROLES.ADMIN) {
+        if (existing.pg_id !== context.pgId && (!existing.branch_id || !context.branchIds.includes(existing.branch_id))) {
+          throw new AppError('Access denied to checkout requests outside your PG/branch', HTTP_STATUS.FORBIDDEN);
+        }
+      } else if (!context.branchIds.includes(existing.branch_id)) {
         throw new AppError('Access denied to checkout requests outside your branch', HTTP_STATUS.FORBIDDEN);
       }
     }
@@ -1819,7 +1619,11 @@ class StayService {
       }
     } else if (user.role !== ROLES.SUPER_ADMIN) {
       const context = await resolveUserBranches(user);
-      if (!context.branchIds.includes(existing.branch_id)) {
+      if (user.role === ROLES.ADMIN) {
+        if (existing.pg_id !== context.pgId && (!existing.branch_id || !context.branchIds.includes(existing.branch_id))) {
+          throw new AppError('Access denied to checkout requests outside your PG/branch', HTTP_STATUS.FORBIDDEN);
+        }
+      } else if (!context.branchIds.includes(existing.branch_id)) {
         throw new AppError('Access denied to checkout requests outside your branch', HTTP_STATUS.FORBIDDEN);
       }
     }

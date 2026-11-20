@@ -720,11 +720,8 @@ class UserService {
       }
     }
 
-    // Generate random secure password if not explicitly supplied
-    const plain_password = (password && String(password).trim().length > 0)
-      ? String(password).trim()
-      : generateSecurePassword(10);
-
+    // Always auto-generate a fresh, random secure password for newly created user
+    const plain_password = generateSecurePassword(10);
     const hashed_password = await hashPassword(plain_password);
     const effective_check_in = check_in_date || moment().format('YYYY-MM-DD');
 
@@ -982,7 +979,11 @@ class UserService {
       socketService.emitToPgAdmins(targetPgId, SOCKET_EVENTS.USER_NEW, { id: inserted_id, name, email, role: role || ROLES.RESIDENT });
     } catch (e) { }
 
-    return await this.findById(inserted_id);
+    const createdUser = await this.findById(inserted_id);
+    if (createdUser) {
+      createdUser.temp_password = plain_password;
+    }
+    return createdUser;
   };
 
   /**
@@ -2042,7 +2043,25 @@ class UserService {
       socketService.emitStatsUpdated(pg.id, SOCKET_EVENTS.STAFF_STATS_UPDATED, { staff_id: newStaff.id });
     } catch (e) { }
 
-    return newStaff;
+    if (email) {
+      try {
+        await emailService.sendWelcomeCredentialsEmail({
+          email: String(email).trim().toLowerCase(),
+          name: name.trim(),
+          password: tempPassword,
+          role: staffRole || ROLES.STAFF,
+          pgName: pg.name,
+          loginUrl: `${config.frontendUrl}`,
+        });
+      } catch (emailError) {
+        console.error('[User Service] Staff welcome credentials email delivery failed:', emailError.message);
+      }
+    }
+
+    return {
+      ...newStaff,
+      temp_password: tempPassword,
+    };
   };
 
   /**
