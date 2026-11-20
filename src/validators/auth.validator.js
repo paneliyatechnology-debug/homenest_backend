@@ -202,33 +202,45 @@ export const updateOwnerWithPgValidator = [
     .normalizeEmail(),
 
   body('phone')
-    .optional()
-    .trim()
-    .matches(/^(\+91[\-\s]?)?[6-9]\d{9}$/)
+    .optional({ checkFalsy: true, nullable: true })
+    .custom((val, { req }) => {
+      if (val === 'null' || !val) {
+        req.body.phone = null;
+        return true;
+      }
+      return /^(\+91[\-\s]?)?[6-9]\d{9}$/.test(val);
+    })
     .withMessage('Please provide a valid 10-digit owner phone number')
     .customSanitizer(normalizePhone),
 
   body('owner_phone')
-    .optional()
-    .trim()
-    .matches(/^(\+91[\-\s]?)?[6-9]\d{9}$/)
+    .optional({ checkFalsy: true, nullable: true })
+    .custom((val, { req }) => {
+      if (val === 'null' || !val) {
+        req.body.owner_phone = null;
+        return true;
+      }
+      return /^(\+91[\-\s]?)?[6-9]\d{9}$/.test(val);
+    })
     .withMessage('Please provide a valid 10-digit owner phone number')
     .customSanitizer(normalizePhone),
 
   body('gender')
-    .optional()
-    .trim()
-    .toLowerCase()
-    .isIn(['male', 'female', 'other'])
+    .optional({ checkFalsy: true, nullable: true })
+    .custom((val, { req }) => {
+      if (val === 'null' || !val) {
+        req.body.gender = null;
+        return true;
+      }
+      return ['male', 'female', 'other'].includes(String(val).toLowerCase());
+    })
     .withMessage('Gender must be one of: male, female, other'),
 
   body('address')
-    .optional()
-    .trim(),
+    .optional({ checkFalsy: true, nullable: true }),
 
   body('owner_address')
-    .optional()
-    .trim(),
+    .optional({ checkFalsy: true, nullable: true }),
 
   // PG Facility Details (Optional)
   body('pg_name')
@@ -238,91 +250,122 @@ export const updateOwnerWithPgValidator = [
     .withMessage('PG name must be between 2 and 150 characters'),
 
   body('pg_type')
-    .optional()
-    .trim()
-    .toLowerCase()
-    .isIn(['boys', 'girls', 'coed', 'other'])
+    .optional({ checkFalsy: true, nullable: true })
+    .custom((val, { req }) => {
+      if (val === 'null' || !val) {
+        req.body.pg_type = null;
+        return true;
+      }
+      return ['boys', 'girls', 'coed', 'other'].includes(String(val).toLowerCase());
+    })
     .withMessage('PG type must be one of: boys, girls, coed, other'),
 
   body('type')
-    .optional()
-    .trim()
-    .toLowerCase()
-    .isIn(['boys', 'girls', 'coed', 'other'])
+    .optional({ checkFalsy: true, nullable: true })
+    .custom((val, { req }) => {
+      if (val === 'null' || !val) {
+        req.body.type = null;
+        return true;
+      }
+      return ['boys', 'girls', 'coed', 'other'].includes(String(val).toLowerCase());
+    })
     .withMessage('PG type must be one of: boys, girls, coed, other'),
 
   body('pg_phone')
-    .optional()
-    .trim()
-    .matches(/^(\+91[\-\s]?)?[6-9]\d{9}$/)
+    .optional({ checkFalsy: true, nullable: true })
+    .custom((val, { req }) => {
+      if (val === 'null' || !val) {
+        req.body.pg_phone = null;
+        return true;
+      }
+      return /^(\+91[\-\s]?)?[6-9]\d{9}$/.test(val);
+    })
     .withMessage('Please provide a valid 10-digit PG contact phone number'),
 
   body('pg_address')
-    .optional()
-    .trim()
-    .isLength({ min: 3 })
+    .optional({ checkFalsy: true, nullable: true })
+    .custom((val, { req }) => {
+      if (val === 'null' || !val) {
+        req.body.pg_address = null;
+        return true;
+      }
+      return String(val).trim().length >= 3;
+    })
     .withMessage('PG address must be at least 3 characters long'),
 
   body('pg_city')
-    .optional()
-    .trim()
-    .isLength({ min: 2, max: 100 })
-    .withMessage('PG city must be between 2 and 100 characters'),
+    .optional({ checkFalsy: true, nullable: true }),
 
   body('city')
-    .optional()
-    .trim()
-    .isLength({ min: 2, max: 100 })
-    .withMessage('PG city must be between 2 and 100 characters'),
+    .optional({ checkFalsy: true, nullable: true }),
 
   body('pg_state')
-    .optional()
-    .trim()
-    .isLength({ min: 2, max: 100 })
-    .withMessage('PG state must be between 2 and 100 characters'),
+    .optional({ checkFalsy: true, nullable: true }),
 
   body('state')
-    .optional()
-    .trim()
-    .isLength({ min: 2, max: 100 })
-    .withMessage('PG state must be between 2 and 100 characters'),
+    .optional({ checkFalsy: true, nullable: true }),
 
   body('pg_pincode')
-    .optional()
-    .trim()
-    .matches(/^[1-9][0-9]{5}$/)
+    .optional({ checkFalsy: true, nullable: true })
+    .custom((val, { req }) => {
+      if (val === 'null' || !val) {
+        req.body.pg_pincode = null;
+        return true;
+      }
+      return /^[1-9][0-9]{5}$/.test(val);
+    })
     .withMessage('Please provide a valid 6-digit Indian PIN code for PG'),
 
   body('pincode')
-    .optional()
-    .trim()
-    .matches(/^[1-9][0-9]{5}$/)
+    .optional({ checkFalsy: true, nullable: true })
+    .custom((val, { req }) => {
+      if (val === 'null' || !val) {
+        req.body.pincode = null;
+        return true;
+      }
+      return /^[1-9][0-9]{5}$/.test(val);
+    })
     .withMessage('Please provide a valid 6-digit Indian PIN code for PG'),
 
   body('total_rooms')
-    .optional({ checkFalsy: true })
-    .toInt()
-    .isInt({ min: 0 })
+    .optional({ checkFalsy: true, nullable: true })
+    .custom((val, { req }) => {
+      if (val === 'null' || !val) {
+        req.body.total_rooms = null;
+        return true;
+      }
+      const num = Number(val);
+      return Number.isInteger(num) && num >= 0;
+    })
     .withMessage('Total rooms must be a non-negative integer'),
 
   body('total_beds')
-    .optional({ checkFalsy: true })
-    .toInt()
-    .isInt({ min: 0 })
+    .optional({ checkFalsy: true, nullable: true })
+    .custom((val, { req }) => {
+      if (val === 'null' || !val) {
+        req.body.total_beds = null;
+        return true;
+      }
+      const num = Number(val);
+      return Number.isInteger(num) && num >= 0;
+    })
     .withMessage('Total beds must be a non-negative integer'),
 
   body('amenities')
     .optional(),
 
   body('rules')
-    .optional()
-    .trim(),
+    .optional({ checkFalsy: true, nullable: true }),
 
   body('status')
-    .optional()
-    .trim()
-    .toLowerCase()
-    .isIn(['active', 'inactive', 'under_maintenance'])
+    .optional({ checkFalsy: true, nullable: true })
+    .custom((val, { req }) => {
+      if (val === 'null' || !val) {
+        req.body.status = null;
+        return true;
+      }
+      return ['active', 'inactive', 'under_maintenance'].includes(String(val).toLowerCase());
+    })
     .withMessage('PG status must be one of: active, inactive, under_maintenance'),
 
   body('profile_photo')
@@ -335,33 +378,58 @@ export const updateOwnerWithPgValidator = [
 
   // PG UPI & Banking Details
   body('pg_upi_id')
-    .optional({ checkFalsy: true })
-    .trim()
-    .isLength({ min: 3, max: 100 })
+    .optional({ checkFalsy: true, nullable: true })
+    .custom((val, { req }) => {
+      if (val === 'null' || !val) {
+        req.body.pg_upi_id = null;
+        return true;
+      }
+      return String(val).trim().length >= 3 && String(val).trim().length <= 100;
+    })
     .withMessage('PG UPI ID must be between 3 and 100 characters'),
 
   body('pg_bank_name')
-    .optional({ checkFalsy: true })
-    .trim()
-    .isLength({ min: 2, max: 100 })
+    .optional({ checkFalsy: true, nullable: true })
+    .custom((val, { req }) => {
+      if (val === 'null' || !val) {
+        req.body.pg_bank_name = null;
+        return true;
+      }
+      return String(val).trim().length >= 2 && String(val).trim().length <= 100;
+    })
     .withMessage('PG bank name must be between 2 and 100 characters'),
 
   body('pg_account_number')
-    .optional({ checkFalsy: true })
-    .trim()
-    .isLength({ min: 6, max: 50 })
+    .optional({ checkFalsy: true, nullable: true })
+    .custom((val, { req }) => {
+      if (val === 'null' || !val) {
+        req.body.pg_account_number = null;
+        return true;
+      }
+      return String(val).trim().length >= 6 && String(val).trim().length <= 50;
+    })
     .withMessage('PG bank account number must be between 6 and 50 characters'),
 
   body('pg_ifsc_code')
-    .optional({ checkFalsy: true })
-    .trim()
-    .isLength({ min: 4, max: 20 })
+    .optional({ checkFalsy: true, nullable: true })
+    .custom((val, { req }) => {
+      if (val === 'null' || !val) {
+        req.body.pg_ifsc_code = null;
+        return true;
+      }
+      return String(val).trim().length >= 4 && String(val).trim().length <= 20;
+    })
     .withMessage('PG IFSC code must be between 4 and 20 characters'),
 
   body('pg_account_holder_name')
-    .optional({ checkFalsy: true })
-    .trim()
-    .isLength({ min: 2, max: 150 })
+    .optional({ checkFalsy: true, nullable: true })
+    .custom((val, { req }) => {
+      if (val === 'null' || !val) {
+        req.body.pg_account_holder_name = null;
+        return true;
+      }
+      return String(val).trim().length >= 2 && String(val).trim().length <= 150;
+    })
     .withMessage('PG account holder name must be between 2 and 150 characters'),
 ];
 

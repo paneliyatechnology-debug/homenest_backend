@@ -4245,7 +4245,7 @@
                 "initiate-upi"
               ]
             },
-            "description": "Generate dynamic UPI intent URI and saved PNG QR code URL for instant resident checkout via GPay, PhonePe, Paytm, or BHIM."
+            "description": "Generates a standard PNG QR code image URL for instant resident checkout by scanning with any UPI app (GPay, PhonePe, Paytm, BHIM)."
           },
           "response": []
         },

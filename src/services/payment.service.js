@@ -1689,24 +1689,11 @@ class PaymentService {
     // Use the registered UPI ID of this PG facility so resident directly sends amount into that PG account
     const payee_upi = pg?.pg_upi_id || 'jasminkorat204@oksbi';
 
-    // Standard NPCI UPI URI Scheme: upi://pay?pa=...&pn=...&am=...&cu=INR&tn=...
+    // Standard NPCI UPI URI Scheme encoded into the QR code image
     const amount = Number(payment.amount).toFixed(2);
-    // NPCI requires transaction note (tn) and name to be clean alphanumeric/spaces without special characters
     const cleanPayeeName = payee_name.replace(/[^\w\s]/gi, '').trim() || 'HouseNest Living';
     const note = `Rent Payment ${payment.id}`;
-    
-    // Core query parameters for clean P2P intent (omitting merchant-only parameters like tr/mc which trip up Google Pay)
-    const queryParams = `pa=${encodeURIComponent(payee_upi)}&pn=${encodeURIComponent(cleanPayeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(note)}`;
-    const upi_intent_url = `upi://pay?${queryParams}`;
-
-    // App-specific intent schemes for direct handoff
-    const app_intents = {
-      gpay: `tez://upi/pay?${queryParams}`,
-      phonepe: `phonepe://pay?${queryParams}`,
-      paytm: `paytmmp://pay?${queryParams}`,
-      bhim: `bhim://pay?${queryParams}`,
-      default: upi_intent_url,
-    };
+    const upi_qr_string = `upi://pay?pa=${encodeURIComponent(payee_upi)}&pn=${encodeURIComponent(cleanPayeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(note)}`;
 
     // Store QR code PNG image locally in uploads/payments/
     const uploadDir = path.join(process.cwd(), 'uploads', 'payments');
@@ -1717,7 +1704,7 @@ class PaymentService {
     const qrFilename = `qr-payment-${payment.id}.png`;
     const qrFilePath = path.join(uploadDir, qrFilename);
 
-    await QRCode.toFile(qrFilePath, upi_intent_url, {
+    await QRCode.toFile(qrFilePath, upi_qr_string, {
       errorCorrectionLevel: 'M',
       margin: 2,
       width: 320,
@@ -1741,9 +1728,6 @@ class PaymentService {
       payee_name: cleanPayeeName,
       payee_upi,
       qr_code_url,
-      upi_intent_url,
-      app_intents,
-      supported_apps: ['GPay', 'PhonePe', 'Paytm', 'BHIM'],
     };
   };
 

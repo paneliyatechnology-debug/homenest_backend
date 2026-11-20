@@ -130,7 +130,7 @@ export const getPaymentById = async (req, res, next) => {
 
 /**
  * Initiate UPI QR checkout for a pending bill
- * Returns dynamic UPI intent string and standard Base64 QR Code image
+ * Returns standard PNG QR Code image URL for scanning with any UPI app
  */
 export const initiateUpi = async (req, res, next) => {
   try {
