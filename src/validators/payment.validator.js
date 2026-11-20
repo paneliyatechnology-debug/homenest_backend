@@ -501,6 +501,24 @@ export const processPaymentValidator = [
     .trim()
     .isLength({ min: 2, max: 100 })
     .withMessage('Payment method details must be between 2 and 100 characters'),
+
+  body('upi_ref_no')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ min: 6, max: 50 })
+    .withMessage('UPI Reference / UTR Number must be between 6 and 50 characters'),
+
+  body('paid_amount')
+    .optional({ checkFalsy: true })
+    .toFloat()
+    .isFloat({ min: 0 })
+    .withMessage('Paid amount must be a positive number'),
+
+  body('transaction_id')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ min: 4, max: 100 })
+    .withMessage('Transaction ID must be between 4 and 100 characters'),
 ];
 
 export default {
