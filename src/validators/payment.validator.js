@@ -496,29 +496,44 @@ export const processPaymentValidator = [
     .isIn(ALLOWED_METHODS)
     .withMessage(`Payment method must be one of: ${ALLOWED_METHODS.join(', ')}`),
 
-  body('payment_method_details')
-    .optional({ checkFalsy: true })
-    .trim()
-    .isLength({ min: 2, max: 100 })
-    .withMessage('Payment method details must be between 2 and 100 characters'),
-
   body('upi_ref_no')
     .optional({ checkFalsy: true })
     .trim()
     .isLength({ min: 6, max: 50 })
     .withMessage('UPI Reference / UTR Number must be between 6 and 50 characters'),
 
-  body('paid_amount')
-    .optional({ checkFalsy: true })
-    .toFloat()
-    .isFloat({ min: 0 })
-    .withMessage('Paid amount must be a positive number'),
-
-  body('transaction_id')
+  body('note')
     .optional({ checkFalsy: true })
     .trim()
-    .isLength({ min: 4, max: 100 })
-    .withMessage('Transaction ID must be between 4 and 100 characters'),
+    .isLength({ max: 500 })
+    .withMessage('Note must not exceed 500 characters'),
+
+  body('notes')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Notes must not exceed 500 characters'),
+
+  body('image')
+    .optional({ checkFalsy: true })
+    .trim(),
+];
+
+export const updatePaymentStatusValidator = [
+  param('id')
+    .notEmpty()
+    .withMessage('Payment ID parameter is required')
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Payment ID must be a positive integer'),
+
+  body('status')
+    .notEmpty()
+    .withMessage('Status is required')
+    .trim()
+    .toLowerCase()
+    .isIn(['paid', 'pending', 'overdue', 'failed', 'refunded'])
+    .withMessage('Status must be one of: paid, pending, overdue, failed, refunded'),
 ];
 
 export default {
@@ -532,4 +547,5 @@ export default {
   createPaymentValidator,
   updatePaymentValidator,
   processPaymentValidator,
+  updatePaymentStatusValidator,
 };

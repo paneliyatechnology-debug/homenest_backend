@@ -4,6 +4,7 @@ import {
   createPaymentValidator,
   updatePaymentValidator,
   processPaymentValidator,
+  updatePaymentStatusValidator,
   paymentIdParamValidator,
   listPaymentsValidator,
   exportPaymentsValidator,
@@ -11,6 +12,7 @@ import {
   residentOverviewValidator,
 } from '../validators/payment.validator.js';
 import validate from '../middlewares/validate.middleware.js';
+import { handlePaymentProofUpload } from '../middlewares/upload.middleware.js';
 import { authenticate, authorize } from '../middlewares/auth.middleware.js';
 import ROLES from '../constants/roles.js';
 
@@ -127,13 +129,33 @@ router.post(
 
 /**
  * @route   POST /api/v1/payments/:id/pay
- * @desc    Complete and record payment
+ * @desc    Complete and record payment (Supports JSON and multipart/form-data with image proof upload)
  * @access  Private
  */
 router.post(
   '/:id/pay',
+  handlePaymentProofUpload,
   validate(processPaymentValidator),
   paymentController.processPayment
+);
+
+/**
+ * @route   PATCH /api/v1/payments/:id/status
+ * @desc    Update payment status (Admin action to mark paid, overdue, failed, or refunded)
+ * @access  Private (Admin / Super Admin)
+ */
+router.patch(
+  '/:id/status',
+  authorize(ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  validate(updatePaymentStatusValidator),
+  paymentController.updatePaymentStatus
+);
+
+router.put(
+  '/:id/status',
+  authorize(ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  validate(updatePaymentStatusValidator),
+  paymentController.updatePaymentStatus
 );
 
 export default router;

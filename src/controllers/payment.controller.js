@@ -150,8 +150,24 @@ export const initiateUpi = async (req, res, next) => {
 export const processPayment = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const updated = await paymentService.processPayment(id, req.body);
-    return successAction(res, 'Payment processed successfully', updated.id, HTTP_STATUS.OK);
+    const updated = await paymentService.processPayment(id, req.body, req.file, req.user);
+    const message = updated.status === 'paid' ? 'Payment processed successfully' : 'Payment details submitted successfully';
+    return successAction(res, message, updated.id, HTTP_STATUS.OK, updated);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Quick update payment status (Admin / Super Admin)
+ * e.g., Mark as paid, overdue, failed, refunded
+ */
+export const updatePaymentStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const updated = await paymentService.updateStatus(Number(id), req.body, req.user);
+    const message = updated.status === 'paid' ? 'Payment marked as paid successfully' : `Payment status updated to ${updated.status} successfully`;
+    return successAction(res, message, updated.id, HTTP_STATUS.OK, updated);
   } catch (err) {
     next(err);
   }
@@ -367,6 +383,7 @@ export default {
   getPaymentReceipt,
   initiateUpi,
   processPayment,
+  updatePaymentStatus,
   createPayment,
   updatePayment,
   deletePayment,

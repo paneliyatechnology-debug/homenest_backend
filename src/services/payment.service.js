@@ -57,6 +57,7 @@ class PaymentService {
     'payments.payment_method_details',
     'payments.upi_id',
     'payments.upi_ref_no',
+    'payments.image',
     'payments.status',
     'payments.paid_at',
     'payments.refund_amount',
@@ -105,6 +106,8 @@ class PaymentService {
       paid_at: item.paid_at || null,
       payment_method: item.payment_method || null,
       payment_method_details: item.payment_method_details || null,
+      image: item.image || null,
+      image_url: buildFileUrl('payments', item.image),
 
       // Resident Information
       resident: {
@@ -147,6 +150,8 @@ class PaymentService {
       // UPI & Transaction references
       upi_id: item.upi_id || null,
       upi_ref_no: item.upi_ref_no || null,
+      image: item.image || null,
+      image_url: buildFileUrl('payments', item.image),
 
       // Refund information (if applicable)
       refund: item.status === 'refunded' || refund_amount > 0 ? {
@@ -1559,6 +1564,8 @@ class PaymentService {
         billing_period_start: b.billing_period_start || null,
         billing_period_end: b.billing_period_end || null,
         notes: b.notes || null,
+        image: b.image || null,
+        image_url: buildFileUrl('payments', b.image),
         breakdown: {
           rent: b_rent,
           deposit: b_deposit,
@@ -1713,13 +1720,17 @@ class PaymentService {
   };
 
   /**
-   * Complete payment simulation / webhook / manual collection
-   * Updates payment to 'paid', generates transaction ID, and generates official receipt.
+   * Complete payment simulation / manual collection / resident proof submission
+   * Updates payment details, saves proof image and transaction reference.
+   * If caller token is admin (or payload.status is explicitly 'paid'), status automatically becomes 'paid'.
+   * Otherwise (resident submitting payment proof), current status is retained (e.g., 'pending').
    * @param {number|string} payment_id
-   * @param {object} payload - { payment_method, payment_method_details, upi_ref_no, paid_amount }
+   * @param {object} payload - { payment_method, payment_method_details, upi_ref_no, paid_amount, status, transaction_id }
+   * @param {object|null} file - Optional uploaded proof image
+   * @param {object|null} user - Calling authenticated user token
    * @returns {Promise<object>}
    */
-  processPayment = async (payment_id, payload) => {
+  processPayment = async (payment_id, payload, file = null, user = null) => {
     const payment = await db('payments')
       .where({ id: payment_id })
       .whereNull('deleted_at')
@@ -1729,53 +1740,211 @@ class PaymentService {
       throw new AppError('Payment invoice not found', HTTP_STATUS.NOT_FOUND);
     }
 
+    // If transaction is already marked as paid, do not allow further updates/payments
     if (payment.status === 'paid') {
-      throw new AppError('Payment is already marked as paid', HTTP_STATUS.BAD_REQUEST);
+      throw new AppError('Payment is already marked as paid and cannot be modified', HTTP_STATUS.BAD_REQUEST);
     }
 
-    const transaction_id = payload.transaction_id || `TXN${Date.now()}${Math.floor(100 + Math.random() * 900)}`;
-    const receipt_no = payment.receipt_no || `RCPT-${moment().format('YYYY')}-${String(payment.id).padStart(4, '0')}`;
-    const paid_amount = payload.paid_amount !== undefined ? Number(payload.paid_amount) : Number(payment.amount);
-    const payment_method = payload.payment_method || 'upi';
-    const payment_method_details = payload.payment_method_details || (payment_method === 'upi' ? 'UPI GPay' : payment_method);
+    // Determine target status:
+    // If calling token is admin, automatically set status to 'paid';
+    // otherwise (resident submitting proof), retain current status (e.g. pending/overdue).
+    const isAdmin = user && (user.role === ROLES.ADMIN || user.role === ROLES.SUPER_ADMIN);
+    const targetStatus = isAdmin ? 'paid' : payment.status;
+
+    const transaction_id = payment.transaction_id || (targetStatus === 'paid' ? `TXN${Date.now()}${Math.floor(100 + Math.random() * 900)}` : null);
+    const receipt_no = targetStatus === 'paid'
+      ? (payment.receipt_no || `RCPT-${moment().format('YYYY')}-${String(payment.id).padStart(4, '0')}`)
+      : (payment.receipt_no || null);
+    const paid_amount = Number(payment.paid_amount || payment.amount || 0);
+    const payment_method = payload.payment_method ? payload.payment_method.toLowerCase().trim() : (payment.payment_method || 'upi');
+    const payment_method_details = payment_method === 'upi' ? 'UPI' : (payment.payment_method_details || payment_method);
+    const note = payload.note !== undefined ? payload.note : (payload.notes !== undefined ? payload.notes : null);
+    const uploadedImage = file?.filename || payload.image || payment.image || null;
+
+    const updatePayload = {
+      transaction_id,
+      receipt_no,
+      paid_amount,
+      payment_method,
+      payment_method_details,
+      upi_ref_no: payload.upi_ref_no || payment.upi_ref_no || null,
+      status: targetStatus,
+      paid_at: targetStatus === 'paid' ? (payment.paid_at || db.fn.now()) : (payment.paid_at || null),
+      updated_at: db.fn.now(),
+    };
+
+    if (note !== null) {
+      updatePayload.notes = note;
+    }
+
+    if (uploadedImage) {
+      updatePayload.image = uploadedImage;
+    }
 
     await db('payments')
       .where({ id: payment_id })
-      .update({
-        transaction_id,
-        receipt_no,
-        paid_amount,
-        payment_method,
-        payment_method_details,
-        upi_ref_no: payload.upi_ref_no || null,
-        status: 'paid',
-        paid_at: db.fn.now(),
-        updated_at: db.fn.now(),
-      });
+      .update(updatePayload);
 
     auditService.log({
       pg_id: payment.pg_id,
       branch_id: payment.branch_id,
-      user_id: payment.resident_id,
+      user_id: user?.id || payment.resident_id,
       module: AUDIT_MODULES.PAYMENT,
-      action: AUDIT_ACTIONS.PAYMENT_RECORD,
+      action: targetStatus === 'paid' ? AUDIT_ACTIONS.PAYMENT_VERIFY : AUDIT_ACTIONS.PAYMENT_RECORD,
       entity_type: 'payment',
       entity_id: payment_id,
-      description: `Payment #${payment_id} recorded (₹${paid_amount} via ${payment_method})`,
-      new_values: { amount: paid_amount, payment_method, upi_ref_no: payload.upi_ref_no },
+      description: `Payment #${payment_id} recorded (status: ${targetStatus}, ₹${paid_amount} via ${payment_method})`,
+      new_values: {
+        status: targetStatus,
+        amount: paid_amount,
+        payment_method,
+        upi_ref_no: payload.upi_ref_no || null,
+        notes: note !== null ? note : payment.notes,
+        image: uploadedImage,
+      },
     });
 
     // Real-time: Notify admins and resident, update payment stats and main dashboard
     try {
-      socketService.emitStatsUpdated(payment.pg_id, SOCKET_EVENTS.PAYMENT_STATS_UPDATED, { payment_id, status: 'paid', paid_amount });
+      socketService.emitStatsUpdated(payment.pg_id, SOCKET_EVENTS.PAYMENT_STATS_UPDATED, { payment_id, status: targetStatus, paid_amount });
       socketService.emitStatsUpdated(payment.pg_id, SOCKET_EVENTS.DASHBOARD_STATS_UPDATED);
-      socketService.emitToPgAdmins(payment.pg_id, SOCKET_EVENTS.PAYMENT_STATUS_UPDATED, { id: payment_id, status: 'paid', paid_amount });
+      socketService.emitToPgAdmins(payment.pg_id, SOCKET_EVENTS.PAYMENT_STATUS_UPDATED, {
+        id: payment_id,
+        status: targetStatus,
+        paid_amount,
+        payment_method,
+        upi_ref_no: payload.upi_ref_no || null,
+        image: uploadedImage,
+        image_url: buildFileUrl('payments', uploadedImage),
+      });
       if (payment.resident_id) {
-        socketService.emitToUser(payment.resident_id, SOCKET_EVENTS.PAYMENT_STATUS_UPDATED, { id: payment_id, status: 'paid', paid_amount });
+        socketService.emitToUser(payment.resident_id, SOCKET_EVENTS.PAYMENT_STATUS_UPDATED, {
+          id: payment_id,
+          status: targetStatus,
+          paid_amount,
+          payment_method,
+          upi_ref_no: payload.upi_ref_no || null,
+          image: uploadedImage,
+          image_url: buildFileUrl('payments', uploadedImage),
+        });
       }
-    } catch (e) {}
+    } catch (e) { }
 
     return await this.findById(payment_id);
+  };
+
+  /**
+   * Quick update payment status (Admin action to verify and mark payment paid, overdue, failed, or refunded)
+   * @param {number|string} id - Payment ID
+   * @param {object} data - { status, notes, paid_amount, payment_method, payment_method_details, upi_ref_no, transaction_id }
+   * @param {object|null} user - Current user (Admin / Super Admin)
+   * @returns {Promise<object>}
+   */
+  updateStatus = async (id, data, user = null) => {
+    const payment = await db('payments')
+      .where('payments.id', id)
+      .whereNull('payments.deleted_at')
+      .join('pgs', 'payments.pg_id', 'pgs.id')
+      .select('payments.*', 'pgs.owner_id')
+      .first();
+
+    if (!payment) {
+      throw new AppError('Payment record not found', HTTP_STATUS.NOT_FOUND);
+    }
+
+    if (user && user.role === ROLES.ADMIN && payment.owner_id !== user.id) {
+      throw new AppError('Access denied. You do not manage this PG facility.', HTTP_STATUS.FORBIDDEN);
+    }
+
+    const newStatus = data.status.toLowerCase().trim();
+    const oldStatus = payment.status;
+
+    const updatePayload = {
+      status: newStatus,
+      updated_at: db.fn.now(),
+    };
+
+    if (newStatus === 'paid') {
+      updatePayload.paid_at = payment.paid_at || db.fn.now();
+      updatePayload.receipt_no = payment.receipt_no || `RCPT-${moment().format('YYYY')}-${String(payment.id).padStart(4, '0')}`;
+      if (data.paid_amount !== undefined) {
+        updatePayload.paid_amount = Number(data.paid_amount);
+      } else if (!payment.paid_amount) {
+        updatePayload.paid_amount = Number(payment.amount);
+      }
+      if (data.payment_method) {
+        updatePayload.payment_method = data.payment_method;
+      }
+      if (data.payment_method_details) {
+        updatePayload.payment_method_details = data.payment_method_details;
+      }
+      if (data.upi_ref_no) {
+        updatePayload.upi_ref_no = data.upi_ref_no;
+      }
+      if (data.transaction_id) {
+        updatePayload.transaction_id = data.transaction_id;
+      } else if (!payment.transaction_id) {
+        updatePayload.transaction_id = `TXN${Date.now()}${Math.floor(100 + Math.random() * 900)}`;
+      }
+    } else if (newStatus === 'refunded') {
+      updatePayload.refunded_at = db.fn.now();
+      if (data.refund_amount !== undefined) {
+        updatePayload.refund_amount = Number(data.refund_amount);
+      }
+      if (data.refund_reason !== undefined) {
+        updatePayload.refund_reason = data.refund_reason;
+      }
+    } else if (newStatus === 'pending') {
+      if (data.clear_paid_at) {
+        updatePayload.paid_at = null;
+      }
+    }
+
+    await db('payments').where({ id }).update(updatePayload);
+
+    auditService.log({
+      pg_id: payment.pg_id,
+      branch_id: payment.branch_id,
+      user_id: user?.id || payment.resident_id,
+      module: AUDIT_MODULES.PAYMENT,
+      action: newStatus === 'paid' ? AUDIT_ACTIONS.PAYMENT_VERIFY : AUDIT_ACTIONS.STATUS_CHANGE,
+      entity_type: 'payment',
+      entity_id: id,
+      description: `Payment #${id} status changed from ${oldStatus} to ${newStatus}`,
+      old_values: { status: oldStatus },
+      new_values: {
+        status: newStatus,
+        paid_amount: updatePayload.paid_amount || null,
+        payment_method: updatePayload.payment_method || null,
+        receipt_no: updatePayload.receipt_no || null,
+      },
+    });
+
+    // Real-time: Notify admins and resident, update payment stats and main dashboard
+    try {
+      socketService.emitStatsUpdated(payment.pg_id, SOCKET_EVENTS.PAYMENT_STATS_UPDATED, { payment_id: id, status: newStatus });
+      socketService.emitStatsUpdated(payment.pg_id, SOCKET_EVENTS.DASHBOARD_STATS_UPDATED);
+      socketService.emitToPgAdmins(payment.pg_id, SOCKET_EVENTS.PAYMENT_STATUS_UPDATED, {
+        id,
+        status: newStatus,
+        paid_amount: updatePayload.paid_amount || payment.paid_amount,
+        payment_method: updatePayload.payment_method || payment.payment_method,
+        image: payment.image,
+        image_url: buildFileUrl('payments', payment.image),
+      });
+      if (payment.resident_id) {
+        socketService.emitToUser(payment.resident_id, SOCKET_EVENTS.PAYMENT_STATUS_UPDATED, {
+          id,
+          status: newStatus,
+          paid_amount: updatePayload.paid_amount || payment.paid_amount,
+          payment_method: updatePayload.payment_method || payment.payment_method,
+          image: payment.image,
+          image_url: buildFileUrl('payments', payment.image),
+        });
+      }
+    } catch (e) { }
+
+    return await this.findById(id);
   };
 
   /**
@@ -1914,7 +2083,7 @@ class PaymentService {
       if (resident_id) {
         socketService.emitToUser(resident_id, SOCKET_EVENTS.PAYMENT_NEW, { id, amount: calculated_total, status: 'pending' });
       }
-    } catch (e) {}
+    } catch (e) { }
 
     return await this.findById(id);
   };
@@ -2024,7 +2193,7 @@ class PaymentService {
       socketService.emitStatsUpdated(existing.pg_id, SOCKET_EVENTS.PAYMENT_STATS_UPDATED, { payment_id: id });
       socketService.emitStatsUpdated(existing.pg_id, SOCKET_EVENTS.DASHBOARD_STATS_UPDATED);
       socketService.emitToPgAdmins(existing.pg_id, SOCKET_EVENTS.PAYMENT_STATUS_UPDATED, { id, status: updatePayload.status || existing.status });
-    } catch (e) {}
+    } catch (e) { }
 
     return await this.findById(id);
   };
@@ -2061,7 +2230,7 @@ class PaymentService {
     try {
       socketService.emitStatsUpdated(existing.pg_id, SOCKET_EVENTS.PAYMENT_STATS_UPDATED, { payment_id: id, deleted: true });
       socketService.emitStatsUpdated(existing.pg_id, SOCKET_EVENTS.DASHBOARD_STATS_UPDATED);
-    } catch (e) {}
+    } catch (e) { }
 
     return true;
   };

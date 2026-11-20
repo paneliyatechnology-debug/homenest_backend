@@ -4209,8 +4209,33 @@
               }
             ],
             "body": {
-              "mode": "raw",
-              "raw": "{\n  \"payment_method\": \"upi\",\n  \"payment_method_details\": \"GPay UPI Ref #123456789012\"\n}"
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "payment_method",
+                  "value": "upi",
+                  "type": "text",
+                  "description": "[REQUIRED] Enum: upi, card, net_banking, wallet, bank_transfer, cash"
+                },
+                {
+                  "key": "upi_ref_no",
+                  "value": "123456789012",
+                  "type": "text",
+                  "description": "[OPTIONAL] 12-digit UPI Reference / UTR Number"
+                },
+                {
+                  "key": "note",
+                  "value": "Paid via Google Pay UPI",
+                  "type": "text",
+                  "description": "[OPTIONAL] Remarks or note for the payment"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": [],
+                  "description": "[OPTIONAL - File] Payment screenshot / bank transaction proof (JPG, PNG, WebP, PDF, max 5MB)"
+                }
+              ]
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/payments/{{paymentId}}/pay",
@@ -4225,7 +4250,44 @@
                 "pay"
               ]
             },
-            "description": "### Complete / Record Payment\nRecords payment fulfillment for an existing invoice, updating status to `paid` and setting `paid_at`.\n\n#### Path Parameters:\n- `id` **[REQUIRED]**: Payment ID.\n\n#### Request Body (JSON):\n- `payment_method` **[REQUIRED]**: Enum: `upi`, `card`, `net_banking`, `wallet`, `bank_transfer`, `cash`.\n- `payment_method_details` **[OPTIONAL]**: Transaction UTR number, UPI reference, or cheque ID (2-100 characters).\n\n#### Permissions:\n- Authenticated Resident (for their own payment) or Admin / Super Admin."
+            "description": "### Submit Payment Proof / Details\nRecords payment details/proof for an existing invoice without automatically changing status to paid (unless called with Admin token, which automatically marks as paid).\nSupports both **multipart/form-data** (with file upload) and **application/json**.\n\n#### Path Parameters:\n- `id` **[REQUIRED]**: Payment ID.\n\n#### Form Fields / JSON Body:\n- `payment_method` **[REQUIRED]**: Enum: `upi`, `card`, `net_banking`, `wallet`, `bank_transfer`, `cash`.\n- `upi_ref_no` **[OPTIONAL]**: 12-digit UPI reference number.\n- `note` **[OPTIONAL]**: Payment notes / remarks.\n- `image` **[OPTIONAL - File]**: Screenshot or PDF of the payment receipt/transaction proof (max 5MB).\n\n#### Response Object includes:\n- `image`: Uploaded filename (e.g., `payment-1732090775123.jpg`).\n- `image_url`: Full public URL (e.g., `http://localhost:5000/uploads/payments/payment-1732090775123.jpg`).\n\n#### Permissions:\n- Authenticated Resident or Admin / Super Admin."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Payment Status (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"paid\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payments/{{paymentId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "{{paymentId}}",
+                "status"
+              ]
+            },
+            "description": "### Update Payment Status (Admin Only)\nAllows property managers/admins to update payment status to `paid`, `pending`, `overdue`, `failed`, or `refunded`.\n\n#### Path Parameters:\n- `id` **[REQUIRED]**: Payment ID.\n\n#### Request Body (JSON):\n- `status` **[REQUIRED]**: Enum: `paid`, `pending`, `overdue`, `failed`, `refunded`.\n\n#### Response Object includes:\n- `image`: Uploaded filename (e.g., `payment-1732090775123.jpg`).\n- `image_url`: Full public URL (e.g., `http://localhost:5000/uploads/payments/payment-1732090775123.jpg`)."
           },
           "response": []
         },
