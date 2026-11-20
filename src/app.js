@@ -13,6 +13,9 @@ const app = express();
 // Security HTTP headers
 app.use(helmet({
   crossOriginResourcePolicy: false,
+  crossOriginEmbedderPolicy: false,
+  frameguard: false,
+  contentSecurityPolicy: false,
 }));
 
 // Enable CORS
@@ -28,8 +31,13 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
-// Serve static uploads
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+// Serve static uploads with frame and cross-origin embed permissions
+app.use('/uploads', (req, res, next) => {
+  res.removeHeader('X-Frame-Options');
+  res.removeHeader('Content-Security-Policy');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static(path.join(process.cwd(), 'uploads')));
 
 // Root welcome route
 app.get('/', (req, res) => {

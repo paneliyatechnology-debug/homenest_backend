@@ -47,6 +47,12 @@ export const userIdParamValidator = [
  * Reusable Room Allocation Validators (Shared between createUser & updateUser)
  */
 export const roomAllocationValidators = [
+  body('branch_id')
+    .optional({ checkFalsy: true })
+    .toInt()
+    .isInt({ min: 1 })
+    .withMessage('Branch ID must be a valid integer'),
+
   body('pg_id')
     .optional({ checkFalsy: true })
     .toInt()

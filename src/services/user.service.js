@@ -247,7 +247,7 @@ const formatResidentUser = (user, options = {}) => {
     ? buildFileUrl('documents', user.signature)
     : user.signature || null;
 
-  const stay = options.active_stay || (user.room_id ? user : null);
+  const stay = options.active_stay || options.latest_stay || (user.room_id ? user : null);
   const room_image_url = stay ? buildFileUrl('rooms', stay.room_image) : null;
   const stayForProfile = options.active_stay || options.latest_stay || (user.room_id ? user : null);
   const is_complete_profile = checkResidentProfileCompletion(user, stayForProfile);
@@ -581,9 +581,40 @@ class UserService {
     let latest_stay = null;
     if (!active_stay) {
       latest_stay = await db('resident_pg_stays')
-        .where({ resident_id: id })
-        .whereNull('deleted_at')
-        .orderBy('id', 'desc')
+        .where({ 'resident_pg_stays.resident_id': id })
+        .whereNull('resident_pg_stays.deleted_at')
+        .leftJoin('pgs', (join) => join.on('resident_pg_stays.pg_id', '=', 'pgs.id').andOnNull('pgs.deleted_at'))
+        .leftJoin('branches', (join) => join.on('resident_pg_stays.branch_id', '=', 'branches.id').andOnNull('branches.deleted_at'))
+        .leftJoin('rooms', (join) => join.on('resident_pg_stays.room_id', '=', 'rooms.id').andOnNull('rooms.deleted_at'))
+        .leftJoin('buildings', (join) => join.on('rooms.building_id', '=', 'buildings.id').andOnNull('buildings.deleted_at'))
+        .leftJoin('floors', (join) => join.on('rooms.floor_id', '=', 'floors.id').andOnNull('floors.deleted_at'))
+        .select(
+          'resident_pg_stays.id as stay_id',
+          'resident_pg_stays.pg_id',
+          'resident_pg_stays.branch_id',
+          db.raw('COALESCE(branches.name, pgs.name) as branch_name'),
+          'pgs.name as pg_name',
+          'resident_pg_stays.room_id',
+          'rooms.room_no',
+          'rooms.room_type',
+          'rooms.capacity as room_capacity',
+          'rooms.size as room_size',
+          'rooms.image as room_image',
+          'rooms.status as room_status',
+          'rooms.building_id',
+          'buildings.name as building_name',
+          'rooms.floor_id',
+          'floors.floor_number',
+          'floors.name as floor_name',
+          'resident_pg_stays.bed_number',
+          'resident_pg_stays.monthly_rent',
+          'resident_pg_stays.security_deposit',
+          'resident_pg_stays.check_in_date',
+          'resident_pg_stays.check_out_date',
+          'resident_pg_stays.status as stay_status',
+          'resident_pg_stays.notes as stay_notes'
+        )
+        .orderBy('resident_pg_stays.id', 'desc')
         .first();
     }
 
@@ -1174,10 +1205,10 @@ class UserService {
       ...(update_data.email !== undefined && update_data.email !== null && update_data.email !== '' && { email: update_data.email.toLowerCase().trim() }),
       ...(update_data.phone !== undefined && update_data.phone !== null && update_data.phone !== '' && { phone: update_data.phone.trim() }),
       ...(update_data.gender !== undefined && update_data.gender !== null && update_data.gender !== '' && { gender: String(update_data.gender).toLowerCase() }),
-      ...(update_data.address !== undefined && { address: update_data.address }),
+      ...(update_data.address !== undefined && { address: update_data.address ? update_data.address.trim() : null }),
       ...(update_data.address_line_1 !== undefined && {
-        address_line_1: update_data.address_line_1,
-        address: update_data.address || update_data.address_line_1,
+        address_line_1: update_data.address_line_1 ? update_data.address_line_1.trim() : null,
+        address: (update_data.address || update_data.address_line_1) ? (update_data.address || update_data.address_line_1).trim() : null,
       }),
       ...(update_data.city !== undefined && { city: update_data.city ? update_data.city.trim() : null }),
       ...(update_data.state !== undefined && { state: update_data.state ? update_data.state.trim() : null }),
@@ -1196,7 +1227,7 @@ class UserService {
       ...(update_data.date_of_birth !== undefined && { date_of_birth: update_data.date_of_birth || null }),
       ...(update_data.nationality !== undefined && { nationality: update_data.nationality || 'Indian' }),
       ...(update_data.marital_status !== undefined && { marital_status: update_data.marital_status || 'single' }),
-      ...(update_data.occupation !== undefined && { occupation: update_data.occupation || null }),
+      ...(update_data.occupation !== undefined && { occupation: update_data.occupation ? update_data.occupation.trim() : null }),
       ...(photoUpdate.shouldUpdate && { profile_photo: photoUpdate.newFilename }),
       ...(aadharUpdate.shouldUpdate && { aadhar_card: aadharUpdate.newFilename }),
       ...(addressProofUpdate.shouldUpdate && { address_proof: addressProofUpdate.newFilename }),
@@ -1221,6 +1252,9 @@ class UserService {
         status: update_data.status,
       }),
       ...(update_data.role !== undefined && { role: update_data.role }),
+      ...(update_data.pg_id !== undefined && {
+        pg_id: update_data.pg_id ? Number(update_data.pg_id) : null,
+      }),
       ...(update_data.subscription_plan_id !== undefined && {
         subscription_plan_id: update_data.subscription_plan_id ? Number(update_data.subscription_plan_id) : null,
       }),
@@ -1236,12 +1270,22 @@ class UserService {
       update_data.monthly_rent !== undefined ||
       update_data.security_deposit !== undefined ||
       update_data.check_in_date !== undefined ||
-      update_data.check_out_date !== undefined
+      update_data.check_out_date !== undefined ||
+      update_data.branch_id !== undefined ||
+      update_data.status !== undefined
     ) {
-      const active_stay = await db('resident_pg_stays')
+      let active_stay = await db('resident_pg_stays')
         .where({ resident_id: id, status: 'active' })
         .whereNull('deleted_at')
         .first();
+
+      if (!active_stay) {
+        active_stay = await db('resident_pg_stays')
+          .where({ resident_id: id })
+          .whereNull('deleted_at')
+          .orderBy('id', 'desc')
+          .first();
+      }
 
       let target_room = null;
       if (update_data.room_id) {
@@ -1249,27 +1293,36 @@ class UserService {
         if (!target_room) {
           throw new AppError('Room not found', HTTP_STATUS.NOT_FOUND);
         }
-        // Room belongs to target_room.pg_id
-        const effective_pg_id = target_room.pg_id;
       }
 
       if (active_stay) {
         const oldRoomId = active_stay.room_id;
         const newRoomId = update_data.room_id !== undefined ? Number(update_data.room_id) : oldRoomId;
+        const assignedPgId = target_room?.pg_id || update_data.pg_id || active_stay.pg_id || null;
+        const assignedBranchId = update_data.branch_id
+          ? Number(update_data.branch_id)
+          : (target_room?.branch_id || active_stay.branch_id || null);
 
         const stay_updates = {
-          ...(update_data.branch_id !== undefined && { branch_id: Number(update_data.branch_id) }),
-          ...(target_room?.branch_id && { branch_id: target_room.branch_id }),
+          ...(assignedPgId && { pg_id: Number(assignedPgId) }),
+          ...(assignedBranchId && { branch_id: Number(assignedBranchId) }),
           ...(update_data.room_id !== undefined && { room_id: newRoomId }),
-          ...(update_data.bed_number !== undefined && { bed_number: update_data.bed_number }),
+          ...(update_data.bed_number !== undefined && { bed_number: update_data.bed_number ? update_data.bed_number.trim() : active_stay.bed_number }),
           ...(update_data.monthly_rent !== undefined && { monthly_rent: parseFloat(update_data.monthly_rent) || 0.0 }),
           ...(update_data.security_deposit !== undefined && { security_deposit: parseFloat(update_data.security_deposit) || 0.0 }),
           ...(update_data.check_in_date !== undefined && { check_in_date: update_data.check_in_date }),
           ...(update_data.check_out_date !== undefined && { check_out_date: update_data.check_out_date || null }),
+          ...(update_data.status !== undefined && {
+            status: update_data.status === 'active' ? 'active' : 'completed',
+          }),
           updated_at: db.fn.now(),
         };
 
         await db('resident_pg_stays').where({ id: active_stay.id }).update(stay_updates);
+
+        if (assignedPgId && !allowed_updates.pg_id) {
+          await db('users').where({ id }).update({ pg_id: Number(assignedPgId) });
+        }
 
         // Dynamically sync occupancy for both old and new rooms
         if (update_data.room_id !== undefined && newRoomId !== oldRoomId) {
@@ -1280,9 +1333,9 @@ class UserService {
         }
 
         // Sync user_branches if branch updated
-        if (stay_updates.branch_id) {
+        if (assignedBranchId) {
           await db('user_branches')
-            .insert({ user_id: id, branch_id: stay_updates.branch_id })
+            .insert({ user_id: id, branch_id: assignedBranchId })
             .onConflict(['user_id', 'branch_id'])
             .ignore();
         }
@@ -1298,12 +1351,16 @@ class UserService {
           security_deposit: parseFloat(update_data.security_deposit) || 0.0,
           check_in_date: update_data.check_in_date || moment().format('YYYY-MM-DD'),
           check_out_date: update_data.check_out_date || null,
-          status: 'active',
+          status: update_data.status === 'active' ? 'active' : 'completed',
           notes: 'Allocated via Admin User Update',
           created_at: db.fn.now(),
           updated_at: db.fn.now(),
         });
         await syncRoomOccupancyStatus(target_room.id);
+
+        if (target_room.pg_id && !allowed_updates.pg_id) {
+          await db('users').where({ id }).update({ pg_id: target_room.pg_id });
+        }
 
         // Sync user_branches
         if (assignedBranchId) {
