@@ -97,8 +97,13 @@ class PaymentService {
     const maintenance_amount = Number(item.maintenance_amount) || 0;
     const electricity_amount = Number(item.electricity_amount) || 0;
     const other_amount = Number(item.other_amount) || 0;
-    const paid_amount = Number(item.paid_amount) || 0;
+    let paid_amount = Number(item.paid_amount) || 0;
     const refund_amount = Number(item.refund_amount) || 0;
+
+    // If payment status is paid, ensure paid_amount is not zero/empty
+    if (String(item.status || '').toLowerCase() === 'paid' && paid_amount <= 0) {
+      paid_amount = amount;
+    }
 
     return {
       id: item.id,
@@ -187,6 +192,9 @@ class PaymentService {
       })
       .join('pgs', (join) => {
         join.on('payments.pg_id', '=', 'pgs.id').andOnNull('pgs.deleted_at');
+      })
+      .leftJoin('branches', (join) => {
+        join.on('payments.branch_id', '=', 'branches.id').andOnNull('branches.deleted_at');
       })
       .leftJoin('resident_pg_stays as stay', (join) => {
         join.on('payments.stay_id', '=', 'stay.id').andOnNull('stay.deleted_at');
@@ -1148,6 +1156,39 @@ class PaymentService {
       branch = await db('branches').where({ id: payment.branch_id }).whereNull('deleted_at').first();
     }
 
+    // Lookup room and accommodation details if missing on payment record (smart fallback to resident stay)
+    let room_no = payment.room_no;
+    let room_type = payment.room_type;
+    let bed_number = payment.bed_number;
+    let building_name = payment.building_name;
+    let floor_name = payment.floor_name;
+
+    if (!room_no && payment.resident?.id) {
+      const stayInfo = await db('resident_pg_stays as s')
+        .leftJoin('rooms as r', 's.room_id', 'r.id')
+        .leftJoin('buildings as b', 'r.building_id', 'b.id')
+        .leftJoin('floors as f', 'r.floor_id', 'f.id')
+        .where('s.resident_id', payment.resident.id)
+        .whereNull('s.deleted_at')
+        .orderBy('s.id', 'desc')
+        .select(
+          's.bed_number',
+          'r.room_no',
+          'r.room_type',
+          'b.name as building_name',
+          'f.name as floor_name'
+        )
+        .first();
+
+      if (stayInfo) {
+        room_no = stayInfo.room_no || null;
+        room_type = stayInfo.room_type || null;
+        bed_number = stayInfo.bed_number || null;
+        building_name = stayInfo.building_name || null;
+        floor_name = stayInfo.floor_name || null;
+      }
+    }
+
     // Ensure official receipt number exists and is persisted
     let receipt_no = payment.receipt_no;
     if (!receipt_no) {
@@ -1156,10 +1197,44 @@ class PaymentService {
       payment.receipt_no = receipt_no;
     }
 
+    // Auto-heal: If payment status is paid but paid_amount is 0 or unrecorded in DB, sync it to payment.amount
+    const isPaidRecord = String(payment.status || '').toLowerCase() === 'paid';
+    if (isPaidRecord && Number(payment.paid_amount || 0) <= 0) {
+      await db('payments').where({ id: payment.id }).update({
+        paid_amount: Number(payment.amount) || 0,
+        updated_at: db.fn.now(),
+      });
+      payment.paid_amount = Number(payment.amount) || 0;
+    }
+
+    // Helper to validate actual image binary files on disk
+    const isImageValid = (filePath) => {
+      if (!filePath || !fs.existsSync(filePath)) return false;
+      try {
+        const stats = fs.statSync(filePath);
+        if (stats.size < 64) return false;
+        const fd = fs.openSync(filePath, 'r');
+        const buf = Buffer.alloc(8);
+        fs.readSync(fd, buf, 0, 8, 0);
+        fs.closeSync(fd);
+        const isPng = buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47;
+        const isJpg = buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
+        return isPng || isJpg;
+      } catch (err) {
+        return false;
+      }
+    };
+
+    const pgLogoPath = pg?.logo ? path.join(process.cwd(), 'uploads', 'pgs', pg.logo) : null;
+    let hasPgLogo = isImageValid(pgLogoPath);
+
+    const paymentImgPath = payment.image ? path.join(process.cwd(), 'uploads', 'payments', payment.image) : null;
+    let hasProofImage = isImageValid(paymentImgPath);
+
     const doc = new PDFDocument({
       size: 'A4',
       layout: 'portrait',
-      margins: { top: 30, bottom: 0, left: 30, right: 30 },
+      margins: { top: 28, bottom: 28, left: 36, right: 36 },
       bufferPages: true,
     });
 
@@ -1211,35 +1286,82 @@ class PaymentService {
     const formatShortDate = (d) => d ? moment(d).format('DD MMM YYYY') : '-';
 
     const pgName = pg?.name || payment.pg_name || 'HouseNest PG Facility';
-    const branchName = branch?.name || payment.branch_name || 'Main Branch';
-    const addressLine = [pg?.address, pg?.city, pg?.state, pg?.pincode ? `- ${pg.pincode}` : ''].filter(Boolean).join(', ') || 'Kalawad Road, Rajkot, Gujarat';
-    const contactLine = [pg?.phone ? `Tel: ${pg.phone}` : null, pg?.email ? `Email: ${pg.email}` : null].filter(Boolean).join('  |  ');
+    const branchName = branch?.name || (payment.branch_name && payment.branch_name !== pgName ? payment.branch_name : 'Bodakdev Branch');
+    const addressLine = [pg?.address, pg?.city, pg?.state, pg?.pincode ? `- ${pg.pincode}` : ''].filter(Boolean).join(', ') || 'Plot 45, Near St. Xavier College, Ahmedabad, Gujarat - 380009';
+    const contactLine = [
+      pg?.phone ? `Tel: +91 ${pg.phone}` : null,
+      pg?.email ? `Email: ${pg.email}` : null,
+    ].filter(Boolean).join('   |   ');
 
-    // Page boundaries (A4: 595.28 x 841.89, margin: 40)
-    const startX = 40;
-    const contentW = 515;
-    const rightEdge = startX + contentW; // 555
+    // Page boundaries (A4: 595.28 x 841.89, margin: 36)
+    const startX = 36;
+    const contentW = 523;
+    const rightEdge = startX + contentW; // 559
 
-    // 1. Header (Clean, elegant, no outer border frame)
-    let curY = 44;
+    // Top Teal Accent Bar
+    doc.rect(0, 0, 595.28, 4.5).fill(brandPrimary);
 
-    // Left PG Details
-    doc.fillColor(brandDark).font(fontBold).fontSize(16).text(pgName, startX, curY, { width: 330, lineBreak: false });
-    doc.fillColor(brandPrimary).font(fontMedium).fontSize(8.5).text(`Branch: ${branchName} • Accommodation Services`, startX, curY + 20, { width: 330 });
-    doc.fillColor(textMuted).font(fontRegular).fontSize(7.5).text(addressLine, startX, curY + 33, { width: 330 });
-    if (contactLine) {
-      doc.fillColor(textMuted).font(fontRegular).fontSize(7.5).text(contactLine, startX, curY + 45, { width: 330 });
+    // 1. Header (Clean, corporate brand styling - NO QR CODE)
+    let curY = 28;
+
+    // Brand Emblem or Logo on Left
+    let headerTextX = startX;
+    if (hasPgLogo) {
+      try {
+        doc.image(pgLogoPath, startX, curY + 2, { fit: [44, 44] });
+        headerTextX = startX + 52;
+      } catch (err) {
+        hasPgLogo = false;
+      }
     }
 
-    // Right Header: PAYMENT RECEIPT / SLIP
-    const rightMetaX = 370;
-    const rightMetaW = rightEdge - rightMetaX;
-    doc.fillColor(textDark).font(fontBold).fontSize(16).text('PAYMENT RECEIPT', rightMetaX, curY, { width: rightMetaW, align: 'right' });
-    doc.fillColor(textBody).font(fontMedium).fontSize(9).text(`Receipt #: ${receipt_no}`, rightMetaX, curY + 20, { width: rightMetaW, align: 'right' });
-    doc.fillColor(textMuted).font(fontRegular).fontSize(8).text(`Date: ${formatShortDate(payment.paid_at || payment.created_at)}`, rightMetaX, curY + 33, { width: rightMetaW, align: 'right' });
+    if (!hasPgLogo) {
+      const logoX = startX;
+      const logoY = curY + 2;
+      const logoSize = 44;
+      doc.roundedRect(logoX, logoY, logoSize, logoSize, 6).fill(brandDark);
+
+      // Vector House Icon inside Emblem
+      doc.save();
+      doc.strokeColor('#FFFFFF').lineWidth(1.75).lineCap('round').lineJoin('round');
+      // Roof peak
+      doc.moveTo(logoX + 11, logoY + 20)
+        .lineTo(logoX + 22, logoY + 11)
+        .lineTo(logoX + 33, logoY + 20)
+        .stroke();
+      // Walls
+      doc.rect(logoX + 14, logoY + 20, 16, 12).stroke();
+      // Door
+      doc.rect(logoX + 19, logoY + 24, 6, 8).fillAndStroke('#FFFFFF', '#FFFFFF');
+      doc.restore();
+
+      doc.fillColor('#FFFFFF').font(fontBold).fontSize(6.5).text('HOMENEST', logoX, logoY + 34, { width: logoSize, align: 'center' });
+      headerTextX = startX + 52;
+    }
+
+    // Left PG Details (Clean width up to 280)
+    const headerLeftW = 280;
+    doc.fillColor(textDark).font(fontBold).fontSize(13.5).text(pgName, headerTextX, curY, { width: headerLeftW, lineBreak: false });
+    doc.fillColor(brandPrimary).font(fontMedium).fontSize(8).text(`Branch: ${branchName} • Accommodation & Living`, headerTextX, curY + 17, { width: headerLeftW, lineBreak: false });
+    doc.fillColor(textBody).font(fontRegular).fontSize(7).text(addressLine, headerTextX, curY + 29, { width: headerLeftW });
+    if (contactLine) {
+      doc.fillColor(textMuted).font(fontRegular).fontSize(6.8).text(contactLine, headerTextX, curY + 40, { width: headerLeftW });
+    }
+    if (pg?.pg_upi_id) {
+      doc.fillColor(textMuted).font(fontRegular).fontSize(6.5).text(`Official UPI Payee: ${pg.pg_upi_id}`, headerTextX, curY + 50, { width: headerLeftW });
+    }
+
+    // Right Header: Payment Receipt Info + Status Badge (NO QR Code)
+    const txnId = payment.transaction_id || PaymentService.generateTransactionId(payment.id);
+    const statusStr = String(payment.status || 'paid').toUpperCase();
+
+    const rightMetaX = 350;
+    const rightMetaW = rightEdge - rightMetaX; // 209
+    doc.fillColor(textDark).font(fontBold).fontSize(14).text('PAYMENT RECEIPT', rightMetaX, curY, { width: rightMetaW, align: 'right' });
+    doc.fillColor(textBody).font(fontMedium).fontSize(8.5).text(`Receipt #: ${receipt_no}`, rightMetaX, curY + 18, { width: rightMetaW, align: 'right' });
+    doc.fillColor(textMuted).font(fontRegular).fontSize(7.5).text(`Date: ${formatShortDate(payment.paid_at || payment.created_at)}`, rightMetaX, curY + 31, { width: rightMetaW, align: 'right' });
 
     // Status Badge Pill
-    const statusStr = String(payment.status || 'paid').toUpperCase();
     const badgeColors = {
       PAID: { bg: '#DCFCE7', text: '#15803D' },
       PENDING: { bg: '#FEF3C7', text: '#B45309' },
@@ -1247,67 +1369,83 @@ class PaymentService {
       REFUNDED: { bg: '#F1F5F9', text: '#475569' },
     };
     const badge = badgeColors[statusStr] || badgeColors.PAID;
-    const badgeW = 64;
+    const badgeW = 68;
     const badgeH = 16;
     const badgeX = rightEdge - badgeW;
-    const badgeY = curY + 47;
-    doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 4).fill(badge.bg);
-    doc.fillColor(badge.text).font(fontBold).fontSize(7.5).text(statusStr, badgeX, badgeY + 3.5, { width: badgeW, align: 'center', lineBreak: false });
+    const badgeY = curY + 44;
+    doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 3).fill(badge.bg);
+    doc.fillColor(badge.text).font(fontBold).fontSize(7.5).text(statusStr, badgeX, badgeY + 4, { width: badgeW, align: 'center', lineBreak: false });
 
     // Clean Divider Line
-    curY = 118;
-    doc.moveTo(startX, curY).lineTo(rightEdge, curY).strokeColor(borderSubtle).lineWidth(1).stroke();
+    curY = 104;
+    doc.moveTo(startX, curY).lineTo(rightEdge, curY).strokeColor(borderSubtle).lineWidth(0.75).stroke();
 
     // 2. Resident & Stay Details vs Payment & Transaction Details (Clean 2-column layout)
-    curY = 132;
-    const colW = 248;
-    const colH = 92;
-    const rightColX = startX + colW + 19; // 307
+    curY = 114;
+    const colW = 254;
+    const colH = 104;
+    const rightColX = startX + colW + 15; // 305
 
     // Left Column: Resident & Accommodation Details
     doc.roundedRect(startX, curY, colW, colH, 4).strokeColor(borderSubtle).lineWidth(0.75).stroke();
-    doc.fillColor(brandDark).font(fontBold).fontSize(7.5).text('RECEIVED FROM / RESIDENT DETAILS', startX + 10, curY + 8);
-    doc.moveTo(startX + 10, curY + 20).lineTo(startX + colW - 10, curY + 20).strokeColor(borderSubtle).lineWidth(0.5).stroke();
+    doc.roundedRect(startX, curY, colW, 19, 4).fill('#F8FAFC');
+    doc.fillColor(brandDark).font(fontBold).fontSize(7.5).text('RESIDENT & ACCOMMODATION DETAILS', startX + 10, curY + 5.5);
+    doc.moveTo(startX, curY + 19).lineTo(startX + colW, curY + 19).strokeColor(borderSubtle).lineWidth(0.5).stroke();
 
     const resident = payment.resident || {};
     doc.fillColor(textDark).font(fontBold).fontSize(9.5).text(resident.name || 'Resident', startX + 10, curY + 25, { width: colW - 20, lineBreak: false });
-    doc.fillColor(textBody).font(fontRegular).fontSize(7.5).text(`Phone: ${resident.phone || '-'}`, startX + 10, curY + 38);
-    doc.fillColor(textBody).font(fontRegular).fontSize(7.5).text(`Email: ${resident.email || '-'}`, startX + 10, curY + 49);
+    doc.fillColor(textBody).font(fontRegular).fontSize(7.5).text(`Phone: ${resident.phone || '-'}   •   Email: ${resident.email || '-'}`, startX + 10, curY + 39, { width: colW - 20, lineBreak: false });
 
-    const roomLine = `Room: ${payment.room_no || '-'} (${payment.room_type || '-'}) • Bed: ${payment.bed_number || '-'}`;
-    doc.fillColor(brandDark).font(fontMedium).fontSize(7.5).text(roomLine, startX + 10, curY + 61);
-    const bldgLine = `${payment.building_name || 'Building'} • ${payment.floor_name || 'Floor'}`;
-    doc.fillColor(textMuted).font(fontRegular).fontSize(7).text(bldgLine, startX + 10, curY + 73);
+    const roomLine = room_no
+      ? `Room: ${room_no}${room_type ? ` (${room_type})` : ''}   •   Bed: ${bed_number || '-'}`
+      : 'Room: Not Assigned   •   General Bill';
+    doc.fillColor(brandDark).font(fontMedium).fontSize(7.5).text(roomLine, startX + 10, curY + 52);
+
+    const bldgLine = (building_name || floor_name)
+      ? `${building_name || 'Main Facility'}${floor_name ? ` • ${floor_name}` : ''}`
+      : 'Accommodation Facility';
+    doc.fillColor(textMuted).font(fontRegular).fontSize(7).text(`Building / Wing: ${bldgLine}`, startX + 10, curY + 65);
+
+    const resCode = resident.id ? `Resident ID: RES-${String(resident.id).padStart(4, '0')}` : 'Resident ID: -';
+    doc.fillColor(textMuted).font(fontRegular).fontSize(6.5).text(resCode, startX + 10, curY + 77);
 
     // Right Column: Payment & Transaction Details
     doc.roundedRect(rightColX, curY, colW, colH, 4).strokeColor(borderSubtle).lineWidth(0.75).stroke();
-    doc.fillColor(brandDark).font(fontBold).fontSize(7.5).text('PAYMENT & TRANSACTION DETAILS', rightColX + 10, curY + 8);
-    doc.moveTo(rightColX + 10, curY + 20).lineTo(rightColX + colW - 10, curY + 20).strokeColor(borderSubtle).lineWidth(0.5).stroke();
+    doc.roundedRect(rightColX, curY, colW, 19, 4).fill('#F8FAFC');
+    doc.fillColor(brandDark).font(fontBold).fontSize(7.5).text('PAYMENT & TRANSACTION DETAILS', rightColX + 10, curY + 5.5);
+    doc.moveTo(rightColX, curY + 19).lineTo(rightColX + colW, curY + 19).strokeColor(borderSubtle).lineWidth(0.5).stroke();
 
-    const txnId = payment.transaction_id || PaymentService.generateTransactionId(payment.id);
-    doc.fillColor(textDark).font(fontBold).fontSize(8.5).text(`Txn ID: ${txnId}`, rightColX + 10, curY + 25, { width: colW - 20, lineBreak: false });
+    doc.fillColor(textDark).font(fontBold).fontSize(9).text(`Txn ID: ${txnId}`, rightColX + 10, curY + 25, { width: colW - 20, lineBreak: false });
     const methodUpper = String(payment.payment_method || 'UPI').toUpperCase();
     const methodDetail = payment.payment_method_details ? ` (${payment.payment_method_details})` : '';
-    doc.fillColor(textBody).font(fontRegular).fontSize(7.5).text(`Method: ${methodUpper}${methodDetail}`, rightColX + 10, curY + 38);
-    doc.fillColor(textBody).font(fontRegular).fontSize(7.5).text(`Paid At: ${formatIST(payment.paid_at || payment.created_at)}`, rightColX + 10, curY + 49);
+    doc.fillColor(textBody).font(fontRegular).fontSize(7.5).text(`Method: ${methodUpper}${methodDetail}`, rightColX + 10, curY + 39);
+
+    if (payment.upi_ref_no) {
+      doc.fillColor(brandDark).font(fontMedium).fontSize(7.5).text(`UTR / Bank Ref: ${payment.upi_ref_no}`, rightColX + 10, curY + 52);
+    } else if (statusStr === 'PENDING') {
+      doc.fillColor('#B45309').font(fontMedium).fontSize(7.5).text('Status: Pending Realization / Payment', rightColX + 10, curY + 52);
+    } else {
+      doc.fillColor(textMuted).font(fontRegular).fontSize(7.5).text('Reference: Recorded via System', rightColX + 10, curY + 52);
+    }
+
+    const paidDateStr = payment.paid_at ? `Paid At: ${formatIST(payment.paid_at)}` : (payment.due_date ? `Due Date: ${formatIST(payment.due_date)}` : '-');
+    doc.fillColor(textBody).font(fontRegular).fontSize(7.5).text(paidDateStr, rightColX + 10, curY + 65);
 
     const periodStr = (payment.billing_period?.start && payment.billing_period?.end)
       ? `${formatShortDate(payment.billing_period.start)} - ${formatShortDate(payment.billing_period.end)}`
       : (payment.due_date ? `Due: ${formatShortDate(payment.due_date)}` : '-');
-    doc.fillColor(textMuted).font(fontRegular).fontSize(7.5).text(`Period: ${periodStr}`, rightColX + 10, curY + 61);
-    if (payment.upi_id) {
-      doc.fillColor(textMuted).font(fontRegular).fontSize(7).text(`UPI Payee: ${payment.upi_id}`, rightColX + 10, curY + 73);
-    }
+    doc.fillColor(textMuted).font(fontRegular).fontSize(7).text(`Billing Period: ${periodStr}`, rightColX + 10, curY + 77);
 
     // 3. Particulars / Itemized Charges Table
-    const tableY = curY + colH + 16;
+    const tableY = curY + colH + 14;
     const tableHeaderH = 22;
-    const tblColWidths = [35, 235, 125, 120];
+    const tblColWidths = [32, 219, 86, 98, 88];
     const tblColX = [
       startX,
       startX + tblColWidths[0],
       startX + tblColWidths[0] + tblColWidths[1],
       startX + tblColWidths[0] + tblColWidths[1] + tblColWidths[2],
+      startX + tblColWidths[0] + tblColWidths[1] + tblColWidths[2] + tblColWidths[3],
     ];
 
     // Table Header Bar
@@ -1315,20 +1453,30 @@ class PaymentService {
     doc.fillColor('#FFFFFF').font(fontBold).fontSize(7.5);
     doc.text('Sr.', tblColX[0], tableY + 6.5, { width: tblColWidths[0], align: 'center' });
     doc.text('Particulars / Description', tblColX[1] + 6, tableY + 6.5, { width: tblColWidths[1] - 12, align: 'left' });
-    doc.text('Billing Period', tblColX[2], tableY + 6.5, { width: tblColWidths[2], align: 'center' });
-    doc.text('Amount (INR)', tblColX[3] - 8, tableY + 6.5, { width: tblColWidths[3], align: 'right' });
+    doc.text('Category', tblColX[2], tableY + 6.5, { width: tblColWidths[2], align: 'center' });
+    doc.text('Billing Period / Tenure', tblColX[3], tableY + 6.5, { width: tblColWidths[3], align: 'center' });
+    doc.text('Amount (INR)', tblColX[4] - 8, tableY + 6.5, { width: tblColWidths[4], align: 'right' });
 
     // Itemized Rows from breakdown
+    const periodDisplay = (payment.billing_period?.start && payment.billing_period?.end)
+      ? `${formatShortDate(payment.billing_period.start)} - ${formatShortDate(payment.billing_period.end)}`
+      : (payment.due_date ? `Due: ${formatShortDate(payment.due_date)}` : '-');
+
     const items = [];
     const b = payment.breakdown || {};
-    if (b.rent > 0) items.push({ desc: 'Room Accommodation & Monthly Rent', period: periodStr, amount: b.rent });
-    if (b.security_deposit > 0 || b.deposit > 0) items.push({ desc: 'Refundable Security Deposit', period: 'One-Time Deposit', amount: b.security_deposit || b.deposit });
-    if (b.maintenance > 0) items.push({ desc: 'Facility Maintenance & Society Charges', period: periodStr, amount: b.maintenance });
-    if (b.electricity > 0) items.push({ desc: 'Electricity & Utility Charges', period: periodStr, amount: b.electricity });
-    if (b.other > 0) items.push({ desc: 'Other Amenities / Miscellaneous Charges', period: periodStr, amount: b.other });
+    if (b.rent > 0) items.push({ desc: 'Room Accommodation & Monthly Rent', cat: 'Room Rent', period: periodDisplay, amount: b.rent });
+    if (b.security_deposit > 0 || b.deposit > 0) items.push({ desc: 'Refundable Security Deposit', cat: 'Security Deposit', period: 'One-Time Deposit', amount: b.security_deposit || b.deposit });
+    if (b.maintenance > 0) items.push({ desc: 'Facility Maintenance & Society Charges', cat: 'Maintenance', period: periodDisplay, amount: b.maintenance });
+    if (b.electricity > 0) items.push({ desc: 'Electricity & Utility Charges', cat: 'Electricity', period: periodDisplay, amount: b.electricity });
+    if (b.other > 0) items.push({ desc: 'Other Amenities / Miscellaneous Charges', cat: 'Amenities', period: periodDisplay, amount: b.other });
 
     if (items.length === 0) {
-      items.push({ desc: payment.title || 'Accommodation Fee Payment', period: periodStr, amount: payment.amount });
+      let defaultCat = String(payment.payment_type || 'General').toUpperCase();
+      if (defaultCat === 'ELECTRICITY') defaultCat = 'Electricity';
+      else if (defaultCat === 'RENT') defaultCat = 'Room Rent';
+      else if (defaultCat === 'DEPOSIT') defaultCat = 'Security Deposit';
+      else if (defaultCat === 'MAINTENANCE') defaultCat = 'Maintenance';
+      items.push({ desc: payment.title || 'Accommodation Fee Payment', cat: defaultCat, period: periodDisplay, amount: payment.amount });
     }
 
     let rowY = tableY + tableHeaderH;
@@ -1343,72 +1491,153 @@ class PaymentService {
       doc.fillColor(textDark).font(fontRegular).fontSize(7.5);
       doc.text(String(idx + 1), tblColX[0], rowY + 7.5, { width: tblColWidths[0], align: 'center' });
       doc.font(fontMedium).text(it.desc, tblColX[1] + 6, rowY + 7.5, { width: tblColWidths[1] - 12, align: 'left' });
-      doc.font(fontRegular).fillColor(textMuted).text(it.period, tblColX[2], rowY + 7.5, { width: tblColWidths[2], align: 'center' });
-      doc.font(fontBold).fillColor(textDark).text(fmtCurr(it.amount), tblColX[3] - 8, rowY + 7.5, { width: tblColWidths[3], align: 'right' });
+      doc.font(fontRegular).fillColor(brandDark).text(it.cat || 'General', tblColX[2], rowY + 7.5, { width: tblColWidths[2], align: 'center' });
+      doc.font(fontRegular).fillColor(textMuted).text(it.period, tblColX[3], rowY + 7.5, { width: tblColWidths[3], align: 'center' });
+      doc.font(fontBold).fillColor(textDark).text(fmtCurr(it.amount), tblColX[4] - 8, rowY + 7.5, { width: tblColWidths[4], align: 'right' });
 
       rowY += rowH;
     });
 
-    // 4. Amount in Words + Financial Summary (Clean Slip Style)
-    const summaryY = rowY + 16;
-    const wordsW = 280;
-    const totalsW = contentW - wordsW - 15; // 220
-    const totalsX = startX + wordsW + 15;  // 335
-    const summaryBoxH = 92;
+    // 4. Financial Summary & Amount in Words (2 Clean Cards on Page 1)
+    const summaryY = rowY + 14;
+    const summaryBoxH = 104;
 
-    // Left: Amount in Words + Remarks Card
+    const isPaid = String(payment.status || '').toLowerCase() === 'paid';
+    const totalAmount = Number(payment.amount) || 0;
+    let paidAmount = Number(payment.paid_amount) || 0;
+    if (isPaid && paidAmount <= 0) {
+      paidAmount = totalAmount;
+    }
+    const balance = isPaid ? 0 : Math.max(0, totalAmount - paidAmount);
+
+    const wordsW = 320;
+    const totalsW = contentW - wordsW - 15; // 188
+    const totalsX = startX + wordsW + 15;
+
+    // Card 1: Words & Remarks
     doc.roundedRect(startX, summaryY, wordsW, summaryBoxH, 4).strokeColor(borderSubtle).lineWidth(0.75).stroke();
-    doc.fillColor(textMuted).font(fontBold).fontSize(7).text('AMOUNT IN WORDS', startX + 10, summaryY + 8);
-    doc.fillColor(brandDark).font(fontBold).fontSize(8.5).text(PaymentService.numberToWordsINR(payment.amount), startX + 10, summaryY + 20, { width: wordsW - 20 });
+    doc.roundedRect(startX, summaryY, wordsW, 18, 4).fill('#F8FAFC');
+    doc.fillColor(brandDark).font(fontBold).fontSize(6.8).text('AMOUNT IN WORDS', startX + 10, summaryY + 5.5);
+    doc.moveTo(startX, summaryY + 18).lineTo(startX + wordsW, summaryY + 18).strokeColor(borderSubtle).lineWidth(0.5).stroke();
 
-    doc.moveTo(startX + 10, summaryY + 46).lineTo(startX + wordsW - 10, summaryY + 46).strokeColor(borderSubtle).lineWidth(0.5).stroke();
-    doc.fillColor(textMuted).font(fontBold).fontSize(7).text('REMARKS / PAYMENT NOTES', startX + 10, summaryY + 52);
-    const notesText = payment.notes || 'Full accommodation fee received in good order. Thank you for your payment.';
-    doc.fillColor(textBody).font(fontRegular).fontSize(7).text(notesText, startX + 10, summaryY + 64, { width: wordsW - 20, lineBreak: false });
+    doc.fillColor(brandDark).font(fontBold).fontSize(8).text(PaymentService.numberToWordsINR(payment.amount), startX + 10, summaryY + 24, { width: wordsW - 20 });
 
-    // Right: Financial Summary Card
+    doc.moveTo(startX + 10, summaryY + 52).lineTo(startX + wordsW - 10, summaryY + 52).strokeColor(borderSubtle).lineWidth(0.5).stroke();
+    doc.fillColor(textMuted).font(fontBold).fontSize(6.5).text('REMARKS / PAYMENT NOTES', startX + 10, summaryY + 58);
+    const notesText = payment.notes || 'Total onboarding dues and accommodation fees recorded in good order.';
+    doc.fillColor(textBody).font(fontRegular).fontSize(7).text(notesText, startX + 10, summaryY + 68, { width: wordsW - 20, lineBreak: false });
+
+    if (hasProofImage) {
+      doc.fillColor(brandDark).font(fontMedium).fontSize(6.5).text('Attached Payment Proof: See Page 2 for full-size document', startX + 10, summaryY + summaryBoxH - 14, { width: wordsW - 20 });
+    }
+
+    // Card 2: Financial Summary Card (Even spacing, NO Subtotal)
     doc.roundedRect(totalsX, summaryY, totalsW, summaryBoxH, 4).strokeColor(borderSubtle).lineWidth(0.75).stroke();
+    doc.roundedRect(totalsX, summaryY, totalsW, 18, 4).fill('#F8FAFC');
+    doc.fillColor(brandDark).font(fontBold).fontSize(6.8).text('FINANCIAL SUMMARY', totalsX + 10, summaryY + 5.5);
+    doc.moveTo(totalsX, summaryY + 18).lineTo(totalsX + totalsW, summaryY + 18).strokeColor(borderSubtle).lineWidth(0.5).stroke();
 
-    let totLineY = summaryY + 9;
+    let totLineY = summaryY + 26;
     const drawTotalLine = (label, value, isBold = false, valColor = textDark, fontSize = 8) => {
-      doc.fillColor(textMuted).font(isBold ? fontBold : fontRegular).fontSize(fontSize).text(label, totalsX + 10, totLineY, { width: 90 });
-      doc.fillColor(valColor).font(isBold ? fontBold : fontRegular).fontSize(fontSize).text(`INR  ${value}`, totalsX + 100, totLineY, { width: totalsW - 110, align: 'right' });
-      totLineY += 16;
+      doc.fillColor(textMuted).font(isBold ? fontBold : fontRegular).fontSize(fontSize).text(label, totalsX + 10, totLineY, { width: 80 });
+      doc.fillColor(valColor).font(isBold ? fontBold : fontRegular).fontSize(fontSize).text(`INR  ${value}`, totalsX + 82, totLineY, { width: totalsW - 92, align: 'right' });
+      totLineY += 19;
     };
 
-    drawTotalLine('Subtotal:', fmtCurr(payment.amount));
-    drawTotalLine('Total Amount:', fmtCurr(payment.amount), true, textDark, 8.5);
-    doc.moveTo(totalsX + 10, totLineY - 2).lineTo(totalsX + totalsW - 10, totLineY - 2).strokeColor(borderSubtle).lineWidth(0.5).stroke();
-    drawTotalLine('Amount Paid:', fmtCurr(payment.paid_amount), true, '#15803D', 8.5);
+    drawTotalLine('Total Amount:', fmtCurr(totalAmount), true, textDark, 8.5);
+    doc.moveTo(totalsX + 10, totLineY - 4).lineTo(totalsX + totalsW - 10, totLineY - 4).strokeColor(borderSubtle).lineWidth(0.5).stroke();
+    drawTotalLine('Amount Paid:', fmtCurr(paidAmount), true, '#15803D', 8.5);
 
-    const balance = Math.max(0, payment.amount - payment.paid_amount);
     const balColor = balance > 0 ? '#DC2626' : '#15803D';
-    drawTotalLine('Balance Due:', fmtCurr(balance), true, balColor, 8);
+    drawTotalLine('Balance Due:', fmtCurr(balance), true, balColor, 8.5);
 
-    // 5. Dual Signatures Section (Clean, standard payment slip signatures)
-    const sigY = summaryY + summaryBoxH + 45;
-    const sigLineW = 180;
+    // Bottom verification pill
+    const pillY = summaryY + summaryBoxH - 17;
+    if (isPaid) {
+      doc.roundedRect(totalsX + 10, pillY, totalsW - 20, 12, 2).fill('#DCFCE7');
+      doc.fillColor('#15803D').font(fontBold).fontSize(6).text('PAID IN FULL • VERIFIED', totalsX + 10, pillY + 3, { width: totalsW - 20, align: 'center', lineBreak: false });
+    } else {
+      doc.roundedRect(totalsX + 10, pillY, totalsW - 20, 12, 2).fill('#FEF3C7');
+      doc.fillColor('#B45309').font(fontBold).fontSize(6).text('PAYMENT PENDING', totalsX + 10, pillY + 3, { width: totalsW - 20, align: 'center', lineBreak: false });
+    }
 
-    // Left Signature: Resident / Payer Signature
-    const residentSigX = startX + 10;
-    doc.moveTo(residentSigX, sigY).lineTo(residentSigX + sigLineW, sigY).strokeColor(borderSubtle).lineWidth(0.75).stroke();
-    doc.fillColor(textBody).font(fontMedium).fontSize(8).text("Resident's Signature", residentSigX, sigY + 6, { width: sigLineW, align: 'center' });
+    // 5. Terms & Conditions / Important Notes (Set on end of Page 1)
+    const termsH = 78;
+    const termsY = Math.max(summaryY + summaryBoxH + 20, 680);
+    doc.roundedRect(startX, termsY, contentW, termsH, 4).fillAndStroke('#F8FAFC', borderSubtle);
 
-    // Right Signature: Authorized Signatory
-    const authSigX = rightEdge - sigLineW - 10;
-    doc.moveTo(authSigX, sigY).lineTo(authSigX + sigLineW, sigY).strokeColor(borderSubtle).lineWidth(0.75).stroke();
-    doc.fillColor(textDark).font(fontBold).fontSize(8).text('Authorized Signatory', authSigX, sigY + 6, { width: sigLineW, align: 'center' });
-    doc.fillColor(textMuted).font(fontRegular).fontSize(7).text(`For ${pgName}`, authSigX, sigY + 18, { width: sigLineW, align: 'center', lineBreak: false });
+    doc.fillColor(brandDark).font(fontBold).fontSize(7).text('TERMS & CONDITIONS / IMPORTANT NOTES', startX + 10, termsY + 6.5);
 
-    // 6. Computer Generated Disclaimer Notice
-    const disclaimerY = sigY + 45;
-    doc.fillColor(textMuted).font(fontRegular).fontSize(7).text('This is a computer-generated payment receipt and does not require a physical signature.', startX, disclaimerY, { width: contentW, align: 'center', lineBreak: false });
+    const terms = [
+      '1. Payment Realization: Payments made via UPI, Bank Transfer, or Cheque are subject to actual realization in bank accounts.',
+      '2. Monthly Rent Cycle: Accommodation rent is payable in advance on or before the designated monthly due date.',
+      '3. Security Deposit: Refundable deposit is governed by the tenancy agreement, subject to room inspection and clearing of utility dues.',
+      '4. House Rules & Notice: Residents must comply with PG guidelines and provide designated notice period prior to checkout.',
+      `5. Support & Inquiries: Retain this receipt for stay records. For questions regarding this receipt, contact ${pg?.email || 'property administration'}.`,
+    ];
 
-    // 7. Footer Bar
-    const footerY = 770;
-    doc.moveTo(startX, footerY).lineTo(rightEdge, footerY).strokeColor(borderSubtle).lineWidth(0.5).stroke();
-    doc.fillColor(textMuted).font(fontRegular).fontSize(6.5).text('HomeNest Property Management • Official Payment Slip', startX, footerY + 6, { lineBreak: false });
-    doc.text(`Generated on: ${moment().format('DD/MM/YYYY, hh:mm A')} IST  •  Page 1 of 1`, startX, footerY + 6, { width: contentW, align: 'right', lineBreak: false });
+    let tY = termsY + 18;
+    terms.forEach(t => {
+      doc.fillColor(textBody).font(fontRegular).fontSize(6.2).text(t, startX + 10, tY, { width: contentW - 20, lineBreak: false });
+      tY += 11.5;
+    });
+
+    // 6. Optional Page 2: Dedicated Full-Resolution Attached Payment Proof Image
+    if (hasProofImage) {
+      doc.addPage();
+
+      // Top Teal Accent Bar on Page 2
+      doc.rect(0, 0, 595.28, 4.5).fill(brandPrimary);
+
+      const p2CurY = 28;
+      doc.fillColor(textDark).font(fontBold).fontSize(13.5).text('PAYMENT PROOF ATTACHMENT', startX, p2CurY);
+      doc.fillColor(brandPrimary).font(fontMedium).fontSize(8).text(
+        `Receipt #: ${receipt_no}   •   Txn ID: ${txnId}   •   Resident: ${resident.name || 'Resident'}   •   Amount: INR ${fmtCurr(payment.amount)}`,
+        startX,
+        p2CurY + 17
+      );
+      doc.moveTo(startX, p2CurY + 31).lineTo(rightEdge, p2CurY + 31).strokeColor(borderSubtle).lineWidth(0.75).stroke();
+
+      const imgBoxY = p2CurY + 38;
+      const imgBoxH = 694;
+      doc.roundedRect(startX, imgBoxY, contentW, imgBoxH, 4).fillAndStroke('#FAFAFA', borderSubtle);
+
+      try {
+        doc.image(paymentImgPath, startX + 10, imgBoxY + 12, {
+          fit: [contentW - 20, imgBoxH - 34],
+          align: 'center',
+          valign: 'center',
+        });
+        doc.fillColor(textMuted).font(fontRegular).fontSize(6.5).text(
+          `Original Payment Proof Attachment  •  Transaction ID: ${txnId}`,
+          startX,
+          imgBoxY + imgBoxH - 14,
+          { width: contentW, align: 'center' }
+        );
+      } catch (e) {
+        doc.fillColor(textMuted).font(fontRegular).fontSize(8).text('Payment proof image could not be loaded', startX, imgBoxY + 100, { width: contentW, align: 'center' });
+      }
+    }
+
+    // 7. Clean Minimal Footer on All Pages (No receipt ID, no branch, no generated timestamp)
+    const range = doc.bufferedPageRange();
+    for (let i = 0; i < range.count; i++) {
+      doc.switchToPage(i);
+      const footerY = 780;
+      doc.moveTo(startX, footerY).lineTo(rightEdge, footerY).strokeColor(borderSubtle).lineWidth(0.5).stroke();
+      doc.fillColor(textMuted).font(fontRegular).fontSize(7).text(
+        'HomeNest Property Management Platform',
+        startX,
+        footerY + 6,
+        { lineBreak: false }
+      );
+      doc.text(
+        `Page ${i + 1} of ${range.count}`,
+        startX,
+        footerY + 6,
+        { width: contentW, align: 'right', lineBreak: false }
+      );
+    }
 
     doc.end();
 
@@ -1431,7 +1660,6 @@ class PaymentService {
     };
   };
 
-
   /**
    * Retrieve unified KPI statistics for payments (Revenue, Transactions, Collections, Pending, Overdue, Refunds)
    * Serves both Payment Overview and Payment History screens with a single high-performance aggregation query.
@@ -1445,6 +1673,9 @@ class PaymentService {
       .whereNull('payments.deleted_at')
       .join('pgs', (join) => {
         join.on('payments.pg_id', '=', 'pgs.id').andOnNull('pgs.deleted_at');
+      })
+      .leftJoin('branches', (join) => {
+        join.on('payments.branch_id', '=', 'branches.id').andOnNull('branches.deleted_at');
       })
       .leftJoin('resident_pg_stays as stay', (join) => {
         join.on('payments.stay_id', '=', 'stay.id').andOnNull('stay.deleted_at');
@@ -1467,7 +1698,7 @@ class PaymentService {
     const [row] = await base_query.select(
       db.raw('COUNT(payments.id) as total_transactions'),
       db.raw('COALESCE(SUM(payments.amount), 0) as total_revenue'),
-      db.raw("COALESCE(SUM(CASE WHEN payments.status = 'paid' THEN payments.paid_amount ELSE 0 END), 0) as collected"),
+      db.raw("COALESCE(SUM(CASE WHEN payments.status = 'paid' THEN CASE WHEN payments.paid_amount > 0 THEN payments.paid_amount ELSE payments.amount END ELSE 0 END), 0) as collected"),
       db.raw("COALESCE(SUM(CASE WHEN payments.status = 'pending' THEN payments.amount ELSE 0 END), 0) as pending_dues"),
       db.raw("COALESCE(SUM(CASE WHEN payments.status = 'overdue' THEN payments.amount ELSE 0 END), 0) as overdue"),
       db.raw("COALESCE(SUM(CASE WHEN payments.status IN ('pending', 'overdue') THEN payments.amount ELSE 0 END), 0) as total_pending"),
@@ -1620,6 +1851,9 @@ class PaymentService {
       .join('pgs', (join) => {
         join.on('payments.pg_id', '=', 'pgs.id').andOnNull('pgs.deleted_at');
       })
+      .leftJoin('branches', (join) => {
+        join.on('payments.branch_id', '=', 'branches.id').andOnNull('branches.deleted_at');
+      })
       .leftJoin('resident_pg_stays as stay', (join) => {
         join.on('payments.stay_id', '=', 'stay.id').andOnNull('stay.deleted_at');
       })
@@ -1767,7 +2001,16 @@ class PaymentService {
     const receipt_no = targetStatus === 'paid'
       ? (payment.receipt_no || `RCPT-${moment().format('YYYY')}-${String(payment.id).padStart(4, '0')}`)
       : (payment.receipt_no || null);
-    const paid_amount = Number(payload.paid_amount || payment.paid_amount || payment.amount || 0);
+
+    let paid_amount = 0;
+    if (payload.paid_amount !== undefined && payload.paid_amount !== null && payload.paid_amount !== '' && Number(payload.paid_amount) > 0) {
+      paid_amount = Number(payload.paid_amount);
+    } else if (Number(payment.paid_amount) > 0) {
+      paid_amount = Number(payment.paid_amount);
+    } else {
+      paid_amount = Number(payment.amount) || 0;
+    }
+
     const payment_method = payload.payment_method ? payload.payment_method.toLowerCase().trim() : (payment.payment_method || 'upi');
     const payment_method_details = payment_method === 'upi' ? 'UPI' : (payment.payment_method_details || payment_method);
     const note = payload.note !== undefined ? payload.note : (payload.notes !== undefined ? payload.notes : null);
@@ -1879,10 +2122,12 @@ class PaymentService {
     if (newStatus === 'paid') {
       updatePayload.paid_at = payment.paid_at || db.fn.now();
       updatePayload.receipt_no = payment.receipt_no || `RCPT-${moment().format('YYYY')}-${String(payment.id).padStart(4, '0')}`;
-      if (data.paid_amount !== undefined) {
+      if (data.paid_amount !== undefined && data.paid_amount !== null && data.paid_amount !== '' && Number(data.paid_amount) > 0) {
         updatePayload.paid_amount = Number(data.paid_amount);
-      } else if (!payment.paid_amount) {
-        updatePayload.paid_amount = Number(payment.amount);
+      } else if (Number(payment.paid_amount) > 0) {
+        updatePayload.paid_amount = Number(payment.paid_amount);
+      } else {
+        updatePayload.paid_amount = Number(payment.amount) || 0;
       }
       if (data.payment_method) {
         updatePayload.payment_method = data.payment_method;
@@ -2164,7 +2409,20 @@ class PaymentService {
     if (billing_period_end !== undefined) updatePayload.billing_period_end = billing_period_end || null;
     if (due_date !== undefined) updatePayload.due_date = due_date || null;
     if (notes !== undefined) updatePayload.notes = notes;
-    if (status !== undefined) updatePayload.status = status;
+    if (status !== undefined) {
+      updatePayload.status = status;
+      if (status === 'paid') {
+        if (!existing.paid_at) updatePayload.paid_at = db.fn.now();
+        if (!existing.receipt_no) {
+          updatePayload.receipt_no = `RCPT-${moment().format('YYYY')}-${String(existing.id).padStart(4, '0')}`;
+        }
+        if (data.paid_amount !== undefined && Number(data.paid_amount) > 0) {
+          updatePayload.paid_amount = Number(data.paid_amount);
+        } else if (Number(existing.paid_amount) <= 0) {
+          updatePayload.paid_amount = updatePayload.amount !== undefined ? updatePayload.amount : Number(existing.amount || 0);
+        }
+      }
+    }
 
     if (rent_amount !== undefined) updatePayload.rent_amount = Number(rent_amount) || 0;
     if (deposit_amount !== undefined) updatePayload.deposit_amount = Number(deposit_amount) || 0;

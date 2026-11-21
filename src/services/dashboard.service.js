@@ -205,7 +205,7 @@ class DashboardService {
     const revenueRes = await paymentsQuery.clone()
       .where('payments.created_at', '>=', currentMonthStart)
       .where('payments.status', 'paid')
-      .sum('payments.paid_amount as total_revenue')
+      .select(db.raw('COALESCE(SUM(CASE WHEN payments.paid_amount > 0 THEN payments.paid_amount ELSE payments.amount END), 0) as total_revenue'))
       .first();
 
     const monthlyRevenue = parseFloat(revenueRes?.total_revenue || 0);
@@ -214,7 +214,7 @@ class DashboardService {
       .where('payments.created_at', '>=', lastMonthStart)
       .where('payments.created_at', '<=', lastMonthEnd)
       .where('payments.status', 'paid')
-      .sum('payments.paid_amount as total_revenue')
+      .select(db.raw('COALESCE(SUM(CASE WHEN payments.paid_amount > 0 THEN payments.paid_amount ELSE payments.amount END), 0) as total_revenue'))
       .first();
 
     const lastMonthlyRevenue = parseFloat(lastRevenueRes?.total_revenue || 0);
@@ -352,6 +352,7 @@ class DashboardService {
       .select(
         'payments.id',
         'payments.receipt_no',
+        'payments.amount',
         'payments.paid_amount',
         'payments.created_at',
         'rooms.room_no'
@@ -360,11 +361,12 @@ class DashboardService {
       .limit(2);
 
     recentPayments.forEach((p) => {
+      const displayAmount = Number(p.paid_amount) > 0 ? p.paid_amount : p.amount;
       activityItems.push({
         id: `payment-${p.id}`,
         type: 'payment',
         title: 'Payment Received',
-        subtitle: `${this.formatINR(p.paid_amount)}${p.room_no ? `, Room ${p.room_no}` : ''}`,
+        subtitle: `${this.formatINR(displayAmount)}${p.room_no ? `, Room ${p.room_no}` : ''}`,
         time_ago: this.formatTimeAgo(p.created_at),
         created_at: p.created_at,
       });

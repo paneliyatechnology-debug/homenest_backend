@@ -420,6 +420,7 @@ const formatUserListItem = (user) => {
     deleted_at: user.deleted_at || null,
     role: user.role || ROLES.RESIDENT,
     branch_id: user.branch_id ? Number(user.branch_id) : null,
+    branch_name: user.branch_name || null,
     building_id: user.building_id ? Number(user.building_id) : null,
     subscription_plan: user.subscription_plan_id ? {
       id: Number(user.subscription_plan_id),
@@ -453,6 +454,7 @@ class UserService {
     'users.updated_at',
     'users.deleted_at',
     'resident_pg_stays.branch_id',
+    'branches.name as branch_name',
     'resident_pg_stays.room_id',
     'rooms.room_no',
     'rooms.room_type',
@@ -1020,6 +1022,11 @@ class UserService {
           .on('resident_pg_stays.pg_id', '=', 'pgs.id')
           .andOnNull('pgs.deleted_at');
       })
+      .leftJoin('branches', (join) => {
+        join
+          .on('resident_pg_stays.branch_id', '=', 'branches.id')
+          .andOnNull('branches.deleted_at');
+      })
       .leftJoin('rooms', (join) => {
         join
           .on('resident_pg_stays.room_id', '=', 'rooms.id')
@@ -1054,6 +1061,11 @@ class UserService {
         join
           .on('resident_pg_stays.pg_id', '=', 'pgs.id')
           .andOnNull('pgs.deleted_at');
+      })
+      .leftJoin('branches', (join) => {
+        join
+          .on('resident_pg_stays.branch_id', '=', 'branches.id')
+          .andOnNull('branches.deleted_at');
       })
       .leftJoin('rooms', (join) => {
         join
@@ -1641,6 +1653,11 @@ class UserService {
         join
           .on('resident_pg_stays.pg_id', '=', 'pgs.id')
           .andOnNull('pgs.deleted_at');
+      })
+      .leftJoin('branches', (join) => {
+        join
+          .on('resident_pg_stays.branch_id', '=', 'branches.id')
+          .andOnNull('branches.deleted_at');
       })
       .leftJoin('rooms', (join) => {
         join
