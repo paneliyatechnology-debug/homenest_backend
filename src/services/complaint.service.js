@@ -1,3 +1,4 @@
+import path from 'path';
 import moment from 'moment';
 import db from '../config/db.js';
 import { AppError } from '../utils/apiResponse.js';
@@ -5,6 +6,36 @@ import { HTTP_STATUS, ROLES, AUDIT_MODULES, AUDIT_ACTIONS } from '../constants/i
 import { buildFileUrl } from '../utils/url.js';
 import socketService, { SOCKET_EVENTS } from './socket.service.js';
 import auditService from './audit.service.js';
+
+const resolveAttachmentFileType = (file) => {
+  if (file.mimetype && file.mimetype !== 'application/octet-stream') {
+    return file.mimetype;
+  }
+  const ext = path.extname(file.originalname || file.filename || '').toLowerCase();
+  const mimeMap = {
+    '.mp4': 'video/mp4',
+    '.mov': 'video/quicktime',
+    '.webm': 'video/webm',
+    '.3gp': 'video/3gpp',
+    '.m4v': 'video/x-m4v',
+    '.avi': 'video/x-msvideo',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.webp': 'image/webp',
+    '.pdf': 'application/pdf',
+  };
+  return mimeMap[ext] || file.mimetype || 'application/octet-stream';
+};
+
+const isVideoAttachment = (fileType, fileName) => {
+  const type = (fileType || '').toLowerCase();
+  const name = (fileName || '').toLowerCase();
+  return (
+    type.startsWith('video/') ||
+    /\.(mp4|mov|webm|3gp|m4v|avi|mpg|mpeg)$/i.test(name)
+  );
+};
 
 class ComplaintService {
   /**
@@ -275,7 +306,7 @@ class ComplaintService {
           complaint_id: newId,
           file_name: file.filename,
           file_url: buildFileUrl('complaints', file.filename),
-          file_type: file.mimetype,
+          file_type: resolveAttachmentFileType(file),
           file_size: file.size,
         }));
         await trx('complaint_attachments').insert(attachmentRecords);
@@ -450,6 +481,8 @@ class ComplaintService {
           file_name: att.file_name,
           file_url: buildFileUrl('complaints', att.file_name),
           file_type: att.file_type,
+          file_size: att.file_size,
+          is_video: isVideoAttachment(att.file_type, att.file_name),
         });
       });
     }
@@ -619,6 +652,7 @@ class ComplaintService {
         file_url: buildFileUrl('complaints', att.file_name),
         file_type: att.file_type,
         file_size: att.file_size,
+        is_video: isVideoAttachment(att.file_type, att.file_name),
         created_at: att.created_at,
       })),
       timeline: historyRows.map((h) => ({
@@ -925,7 +959,7 @@ class ComplaintService {
           complaint_id: id,
           file_name: file.filename,
           file_url: buildFileUrl('complaints', file.filename),
-          file_type: file.mimetype,
+          file_type: resolveAttachmentFileType(file),
           file_size: file.size,
         }));
         await trx('complaint_attachments').insert(attachmentRecords);

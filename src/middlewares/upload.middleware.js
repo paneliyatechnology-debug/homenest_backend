@@ -104,6 +104,48 @@ const noticeMimetypes = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ];
 
+const complaintImageMimetypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+const complaintVideoMimetypes = [
+  'video/mp4',
+  'video/quicktime',
+  'video/webm',
+  'video/3gpp',
+  'video/mpeg',
+  'video/x-m4v',
+  'video/avi',
+  'video/x-msvideo',
+];
+const complaintAllowedExtensions = [
+  '.jpg', '.jpeg', '.png', '.webp',
+  '.mp4', '.mov', '.webm', '.3gp', '.m4v', '.mpeg', '.mpg', '.avi'
+];
+
+const MAX_COMPLAINT_FILE_SIZE = 50 * 1024 * 1024; // 50MB (supports HD MP4 videos and images)
+
+const complaintFilter = (req, file, cb) => {
+  const mimetype = (file.mimetype || '').toLowerCase();
+  const ext = path.extname(file.originalname || '').toLowerCase();
+
+  const isAllowedMime =
+    complaintImageMimetypes.includes(mimetype) ||
+    complaintVideoMimetypes.includes(mimetype) ||
+    mimetype.startsWith('video/') ||
+    mimetype.startsWith('image/');
+  const isAllowedExt = complaintAllowedExtensions.includes(ext);
+
+  if (isAllowedMime || isAllowedExt) {
+    cb(null, true);
+  } else {
+    cb(
+      new AppError(
+        'Invalid file type. Only JPG, PNG, WebP images and MP4, WebM, MOV videos are allowed (max 50MB)',
+        HTTP_STATUS.BAD_REQUEST
+      ),
+      false
+    );
+  }
+};
+
 const fileFilter = (req, file, cb) => {
   if (imageMimetypes.includes(file.mimetype.toLowerCase())) {
     cb(null, true);
@@ -203,8 +245,8 @@ const upload_food_feedback = multer({
 // Complaints
 const upload_complaints = multer({
   storage: createDiskStorage(complaints_upload_dir, 'complaint'),
-  fileFilter,
-  limits: { fileSize: MAX_FILE_SIZE },
+  fileFilter: complaintFilter,
+  limits: { fileSize: MAX_COMPLAINT_FILE_SIZE },
 });
 
 // Notices
@@ -373,21 +415,36 @@ export const handleComplaintAttachmentsUpload = (req, res, next) => {
   }
   upload_complaints.fields([
     { name: 'attachments', maxCount: 5 },
+    { name: 'attachment', maxCount: 5 },
+    { name: 'videos', maxCount: 5 },
+    { name: 'video', maxCount: 5 },
     { name: 'images', maxCount: 5 },
+    { name: 'image', maxCount: 5 },
     { name: 'photos', maxCount: 5 },
+    { name: 'photo', maxCount: 5 },
   ])(req, res, (err) => {
     if (err) {
       if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
-        return next(new AppError('Attachment file size exceeds 5MB limit', HTTP_STATUS.BAD_REQUEST));
+        return next(new AppError('Attachment file size exceeds 50MB limit', HTTP_STATUS.BAD_REQUEST));
       }
       if (err instanceof multer.MulterError && err.code === 'LIMIT_UNEXPECTED_FILE') {
-        return next(new AppError('Maximum 5 attachment images allowed', HTTP_STATUS.BAD_REQUEST));
+        return next(new AppError('Maximum 5 attachment files allowed', HTTP_STATUS.BAD_REQUEST));
       }
       return next(err);
     }
-    req.filesList = req.files
-      ? [...(req.files['attachments'] || []), ...(req.files['images'] || []), ...(req.files['photos'] || [])]
-      : [];
+    const collected = [];
+    if (req.files) {
+      const fieldNames = ['attachments', 'attachment', 'videos', 'video', 'images', 'image', 'photos', 'photo'];
+      fieldNames.forEach((field) => {
+        if (Array.isArray(req.files[field])) {
+          collected.push(...req.files[field]);
+        }
+      });
+    }
+    if (collected.length > 5) {
+      return next(new AppError('Maximum 5 attachment files allowed in total', HTTP_STATUS.BAD_REQUEST));
+    }
+    req.filesList = collected;
     next();
   });
 };
